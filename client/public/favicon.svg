@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0B5CAD"/>
+      <stop offset="100%" style="stop-color:#1E88E5"/>
+    </linearGradient>
+    <linearGradient id="wd" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#21B6D7"/>
+      <stop offset="100%" style="stop-color:#0B5CAD"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="31" fill="url(#bg)" stroke="#16355C" stroke-width="2"/>
+  <path d="M32 10 C32 10 18 28 18 36 C18 43.73 24.27 50 32 50 C39.73 50 46 43.73 46 36 C46 28 32 10 32 10Z" fill="url(#wd)" opacity="0.9"/>
+  <path d="M22 38 Q26 34 30 38 Q34 42 38 38 Q42 34 44 38" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"/>
+  <text x="32" y="58" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="white" letter-spacing="1.5">HMWSSB</text>
+</svg>

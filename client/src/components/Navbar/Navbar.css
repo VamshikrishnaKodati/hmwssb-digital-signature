@@ -1,0 +1,175 @@
+.app-navbar {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+  padding: 0;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.app-navbar .navbar-brand {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.app-navbar .navbar-brand:hover {
+  color: var(--accent);
+}
+
+.navbar-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px;
+}
+
+.navbar-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brand-name {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+}
+
+.brand-subtitle {
+  font-weight: 400;
+  font-size: 0.6rem;
+  opacity: 0.8;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.app-navbar .nav-link {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-weight: 500;
+  font-size: 0.85rem;
+  padding: 16px 14px !important;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.nav-icon {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.app-navbar .nav-link:hover,
+.app-navbar .nav-link.active {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom-color: var(--accent);
+}
+
+.app-navbar .user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  color: #fff;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.app-navbar .user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--primary-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.app-navbar .user-details {
+  line-height: 1.3;
+}
+
+.app-navbar .user-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.app-navbar .user-role {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.app-navbar .logout-btn {
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  background: transparent;
+}
+
+.app-navbar .logout-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.navbar-toggler-icon {
+  filter: brightness(10);
+}
+
+@media (max-width: 991px) {
+  .navbar-logo {
+    width: 40px;
+    height: 40px;
+  }
+  .brand-name {
+    font-size: 0.95rem;
+  }
+  .brand-subtitle {
+    font-size: 0.55rem;
+  }
+  .app-navbar .navbar-brand {
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 575px) {
+  .navbar-logo {
+    width: 36px;
+    height: 36px;
+  }
+  .brand-subtitle {
+    display: none;
+  }
+  .app-navbar .user-details {
+    display: none !important;
+  }
+}
