@@ -34,7 +34,6 @@ function OTPModal({
   const [deliveryInfo, setDeliveryInfo] = useState(null);
   const [timerKey, setTimerKey] = useState(0);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [otpSent, setOtpSent] = useState(false);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -50,7 +49,6 @@ function OTPModal({
     setSuccessMessage("");
     setDeliveryInfo(null);
     setResendCooldown(0);
-    setOtpSent(false);
   };
 
   const handleClose = () => {
@@ -81,7 +79,6 @@ function OTPModal({
         resetForm();
         setTimerKey((prev) => prev + 1);
         setScreen("otp");
-        setOtpSent(true);
         setResendCooldown(RESEND_COOLDOWN_SECONDS);
         const maskedEmail = maskValue(email, 1, 4);
         const maskedMobile = maskValue(mobile, 2, 2);
@@ -163,9 +160,6 @@ function OTPModal({
       const msg = err.response?.data?.message || err.message || "Invalid or expired code.";
       setError(msg);
       setScreen("otp");
-      if (msg.includes("Maximum") || msg.includes("new OTP")) {
-        setOtpSent(false);
-      }
     } finally {
       setIsVerifying(false);
     }

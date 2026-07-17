@@ -44,7 +44,7 @@ export const useApi = (apiFunction, options = {}) => {
         abortRef.current.abort();
       }
     };
-  }, []);
+  }, [execute, immediate, params]);
 
   const reset = useCallback(() => {
     setData(null);

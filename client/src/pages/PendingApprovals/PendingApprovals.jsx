@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { estimateApi } from "../../services/api";
 import Navbar from "../../components/Navbar/Navbar";
@@ -16,14 +16,14 @@ function PendingApprovals() {
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
 
-  const statuses = role === "admin"
+  const statuses = useMemo(() => role === "admin"
     ? ["Submitted", "DGM Review", "GM Review", "OTP Pending"]
     : role === "dgm" ? ["Submitted", "DGM Review"]
     : role === "gm" ? ["GM Review"]
     : role === "ce" ? ["Submitted", "DGM Review", "GM Review"]
-    : [];
+    : [], [role]);
 
-  const loadEstimates = async () => {
+  const loadEstimates = useCallback(async () => {
     setLoading(true);
     setActionMsg("");
     setActionError("");
@@ -42,9 +42,9 @@ function PendingApprovals() {
       setEstimates(all);
       setLoading(false);
     }
-  };
+  }, [statuses]);
 
-  useEffect(() => { loadEstimates(); }, []);
+  useEffect(() => { loadEstimates(); }, [loadEstimates]);
 
   const handleAction = async (estimateId, status, comments = "") => {
     setActionMsg("");

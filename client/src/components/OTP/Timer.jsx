@@ -4,6 +4,8 @@ function Timer({ initialSeconds = 300, onExpire }) {
   const [seconds, setSeconds] = useState(initialSeconds);
   const intervalRef = useRef(null);
   const expiredRef = useRef(false);
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -12,7 +14,7 @@ function Timer({ initialSeconds = 300, onExpire }) {
           clearInterval(intervalRef.current);
           if (!expiredRef.current) {
             expiredRef.current = true;
-            onExpire?.();
+            onExpireRef.current?.();
           }
           return 0;
         }

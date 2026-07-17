@@ -9,7 +9,6 @@ function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
   const [localRows, setLocalRows] = useState([
     { material: "", description: "", n: "", l: "", b: "", d: "", qty: 0, rate: "", unit: "Nos", gst: 18, amount: 0 },
   ]);
-  const user = JSON.parse(localStorage.getItem("user") || "null");
   const activeRows = rows?.length ? rows : localRows;
   const updateRows = (nextRows) => {
     if (setRows) setRows(nextRows);
