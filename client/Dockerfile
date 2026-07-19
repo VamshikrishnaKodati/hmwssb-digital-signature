@@ -1,6 +1,4 @@
-FROM node:22-alpine AS build
-
-RUN npm install -g npm@11
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
