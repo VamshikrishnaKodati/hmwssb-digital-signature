@@ -69,6 +69,7 @@ const estimateSchema = new mongoose.Schema({
   estimateMovements: [{ type: mongoose.Schema.Types.ObjectId, ref: 'EstimateMovement' }],
   currentVersion: { type: mongoose.Schema.Types.ObjectId, ref: 'EstimateVersion' },
   locked: { type: Boolean, default: false },
+  signedPdfPath: { type: String, default: '' },
 }, {
   timestamps: true,
 });

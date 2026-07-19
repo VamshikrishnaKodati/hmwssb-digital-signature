@@ -154,6 +154,7 @@ function AbstractWorkspace() {
       const pdfBlob = await getPdfBlob();
       const url = window.URL.createObjectURL(pdfBlob);
       window.open(url, "_blank");
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch (error) {
       const msg = await getErrorMessage(error);
       toast.error("Preview failed: " + msg);

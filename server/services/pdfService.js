@@ -12,7 +12,12 @@ let _browser = null;
 
 const getBrowser = async () => {
   if (!_browser) {
-    _browser = await chromium.launch();
+    const launchOptions = {};
+    if (process.env.CHROMIUM_PATH) {
+      launchOptions.executablePath = process.env.CHROMIUM_PATH;
+    }
+    launchOptions.args = ['--no-sandbox', '--disable-setuid-sandbox'];
+    _browser = await chromium.launch(launchOptions);
     _browser.on('disconnected', () => { _browser = null; });
   }
   return _browser;

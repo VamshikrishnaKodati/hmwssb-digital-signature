@@ -72,7 +72,7 @@ function Navbar() {
                 <FaChartBar className="nav-icon" /> Reports
               </NavLink>
             </li>
-            {(role === 'dgm' || role === 'gm' || role === 'admin') && (
+            {(role === 'dgm' || role === 'gm' || role === 'ce' || role === 'admin') && (
               <li className="nav-item">
                 <NavLink className="nav-link" to="/pending-approvals">
                   <FaCheckDouble className="nav-icon" /> Approvals

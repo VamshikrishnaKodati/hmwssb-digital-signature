@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Estimate from '../models/Estimate.js';
 import AuditLog from '../models/AuditLog.js';
 import Signature from '../models/Signature.js';
@@ -175,7 +176,7 @@ export const getDashboardStats = async (req, res, next) => {
   try {
     const filter = {};
     if (req.user.role === 'manager') {
-      filter.managerId = req.user.id;
+      filter.managerId = new mongoose.Types.ObjectId(req.user.id);
     }
 
     const [totalEstimates, statusCounts, totals, recentSignatures, totalUsers] = await Promise.all([

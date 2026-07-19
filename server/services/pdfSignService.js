@@ -183,12 +183,12 @@ export const verifyPdfSignature = async (signedPdfBuffer) => {
             if (expectedDigest && digestBytes === expectedDigest) {
               signatureValid = true;
             } else {
-              signatureValid = true;
-              logger.info('PDFSign', 'Signature parsed successfully; full cryptographic verification requires signer certificate validation');
+              signatureValid = false;
+              logger.info('PDFSign', 'Digest mismatch; signature may have been tampered with');
             }
           } catch (verifyErr) {
-            signatureValid = true;
-            logger.warn('PDFSign', 'Digest comparison skipped, signature present', { error: verifyErr.message });
+            signatureValid = false;
+            logger.warn('PDFSign', 'Digest verification failed', { error: verifyErr.message });
           }
 
           try {

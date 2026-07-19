@@ -31,6 +31,7 @@ if (process.env.JWT_SECRET.length < 32) {
 
 import app from './app.js';
 import { connectDB } from './config/db.js';
+import { initRedis } from './config/redis.js';
 import { applyDatabaseOptimizations } from './config/dbOptimizations.js';
 import { seedUsers } from './controllers/authController.js';
 import { seedItems } from './controllers/itemController.js';
@@ -41,6 +42,7 @@ import logger from './utils/logger.js';
 const PORT = process.env.PORT || 5000;
 
 const start = async () => {
+  await initRedis();
   const db = await connectDB();
 
   if (db) {

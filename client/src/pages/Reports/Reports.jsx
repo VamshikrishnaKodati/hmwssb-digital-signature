@@ -20,14 +20,12 @@ function Reports() {
   }, []);
 
   const filteredZones = useMemo(() => {
-    if (!selectedFilters.region) return filters.zones;
     return filters.zones;
-  }, [filters.zones, selectedFilters.region]);
+  }, [filters.zones]);
 
   const filteredDivisions = useMemo(() => {
-    if (!selectedFilters.zone) return filters.divisions;
     return filters.divisions;
-  }, [filters.divisions, selectedFilters.zone]);
+  }, [filters.divisions]);
 
   const handleFilterChange = useCallback((key, value) => {
     setSelectedFilters((prev) => {

@@ -30,8 +30,8 @@ export const enqueueOtpDelivery = async (otpJob) => {
 const deliverOtpDirect = async (job) => {
   try {
     await Promise.allSettled([
-      job.email && sendOtpEmail(job.email, job.otp, job.estimateId),
-      job.mobile && sendOtpSms(job.mobile, job.otp, job.estimateId),
+      job.email && sendOtpEmail({ to: job.email, otp: job.otp, estimateId: job.estimateId, userName: job.actorName }),
+      job.mobile && sendOtpSms({ to: job.mobile, otp: job.otp, estimateId: job.estimateId }),
     ]);
   } catch (err) {
     logger.error('OTP', 'Direct delivery failed', { estimateId: job.estimateId, error: err.message });
@@ -53,8 +53,8 @@ export const processOtpQueue = async () => {
       logger.info('OTP Queue', `Processing job for estimate ${job.estimateId}`);
 
       const deliveryResults = await Promise.allSettled([
-        job.email && sendOtpEmail(job.email, job.otp, job.estimateId),
-        job.mobile && sendOtpSms(job.mobile, job.otp, job.estimateId),
+        job.email && sendOtpEmail({ to: job.email, otp: job.otp, estimateId: job.estimateId, userName: job.actorName }),
+        job.mobile && sendOtpSms({ to: job.mobile, otp: job.otp, estimateId: job.estimateId }),
       ]);
 
       const allFulfilled = deliveryResults.every(r => r.status === 'fulfilled');

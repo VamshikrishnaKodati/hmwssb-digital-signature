@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import { reportApi } from "../../services/api";
-import { FaFileAlt, FaClipboardList, FaChartBar, FaCogs, FaBoxes, FaCheckDouble, FaFileSignature, FaCheckCircle, FaClock, FaExclamationTriangle, FaShieldAlt } from "react-icons/fa";
+import { FaFileAlt, FaClipboardList, FaChartBar, FaBoxes, FaCheckDouble, FaFileSignature, FaCheckCircle, FaClock, FaExclamationTriangle, FaShieldAlt } from "react-icons/fa";
 import "./Dashboard.css";
 
 const LOGO_SRC = "/assets/logo/hmwssb-logo.png";
@@ -63,7 +63,6 @@ function Dashboard() {
     { title: "Item Master", desc: "Manage item catalog", icon: <FaBoxes />, color: "#7c3aed", path: "/admin/items" },
     { title: "All Estimates", desc: "Browse all estimates", icon: <FaClipboardList />, color: "#0B5CAD", path: "/estimates" },
     { title: "Reports", desc: "Generate reports and analytics", icon: <FaChartBar />, color: "#f0932b", path: "/reports" },
-    { title: "Settings", desc: "System configuration", icon: <FaCogs />, color: "#21B6D7", path: "/admin/settings" },
   ];
 
   const viewerCards = [

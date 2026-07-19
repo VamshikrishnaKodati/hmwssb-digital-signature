@@ -1,14 +1,16 @@
-FROM node:22-alpine
-
-RUN npm install -g npm@11
+FROM node:22
 
 WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends chromium && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 
 RUN npm ci --omit=dev
 
-RUN npx playwright install --with-deps chromium
+ENV CHROMIUM_PATH=/usr/bin/chromium
 
 COPY . .
 

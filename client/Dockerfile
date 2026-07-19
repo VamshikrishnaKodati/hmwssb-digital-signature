@@ -1,12 +1,12 @@
 FROM node:22-alpine AS build
 
-RUN npm install -g npm@11
+RUN corepack enable && npm install -g npm@11
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
