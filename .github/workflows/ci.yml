@@ -51,6 +51,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
       - run: npm ci
+      - name: Create .env for tests
+        run: cp .env.example .env
       - run: npm test
       - name: Upload test results
         if: always()
