@@ -8,6 +8,8 @@ COPY package*.json ./
 
 RUN npm ci --omit=dev
 
+RUN npx playwright install --with-deps chromium
+
 COPY . .
 
 RUN mkdir -p uploads keys && \

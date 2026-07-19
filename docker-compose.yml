@@ -14,6 +14,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - hmwssb-net
 
   server:
     build:
@@ -24,13 +26,26 @@ services:
     ports:
       - "5000:5000"
     env_file:
-      - path: ./server/.env
-        required: false
+      - ./server/.env
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/hmwssb
       - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/hmwssb
       - JWT_SECRET=${JWT_SECRET:-change-this-to-a-strong-secret-at-least-32-chars-long}
       - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-Admin@123456}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-HMWSSB Works Management}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_FROM=${TWILIO_FROM:-}
+      - REDIS_ENABLED=${REDIS_ENABLED:-false}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - server_uploads:/app/uploads
+      - server_keys:/app/keys
     depends_on:
       mongodb:
         condition: service_healthy
@@ -40,6 +55,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+    networks:
+      - hmwssb-net
 
   client:
     build:
@@ -52,6 +69,14 @@ services:
     depends_on:
       server:
         condition: service_healthy
+    networks:
+      - hmwssb-net
 
 volumes:
   mongodb_data:
+  server_uploads:
+  server_keys:
+
+networks:
+  hmwssb-net:
+    driver: bridge

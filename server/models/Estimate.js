@@ -42,6 +42,7 @@ const estimateSchema = new mongoose.Schema({
       'GM Review',
       'OTP Pending',
       'Digitally Signed',
+      'Hash Signed',
       'Completed',
     ],
     default: 'Draft',

@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { reportApi } from "../../services/api";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
-import { FaSearch, FaFileCsv, FaFilter } from "react-icons/fa";
+import { FaSearch, FaFileCsv, FaFileExcel, FaFilter } from "react-icons/fa";
 import { toast } from "react-toastify";
 
 const LOGO_SRC = "/assets/logo/hmwssb-logo.png";
@@ -81,6 +81,25 @@ function Reports() {
     }
   };
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const response = await reportApi.exportExcel(buildParams());
+      const blob = new Blob([response.data], { type: "application/vnd.ms-excel" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `estimates_report_${new Date().toISOString().slice(0, 10)}.xls`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Excel exported successfully");
+    } catch {
+      toast.error("Excel export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const clearFilters = () => {
     setSelectedFilters({ region: "", zone: "", division: "", status: "" });
   };
@@ -144,9 +163,14 @@ function Reports() {
               {loading ? "Loading..." : <><FaSearch style={{ marginRight: 6 }} /> Search</>}
             </button>
             {estimates.length > 0 && (
-              <button className="btn btn-outline-success" onClick={handleExportCsv} disabled={exporting}>
-                {exporting ? <><span className="spinner-border spinner-border-sm me-1" /> Exporting...</> : <><FaFileCsv className="me-1" /> Export CSV</>}
-              </button>
+              <>
+                <button className="btn btn-outline-success" onClick={handleExportCsv} disabled={exporting}>
+                  {exporting ? <><span className="spinner-border spinner-border-sm me-1" /> Exporting...</> : <><FaFileCsv className="me-1" /> Export CSV</>}
+                </button>
+                <button className="btn btn-outline-success" onClick={handleExportExcel} disabled={exporting}>
+                  {exporting ? <><span className="spinner-border spinner-border-sm me-1" /> Exporting...</> : <><FaFileExcel className="me-1" /> Export Excel</>}
+                </button>
+              </>
             )}
           </div>
         </div>

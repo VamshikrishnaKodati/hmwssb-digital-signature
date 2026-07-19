@@ -17,16 +17,17 @@ const WORKFLOW_TRANSITIONS = {
   'Reverted': ['Submitted'],
   'OTP Pending': ['Digitally Signed'],
   'Digitally Signed': ['Completed'],
+  'Hash Signed': ['Completed'],
   'Completed': [],
 };
 
 const ROLE_TRANSITIONS = {
-  admin: ['Abstract Generated', 'Submitted', 'DGM Review', 'GM Review', 'OTP Pending', 'Reverted', 'Digitally Signed', 'Completed'],
+  admin: ['Abstract Generated', 'Submitted', 'DGM Review', 'GM Review', 'OTP Pending', 'Reverted', 'Digitally Signed', 'Hash Signed', 'Completed'],
   manager: ['Abstract Generated', 'Submitted'],
   engineer: ['Abstract Generated', 'Submitted'],
-  dgm: ['DGM Review', 'GM Review', 'Reverted', 'Digitally Signed'],
-  gm: ['OTP Pending', 'Reverted', 'Digitally Signed'],
-  ce: ['DGM Review', 'GM Review', 'OTP Pending', 'Reverted', 'Digitally Signed'],
+  dgm: ['DGM Review', 'GM Review', 'Reverted', 'Digitally Signed', 'Hash Signed'],
+  gm: ['OTP Pending', 'Reverted', 'Digitally Signed', 'Hash Signed'],
+  ce: ['DGM Review', 'GM Review', 'OTP Pending', 'Reverted', 'Digitally Signed', 'Hash Signed'],
   accounts: [],
   tender: [],
   viewer: [],

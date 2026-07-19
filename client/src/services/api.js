@@ -94,6 +94,7 @@ export const reportApi = {
   getFilters: () => api.get("/reports/filters"),
   getReports: (params) => api.get("/reports", { params }),
   exportCsv: (params) => api.get("/reports/export/csv", { params, responseType: "blob" }),
+  exportExcel: (params) => api.get("/reports/export/excel", { params, responseType: "blob" }),
   getAuditLogs: (params) => api.get("/reports/audit-logs", { params }),
   getDashboardStats: () => api.get("/reports/dashboard-stats"),
 };
@@ -103,6 +104,13 @@ export const signatureApi = {
   getByEstimate: (estimateId) => api.get(`/signatures/${estimateId}`),
   getHistory: (params) => api.get("/signatures", { params }),
   revoke: (estimateId, data) => api.patch(`/signatures/${estimateId}/revoke`, data),
+};
+
+export const notificationApi = {
+  getAll: (params) => api.get("/notifications", { params }),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch("/notifications/read-all"),
+  delete: (id) => api.delete(`/notifications/${id}`),
 };
 
 export default api;

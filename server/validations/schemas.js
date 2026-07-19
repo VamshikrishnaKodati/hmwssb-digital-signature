@@ -93,7 +93,7 @@ export const updateStatusSchema = Joi.object({
   status: Joi.string().valid(
     'Draft', 'Abstract Generated', 'Submitted', 'DGM Review',
     'Reverted', 'GM Review', 'OTP Pending',
-    'Digitally Signed', 'Completed'
+    'Digitally Signed', 'Hash Signed', 'Completed'
   ).required(),
   comments: Joi.string().trim().allow('').max(1000).optional(),
 });

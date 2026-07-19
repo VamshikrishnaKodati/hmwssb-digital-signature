@@ -444,7 +444,7 @@ export const verifyOTP = async (req, res, next) => {
     sendNotification({
       userId: actorId,
       title: 'Signature Applied',
-      message: `Estimate ${estimateId} has been digitally signed successfully`,
+      message: `Estimate ${estimateId} has been ${pdfSigningSucceeded ? 'digitally signed' : 'hash-signed'} successfully`,
       type: 'success',
       link: `/estimates/${estimateId}`,
     });

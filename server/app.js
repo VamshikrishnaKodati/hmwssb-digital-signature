@@ -17,6 +17,7 @@ import hierarchyRoutes from './routes/hierarchyRoutes.js';
 import signatureRoutes from './routes/signatureRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import { getHealthStatus, getMetrics, formatPrometheus } from './services/monitoringService.js';
+import { serveOpenApiSpec } from './utils/openApiSpec.js';
 import { connectDB, getConnectionStatus } from './config/db.js';
 import logger from './utils/logger.js';
 
@@ -103,6 +104,8 @@ app.get('/api/metrics', (req, res) => {
 app.get('/api/metrics/json', (req, res) => {
   res.json(getMetrics());
 });
+
+app.get('/api/docs/openapi.json', serveOpenApiSpec);
 
 app.use('/uploads', authMiddleware, express.static(path.resolve('uploads')));
 

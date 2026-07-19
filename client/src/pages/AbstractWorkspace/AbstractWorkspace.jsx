@@ -198,7 +198,7 @@ function AbstractWorkspace() {
   const canDgmAct = (status === "DGM Review" && (role === "dgm" || role === "ce"));
   const canGmAct = (status === "GM Review" && (role === "gm" || role === "ce"));
   const canSendOtp = status === "OTP Pending" && (isOwner || role === "ce" || role === "admin");
-  const canMarkComplete = status === "Digitally Signed" && role === "admin";
+  const canMarkComplete = (status === "Digitally Signed" || status === "Hash Signed") && role === "admin";
 
   const statusColor = {
     Draft: "secondary",
@@ -208,6 +208,7 @@ function AbstractWorkspace() {
     "GM Review": "warning",
     "OTP Pending": "danger",
     "Digitally Signed": "success",
+    "Hash Signed": "success",
     Completed: "success",
     Reverted: "danger",
   };
@@ -252,7 +253,7 @@ function AbstractWorkspace() {
         </div>
 
         {isLocked && (
-          <div className="alert alert-warning">This estimate is locked (Digitally Signed). It is read-only.</div>
+          <div className="alert alert-warning">This estimate is locked ({status}). It is read-only.</div>
         )}
 
         <div className="card p-3 mb-3">

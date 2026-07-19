@@ -11,7 +11,7 @@ const LOGO_SRC = "/assets/logo/hmwssb-logo.png";
 
 const STATUS_OPTIONS = [
   "Draft", "Abstract Generated", "Submitted", "DGM Review",
-  "Reverted", "GM Review", "OTP Pending", "Digitally Signed", "Completed",
+  "Reverted", "GM Review", "OTP Pending", "Digitally Signed", "Hash Signed", "Completed",
 ];
 
 const STATUS_COLORS = {
@@ -23,6 +23,7 @@ const STATUS_COLORS = {
   Reverted: "danger",
   "OTP Pending": "danger",
   "Digitally Signed": "success",
+  "Hash Signed": "success",
   Completed: "success",
 };
 

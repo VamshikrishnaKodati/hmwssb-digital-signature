@@ -6,6 +6,11 @@ import { success, paginated } from '../utils/apiResponse.js';
 import { buildReportFilter } from '../utils/sanitize.js';
 import logger from '../utils/logger.js';
 
+const escapeXml = (str) => {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+};
+
 export const getReportFilters = async (req, res, next) => {
   try {
     const [regions, zones, divisions, statuses] = await Promise.all([
@@ -82,6 +87,69 @@ export const exportCsv = async (req, res, next) => {
   }
 };
 
+export const exportExcel = async (req, res, next) => {
+  try {
+    const filter = buildReportFilter(req.query);
+    const estimates = await Estimate.find(filter).sort({ createdAt: -1 }).lean();
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="header">
+   <Font ss:Bold="1" ss:Size="11"/>
+   <Interior ss:Color="#0B5CAD" ss:Pattern="Solid"/>
+   <Font ss:Color="#FFFFFF" ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="currency">
+   <NumberFormat ss:Format="#,##0.00"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Estimates Report">
+  <Table>
+   <Row>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Estimate ID</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Name of Work</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Region</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Zone</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Division</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Circle</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Ward</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Status</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Subtotal</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">GST Amount</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">LS Amount</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Grand Total</Data></Cell>
+    <Cell ss:StyleID="header"><Data ss:Type="String">Created At</Data></Cell>
+   </Row>
+${estimates.map((e) => `   <Row>
+    <Cell><Data ss:Type="String">${escapeXml(e.estimateId || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(e.nameOfWork || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(e.region || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(e.zone || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(e.division || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(e.circle || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(e.ward || '')}</Data></Cell>
+    <Cell><Data ss:Type="String">${escapeXml(e.status || '')}</Data></Cell>
+    <Cell ss:StyleID="currency"><Data ss:Type="Number">${e.subtotal || 0}</Data></Cell>
+    <Cell ss:StyleID="currency"><Data ss:Type="Number">${e.gstAmount || 0}</Data></Cell>
+    <Cell ss:StyleID="currency"><Data ss:Type="Number">${e.lsAmount || 0}</Data></Cell>
+    <Cell ss:StyleID="currency"><Data ss:Type="Number">${e.grandTotal || 0}</Data></Cell>
+    <Cell><Data ss:Type="String">${e.createdAt ? new Date(e.createdAt).toISOString() : ''}</Data></Cell>
+   </Row>`).join('\n')}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+    res.setHeader('Content-Type', 'application/vnd.ms-excel');
+    res.setHeader('Content-Disposition', 'attachment; filename=estimates_report.xls');
+    res.send(xml);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getAuditLogs = async (req, res, next) => {
   try {
     const { entity, entityId, action, page = 1, limit = 100 } = req.query;
@@ -135,6 +203,7 @@ export const getDashboardStats = async (req, res, next) => {
     const pendingApprovals = (byStatus['DGM Review'] || 0) + (byStatus['GM Review'] || 0) + (byStatus['OTP Pending'] || 0);
     const signedCount = (byStatus['Digitally Signed'] || 0) + (byStatus['Hash Signed'] || 0);
     const completedCount = byStatus['Completed'] || 0;
+    const draftCount = byStatus['Draft'] || 0;
 
     return success(res, {
       data: {
