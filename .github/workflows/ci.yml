@@ -14,8 +14,8 @@ jobs:
       run:
         working-directory: client
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -46,8 +46,8 @@ jobs:
       run:
         working-directory: server
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -56,7 +56,7 @@ jobs:
       - run: npm test
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-test-results
           path: server/tests/
@@ -69,8 +69,8 @@ jobs:
       run:
         working-directory: client
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -80,7 +80,7 @@ jobs:
       - run: npm run build
       - name: Upload build artifact
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: client-dist
           path: client/dist/
@@ -90,8 +90,8 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Audit server dependencies
@@ -109,20 +109,20 @@ jobs:
     needs: [server-test, client-build]
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build server image
         run: docker build -t hmwssb-server:${{ github.sha }} ./server
       - name: Build client image
         run: docker build -t hmwssb-client:${{ github.sha }} ./client
       - name: Scan server image
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.0
         with:
           image-ref: hmwssb-server:${{ github.sha }}
           format: table
           exit-code: '0'
           severity: CRITICAL,HIGH
       - name: Scan client image
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.0
         with:
           image-ref: hmwssb-client:${{ github.sha }}
           format: table
