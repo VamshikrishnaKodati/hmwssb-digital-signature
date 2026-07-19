@@ -1,17 +1,31 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const REQUIRED_ENV = ['JWT_SECRET', 'MONGO_URI'];
-const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+const REQUIRED_ENV = {
+  JWT_SECRET: 'Used for authentication tokens. Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+  MONGO_URI: 'MongoDB connection string. Example: mongodb://localhost:27017/hmwssb',
+};
+
+const missing = Object.keys(REQUIRED_ENV).filter(k => !process.env[k]);
 if (missing.length > 0) {
-  console.error(`Missing required environment variables: ${missing.join(', ')}`);
-  console.error('Please configure them in the .env file before starting the server.');
+  console.error('\n========================================');
+  console.error('  Missing required environment variables');
+  console.error('========================================\n');
+  for (const key of missing) {
+    console.error(`  ✖ ${key}`);
+    console.error(`    ${REQUIRED_ENV[key]}\n`);
+  }
+  console.error('Fix: Create a .env file in the server/ directory (see .env.example)');
+  console.error('     or set these as environment variables.\n');
   process.exit(1);
 }
 
-if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
-  console.error('JWT_SECRET must be at least 32 characters long.');
-  console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+if (process.env.JWT_SECRET.length < 32) {
+  console.error('\n========================================');
+  console.error('  JWT_SECRET must be at least 32 characters');
+  console.error('========================================\n');
+  console.error('  Generate a secure secret:');
+  console.error('  node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"\n');
   process.exit(1);
 }
 

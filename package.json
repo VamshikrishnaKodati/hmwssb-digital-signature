@@ -18,6 +18,9 @@
     "docker:down": "docker compose down",
     "docker:restart": "docker compose restart"
   },
+  "dependencies": {
+    "concurrently": "^9.1.2"
+  },
   "engines": {
     "node": ">=20.0.0"
   }
