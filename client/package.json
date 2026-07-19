@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "vite preview --port 5173",
-    "lint": "oxlint",
+    "lint": "oxlint src/",
     "preview": "vite preview"
   },
   "engines": {
