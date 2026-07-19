@@ -51,20 +51,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
       - run: npm ci
-      - name: Create .env for tests
-        run: |
-          echo "PORT=5000" > .env
-          echo "NODE_ENV=test" >> .env
-          echo "MONGO_URI=mongodb://localhost:27017/hmwssb-test" >> .env
-          echo "JWT_SECRET=test-secret-must-be-at-least-32-characters-long!!" >> .env
-          echo "JWT_EXPIRY=8h" >> .env
-          echo "CORS_ORIGINS=http://localhost:5173" >> .env
-          echo "SEED_ADMIN_PASSWORD=Admin@123456" >> .env
-          echo "P12_SIGNING_PASSWORD=${{ secrets.P12_SIGNING_PASSWORD }}" >> .env
-          echo "TSA_URL=https://timestamp.digicert.com" >> .env
-          echo "SIGNATURE_PLACEHOLDER_LENGTH=8192" >> .env
-          echo "REDIS_ENABLED=false" >> .env
-          echo "LOG_LEVEL=info" >> .env
       - run: npm test
       - name: Upload test results
         if: always()
