@@ -14,7 +14,7 @@
   "license": "ISC",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@signpdf/placeholder-plain": "^3.3.0",
