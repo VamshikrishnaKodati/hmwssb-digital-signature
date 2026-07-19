@@ -115,14 +115,14 @@ jobs:
       - name: Build client image
         run: docker build -t hmwssb-client:${{ github.sha }} ./client
       - name: Scan server image
-        uses: aquasecurity/trivy-action@0.33.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: hmwssb-server:${{ github.sha }}
           format: table
           exit-code: '0'
           severity: CRITICAL,HIGH
       - name: Scan client image
-        uses: aquasecurity/trivy-action@0.33.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: hmwssb-client:${{ github.sha }}
           format: table
