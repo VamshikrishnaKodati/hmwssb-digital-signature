@@ -245,7 +245,7 @@ function OTPModal({
               initialSeconds={300}
               onExpire={() => {
                 setError("OTP has expired. Please request a new one.");
-                setOtpSent(false);
+                setScreen("confirm");
               }}
             />
 

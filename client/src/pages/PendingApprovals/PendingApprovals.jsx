@@ -31,9 +31,10 @@ function PendingApprovals() {
     try {
       for (const s of statuses) {
         const res = await estimateApi.getByStatus(s);
-        if (res.data?.success) {
-          const estimates = res.data.estimates || res.data.data?.estimates || [];
-          all.push(...(Array.isArray(estimates) ? estimates : []));
+        const d = res.data;
+        if (d) {
+          const list = d.estimates || d.data?.estimates || (Array.isArray(d) ? d : []);
+          all.push(...(Array.isArray(list) ? list : []));
         }
       }
     } catch (err) {
@@ -100,6 +101,25 @@ function PendingApprovals() {
       }
     }
     if (role === "gm") {
+      if (est.status === "GM Review") {
+        return [
+          { label: "Approve", status: "OTP Pending", color: "btn-success", icon: <FaCheck /> },
+          { label: "Revert", status: "Reverted", color: "btn-danger", icon: <FaUndo /> },
+        ];
+      }
+    }
+    if (role === "ce") {
+      if (est.status === "Submitted") {
+        return [
+          { label: "Take for Review", status: "DGM Review", color: "btn-primary", icon: <FaCheckDouble /> },
+        ];
+      }
+      if (est.status === "DGM Review") {
+        return [
+          { label: "Approve", status: "GM Review", color: "btn-success", icon: <FaCheck /> },
+          { label: "Revert", status: "Reverted", color: "btn-danger", icon: <FaUndo /> },
+        ];
+      }
       if (est.status === "GM Review") {
         return [
           { label: "Approve", status: "OTP Pending", color: "btn-success", icon: <FaCheck /> },

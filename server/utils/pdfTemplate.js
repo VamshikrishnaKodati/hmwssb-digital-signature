@@ -79,7 +79,8 @@ export const renderAbstractHtml = (estimate, items) => {
 
   const materialTotal = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const gstTotal = items.reduce((sum, item) => sum + (Number(item.amount || 0) * (Number(item.gst || 0) / 100)), 0);
-  const grandTotal = materialTotal + gstTotal;
+  const lsAmount = Number(data.lsAmount || 0);
+  const grandTotal = materialTotal + gstTotal + lsAmount;
   const status = data.status || 'Draft';
   const preparedDate = new Date(data.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const generationDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -187,6 +188,7 @@ export const renderAbstractHtml = (estimate, items) => {
                   <li><span>Total Items</span><span>${items.length}</span></li>
                   <li><span>Total Amount</span><span>${formatINR(materialTotal)}</span></li>
                   <li><span>GST Total</span><span>${formatINR(gstTotal)}</span></li>
+                  <li><span>LS Amount</span><span>${formatINR(lsAmount)}</span></li>
                   <li><span>Grand Total</span><span>${formatINR(grandTotal)}</span></li>
                 </ul>
               </div>
@@ -217,6 +219,7 @@ export const renderAbstractHtml = (estimate, items) => {
               <div class="summary-card">
                 <div class="summary-row"><span>Material Total</span><strong>${formatINR(materialTotal)}</strong></div>
                 <div class="summary-row"><span>GST Total</span><strong>${formatINR(gstTotal)}</strong></div>
+                <div class="summary-row"><span>LS Amount</span><strong>${formatINR(lsAmount)}</strong></div>
                 <div class="summary-row"><span>Grand Total</span><strong>${formatINR(grandTotal)}</strong></div>
                 <div class="summary-total"><span>Estimated Total</span><span>${formatINR(grandTotal)}</span></div>
               </div>

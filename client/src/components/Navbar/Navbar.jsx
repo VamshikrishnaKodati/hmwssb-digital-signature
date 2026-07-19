@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { FaTachometerAlt, FaFileAlt, FaCheckDouble, FaClipboardList, FaChartBar, FaBoxes, FaSignOutAlt } from "react-icons/fa";
+import { FaTachometerAlt, FaFileAlt, FaCheckDouble, FaClipboardList, FaChartBar, FaBoxes, FaSignOutAlt, FaShieldAlt } from "react-icons/fa";
 import "./Navbar.css";
 
 const LOGO_SRC = "/assets/logo/hmwssb-logo.png";
@@ -25,6 +25,7 @@ function Navbar() {
     manager: "Manager",
     dgm: "Deputy General Manager",
     gm: "General Manager",
+    ce: "Chief Engineer",
     viewer: "Viewer",
   };
 
@@ -85,6 +86,11 @@ function Navbar() {
                 </NavLink>
               </li>
             )}
+            <li className="nav-item">
+              <NavLink className="nav-link" to="/verify-signature">
+                <FaShieldAlt className="nav-icon" /> Verify
+              </NavLink>
+            </li>
           </ul>
 
           <div className="user-info">

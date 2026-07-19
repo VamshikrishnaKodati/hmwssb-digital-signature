@@ -97,7 +97,7 @@ function EstimateForm({ rows, onSaved, form: formProp, setForm: setFormProp, lsA
                 items: validRows.map((row) => ({
                     material: row.material,
                     description: row.description,
-                    category: row.description,
+                    category: row.category || "Material",
                     n: Number(row.n || 0),
                     l: Number(row.l || 0),
                     b: Number(row.b || 0),

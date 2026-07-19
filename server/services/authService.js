@@ -58,15 +58,17 @@ class AuthError extends Error {
 }
 
 export const authenticateUser = async (username, password, req) => {
-  if (isLockedOut(username)) {
-    logger.warn('Auth', 'Login attempt on locked account', { username });
+  const normalizedUsername = String(username || '').trim().toLowerCase();
+
+  if (isLockedOut(normalizedUsername)) {
+    logger.warn('Auth', 'Login attempt on locked account', { username: normalizedUsername });
     throw new AuthError('Account temporarily locked due to too many failed attempts. Try again later.', 429);
   }
 
-  const user = await User.findOne({ username });
+  const user = await User.findOne({ username: normalizedUsername });
   if (!user) {
-    recordFailedAttempt(username);
-    logger.warn('Auth', 'Login failed - user not found', { username });
+    recordFailedAttempt(normalizedUsername);
+    logger.warn('Auth', 'Login failed - user not found', { username: normalizedUsername });
     throw new AuthError('Invalid username or password', 401);
   }
 
@@ -77,12 +79,12 @@ export const authenticateUser = async (username, password, req) => {
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
-    recordFailedAttempt(username);
-    logger.warn('Auth', 'Login failed - wrong password', { username });
+    recordFailedAttempt(normalizedUsername);
+    logger.warn('Auth', 'Login failed - wrong password', { username: normalizedUsername });
     throw new AuthError('Invalid username or password', 401);
   }
 
-  clearFailedAttempts(username);
+  clearFailedAttempts(normalizedUsername);
 
   const token = signToken({
     id: user._id,

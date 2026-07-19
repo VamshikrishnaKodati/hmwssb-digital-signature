@@ -1,0 +1,24 @@
+.admin-items-page {
+  padding: 30px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-items-page .table {
+  font-size: 0.88rem;
+}
+
+.admin-items-page .table th {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 768px) {
+  .admin-items-page {
+    padding: 20px 16px;
+  }
+}

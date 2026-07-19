@@ -29,7 +29,11 @@ const Login = () => {
       toast.success("Login successful");
       navigate("/dashboard");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Login failed");
+      if (!err.response) {
+        toast.error("Cannot connect to server. Please check if the backend is running.");
+      } else {
+        toast.error(err.response?.data?.message || "Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

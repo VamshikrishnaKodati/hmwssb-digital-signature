@@ -11,16 +11,19 @@ import {
 } from '../services/otpService.js';
 import { signPdfDocument, computePdfHash } from '../services/pdfSignService.js';
 import { generateAbstractPdf } from '../services/pdfService.js';
+import { enqueueOtpDelivery } from '../services/otpQueue.js';
 import { sendOtpEmail } from '../utils/emailService.js';
 import { sendOtpSms } from '../utils/smsService.js';
 import { success, notFound, badRequest, tooManyRequests, forbidden } from '../utils/apiResponse.js';
+import { sendNotification } from './notificationController.js';
+import { alertOtpFailure, alertOtpSuccess, alertSignatureFailure } from '../services/alertService.js';
 import logger from '../utils/logger.js';
 import { promises as fs } from 'fs';
 
 const canSignEstimate = (estimate, user) => {
   if (estimate.status === 'OTP Pending') return true;
-  if (estimate.status === 'DGM Review' && user.role === 'dgm') return true;
-  if (estimate.status === 'GM Review' && user.role === 'gm') return true;
+  if (estimate.status === 'DGM Review' && (user.role === 'dgm' || user.role === 'ce')) return true;
+  if (estimate.status === 'GM Review' && (user.role === 'gm' || user.role === 'ce')) return true;
   return false;
 };
 
@@ -32,6 +35,17 @@ const maskString = (str, visibleStart = 2, visibleEnd = 2) => {
 };
 
 const sendOtpToChannels = async (otp, email, mobile, estimateId, actorName) => {
+  const queued = await enqueueOtpDelivery({
+    otp, email, mobile, estimateId, actorName,
+  }).catch(() => false);
+
+  if (queued) {
+    return {
+      emailResult: { success: true, reason: 'queued' },
+      smsResult: { success: true, reason: 'queued' },
+    };
+  }
+
   const [emailResult, smsResult] = await Promise.all([
     sendOtpEmail({ to: email, otp, estimateId, userName: actorName }).catch(e => ({ success: false, reason: e.message })),
     sendOtpSms({ to: mobile, otp, estimateId }).catch(e => ({ success: false, reason: e.message })),
@@ -133,6 +147,14 @@ export const sendOTP = async (req, res, next) => {
       },
       ip: req.ip,
       userAgent: req.headers['user-agent'],
+    });
+
+    sendNotification({
+      userId: actorId,
+      title: 'OTP Sent',
+      message: `OTP has been sent for estimate ${estimateId}`,
+      type: 'info',
+      link: `/estimates/${estimateId}`,
     });
 
     return success(res, {
@@ -289,6 +311,7 @@ export const verifyOTP = async (req, res, next) => {
 
       const remainingAttempts = 5 - record.attempts;
       recordFailedAttempt(actorId, estimateId);
+      alertOtpFailure(actorId, estimateId, 'invalid_otp');
 
       await AuditLog.create({
         userId: actorId,
@@ -339,6 +362,7 @@ export const verifyOTP = async (req, res, next) => {
         estimateId,
         error: signErr.message,
       });
+      alertSignatureFailure(actorId, estimateId, signErr.message);
     }
 
     const fromStatus = estimate.status;
@@ -413,6 +437,16 @@ export const verifyOTP = async (req, res, next) => {
       },
       ip: req.ip,
       userAgent: req.headers['user-agent'],
+    });
+
+    alertOtpSuccess(actorId, estimateId);
+
+    sendNotification({
+      userId: actorId,
+      title: 'Signature Applied',
+      message: `Estimate ${estimateId} has been digitally signed successfully`,
+      type: 'success',
+      link: `/estimates/${estimateId}`,
     });
 
     return success(res, {

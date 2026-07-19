@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { itemApi, estimateApi } from "../../services/api";
 import { calculateAmount, calculateGrandTotal, calculateQty } from "../../utils/estimateUtils";
+import { toast } from "react-toastify";
 
 function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
   const navigate = useNavigate();
   const [itemMaster, setItemMaster] = useState([]);
   const [localRows, setLocalRows] = useState([
-    { material: "", description: "", n: "", l: "", b: "", d: "", qty: 0, rate: "", unit: "Nos", gst: 18, amount: 0 },
+    { material: "", description: "", category: "Material", n: "", l: "", b: "", d: "", qty: 0, rate: "", unit: "Nos", gst: 18, amount: 0 },
   ]);
   const activeRows = rows?.length ? rows : localRows;
   const updateRows = (nextRows) => {
@@ -33,7 +34,7 @@ function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
     items: activeRows.map((row) => ({
       material: row.material,
       description: row.description,
-      category: row.description,
+      category: row.category || "Material",
       n: Number(row.n || 0),
       l: Number(row.l || 0),
       b: Number(row.b || 0),
@@ -48,11 +49,11 @@ function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
 
   const saveEstimate = async () => {
     if (!form?.estimateId || !form?.nameOfWork) {
-      alert('Please fill in Estimate ID and Name of Work before saving.');
+      toast.error('Please fill in Estimate ID and Name of Work before saving.');
       return false;
     }
     if (activeRows.length === 0 || activeRows.some((r) => !r.material?.trim())) {
-      alert('Please fill in the material name for all items before saving.');
+      toast.error('Please fill in the material name for all items before saving.');
       return false;
     }
     setIsSaving(true);
@@ -65,11 +66,11 @@ function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
           await estimateApi.update(form.estimateId, buildPayload());
           return true;
         } catch (updateErr) {
-          alert(updateErr.response?.data?.message || 'Failed to update estimate.');
+          toast.error(updateErr.response?.data?.message || 'Failed to update estimate.');
           return false;
         }
       }
-      alert(err.response?.data?.message || err.message || 'Failed to save estimate.');
+      toast.error(err.response?.data?.message || err.message || 'Failed to save estimate.');
       return false;
     } finally {
       setIsSaving(false);
@@ -97,7 +98,7 @@ function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
   };
 
   const addRow = () => {
-    updateRows([...activeRows, { material: "", description: "", n: "", l: "", b: "", d: "", qty: 0, rate: "", unit: "Nos", gst: 18, amount: 0 }]);
+    updateRows([...activeRows, { material: "", description: "", category: "Material", n: "", l: "", b: "", d: "", qty: 0, rate: "", unit: "Nos", gst: 18, amount: 0 }]);
   };
 
   const deleteRow = (index) => {
@@ -123,7 +124,7 @@ function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
     data[index].unit = selectedItem.unit;
     data[index].rate = selectedItem.rate;
     data[index].gst = selectedItem.gst;
-    data[index].description = selectedItem.category;
+    data[index].category = selectedItem.category || "Material";
     const qty = calculateQty({ n: data[index].n, l: data[index].l, b: data[index].b, d: data[index].d });
     data[index].qty = qty;
     data[index].amount = calculateAmount({ qty, rate: selectedItem.rate, gstPercent: selectedItem.gst });
@@ -166,8 +167,8 @@ function MaterialTable({ rows, setRows, form, lsAmount, setLsAmount }) {
                   )}
                 </td>
                 <td>
-                  <select className="form-select" value={row.description}
-                    onChange={(e) => handleChange(index, "description", e.target.value)}>
+                  <select className="form-select" value={row.category || "Material"}
+                    onChange={(e) => handleChange(index, "category", e.target.value)}>
                     <option value="Material">Material</option>
                     <option value="Civil">Civil</option>
                   </select>

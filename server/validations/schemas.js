@@ -3,7 +3,7 @@ import Joi from 'joi';
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
 
 export const loginSchema = Joi.object({
-  username: Joi.string().trim().min(3).max(50).required()
+  username: Joi.string().trim().lowercase().min(3).max(50).required()
     .messages({ 'string.min': 'Username must be at least 3 characters' }),
   password: Joi.string().min(8).max(128).required()
     .messages({ 'string.min': 'Password must be at least 8 characters' }),
@@ -92,7 +92,7 @@ export const updateEstimateSchema = Joi.object({
 export const updateStatusSchema = Joi.object({
   status: Joi.string().valid(
     'Draft', 'Abstract Generated', 'Submitted', 'DGM Review',
-    'Reverted', 'Resubmitted', 'GM Review', 'OTP Pending',
+    'Reverted', 'GM Review', 'OTP Pending',
     'Digitally Signed', 'Completed'
   ).required(),
   comments: Joi.string().trim().allow('').max(1000).optional(),
@@ -145,4 +145,8 @@ export const reportFilterSchema = Joi.object({
   toDate: Joi.date().iso().min(Joi.ref('fromDate')).optional(),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(50),
+});
+
+export const revokeSignatureSchema = Joi.object({
+  reason: Joi.string().trim().allow('').max(500).optional(),
 });

@@ -39,7 +39,6 @@ const estimateSchema = new mongoose.Schema({
       'Submitted',
       'DGM Review',
       'Reverted',
-      'Resubmitted',
       'GM Review',
       'OTP Pending',
       'Digitally Signed',

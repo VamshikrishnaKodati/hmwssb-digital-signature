@@ -12,6 +12,8 @@ const EstimateList = lazy(() => import("./pages/EstimateList/EstimateList"));
 const Reports = lazy(() => import("./pages/Reports/Reports"));
 const AbstractWorkspace = lazy(() => import("./pages/AbstractWorkspace/AbstractWorkspace"));
 const PendingApprovals = lazy(() => import("./pages/PendingApprovals/PendingApprovals"));
+const VerifySignature = lazy(() => import("./pages/VerifySignature/VerifySignature"));
+const AdminItems = lazy(() => import("./pages/AdminItems/AdminItems"));
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -31,6 +33,8 @@ const AppRoutes = () => {
       <Route path="/estimates" element={<ProtectedRoute><EstimateList /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/pending-approvals" element={<ProtectedRoute><PendingApprovals /></ProtectedRoute>} />
+      <Route path="/verify-signature" element={<ProtectedRoute><VerifySignature /></ProtectedRoute>} />
+      <Route path="/admin/items" element={<ProtectedRoute><AdminItems /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

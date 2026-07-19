@@ -1,150 +1,156 @@
-# HMWSSB Works Management System - Digital Signature
+# HMWSSB Digital Signature System
 
-Full-stack application for government works estimation with OTP-based digital signature (PAdES), RFC 3161 timestamping, and role-based approval workflow.
+A complete works management system for Hyderabad Metropolitan Water Supply and Sewerage Board (HMWSSB) with digital signature capabilities, OTP-based authentication, and PAdES-compliant PDF signing.
 
 ## Tech Stack
 
-- **Frontend:** React + Vite
-- **Backend:** Node.js + Express
-- **Database:** MongoDB
-- **PDF Signing:** node-forge + @signpdf
-- **Redis:** ioredis (optional, falls back to in-memory)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, Vite 8, Bootstrap 5, React Router 7 |
+| Backend | Node.js 20+, Express 5, Mongoose 9 |
+| Database | MongoDB 7 |
+| PDF Signing | @signpdf, node-forge (RSA-2048), RFC 3161 timestamps |
+| Auth | JWT, bcrypt, HMAC-SHA256 OTP |
+| Docker | Multi-stage builds, health checks, auto-restart |
 
-## Prerequisites
+## Requirements
 
-- [Node.js](https://nodejs.org/) v18+
-- [MongoDB](https://www.mongodb.com/) v6+ (running on localhost:27017)
-- npm
+- Node.js 20+
+- MongoDB 7 (local or Docker)
+- Docker & Docker Compose (optional)
 
 ## Quick Start
 
-### 1. Clone the project
+### Option 1: Docker (Recommended)
 
 ```bash
-git clone <your-repo-url> hmwssb-digital-signature
-cd hmwssb-digital-signature
+docker compose up --build
 ```
 
-### 2. Install dependencies
+- Frontend: http://localhost
+- Backend API: http://localhost:5000
+- Health Check: http://localhost:5000/api/health
+
+### Option 2: Local Development
 
 ```bash
-# Server
-cd server
-npm install
+# Setup (installs deps, generates .env if missing)
+bash setup.sh          # Linux/macOS
+.\setup.ps1            # Windows PowerShell
 
-# Client
-cd ../client
-npm install
+# Start both server and client
+bash start.sh          # Linux/macOS
+.\start.ps1            # Windows PowerShell
 ```
 
-### 3. Configure environment
+Or manually:
 
 ```bash
-cd server
-cp .env.example .env
-```
-
-Edit `server/.env` and set at minimum:
-
-```env
-JWT_SECRET=any-random-string-at-least-32-characters-long
-MONGO_URI=mongodb://127.0.0.1:27017/hmwssb
-P12_SIGNING_PASSWORD=dev-signing-password-1234
-```
-
-### 4. Start MongoDB
-
-```bash
-# Windows (if installed as service, it's already running)
-# macOS
-brew services start mongodb-community
-
-# Linux
-sudo systemctl start mongod
-```
-
-### 5. Start the app
-
-```bash
-# Terminal 1 - Backend (port 5000)
+# Terminal 1 - Server
 cd server
 npm run dev
 
-# Terminal 2 - Frontend (port 5173)
+# Terminal 2 - Client
 cd client
 npm run dev
 ```
 
-Open http://localhost:5173
+- Client: http://localhost:5173
+- Server: http://localhost:5000
 
-## Test Accounts
+## Environment Variables
 
-All emails route to `kodativamsikrishna@gmail.com` via Gmail `+` aliasing. All SMS go to `9392598134`.
+Copy `server/.env.example` to `server/.env` and configure:
 
-| Role | Username | Password |
-|------|----------|----------|
-| Admin | `admin` | `Admin@123456` |
-| Manager | `manager01` | `Manager@1234` |
-| DGM | `dgm01` | `Dgm@12345678` |
-| GM | `gm01` | `Gm@123456789` |
-| Chief Engineer | `ce01` | `Ce@123456789` |
-| Accounts | `accounts01` | `Accounts@123` |
-| Tender Officer | `tender01` | `Tender@12345` |
-| Site Engineer | `engineer01` | `Engineer@1234` |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MONGO_URI` | Yes | MongoDB connection string |
+| `JWT_SECRET` | Yes | Min 32 characters. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `PORT` | No | Server port (default: 5000) |
+| `SMTP_*` | No | Email delivery settings |
+| `TWILIO_*` | No | SMS delivery settings |
+| `P12_SIGNING_PASSWORD` | No | Password for P12 signing certificate |
+| `REDIS_ENABLED` | No | Set to `false` to use in-memory cache (default) |
 
-## Development Workflow
+## Default Test Accounts
+
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `Admin@123456` | Admin |
+| `manager01` | `Manager@1234` | Manager |
+| `dgm01` | `Dgm@12345678` | DGM |
+| `gm01` | `Gm@123456789` | GM |
+| `ce01` | `Ce@123456789` | Chief Engineer |
+| `engineer01` | `Engineer@1234` | Engineer |
+
+## Project Structure
 
 ```
-Admin creates users
-    |
-Manager logs in -> Prepares estimate -> Generates abstract -> Submits
-    |
-DGM reviews -> Submits
-    |
-GM approves -> Generates OTP
-    |
-    +-- Email -> kodativamsikrishna@gmail.com
-    +-- SMS   -> 9392598134
-    |
-OTP verified -> Digital signature generated -> Signed PDF
-    |
-Audit log created
+├── server/                  # Backend API
+│   ├── config/              # DB, Redis configuration
+│   ├── controllers/         # Route handlers
+│   ├── middleware/           # Auth, validation, error handling
+│   ├── models/              # Mongoose schemas (14 models)
+│   ├── routes/              # Express routes (9 route groups)
+│   ├── services/            # Business logic (11 services)
+│   ├── tests/               # Node.js built-in tests (11 files)
+│   ├── utils/               # Helpers (logger, email, SMS, PDF)
+│   └── validations/         # Joi schemas
+├── client/                  # Frontend SPA
+│   ├── src/
+│   │   ├── components/      # Reusable UI components
+│   │   ├── context/         # Auth context
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── pages/           # 9 page components
+│   │   ├── services/        # API client (axios)
+│   │   └── styles/          # Global CSS
+│   └── nginx.conf           # Production reverse proxy
+├── docker-compose.yml       # Full stack orchestration
+├── .github/workflows/ci.yml # CI/CD pipeline
+├── setup.sh / setup.ps1     # One-command setup
+└── start.sh / start.ps1     # One-command start
+```
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/login` | User login |
+| GET | `/api/auth/profile` | Get current user profile |
+| POST | `/api/estimates` | Create estimate |
+| GET | `/api/estimates` | List estimates (paginated) |
+| PATCH | `/api/estimates/:id/status` | Update workflow status |
+| POST | `/api/otp/send` | Send OTP for signing |
+| POST | `/api/otp/verify` | Verify OTP and sign |
+| POST | `/api/pdf/generate` | Generate abstract PDF |
+| GET | `/api/signatures/verify/:id` | Verify digital signature |
+| GET | `/api/health` | Health check |
+| GET | `/api/status` | Service status |
+
+## Workflow
+
+```
+Draft → Abstract Generated → Submitted → DGM Review → GM Review → OTP Pending → Digitally Signed → Completed
+                    ↑                   ↓
+                    └── Reverted ←──────┘
 ```
 
 ## Running Tests
 
 ```bash
 cd server
-node --test tests/*.test.js
+npm test
 ```
 
-## Project Structure
+## Docker Commands
 
+```bash
+docker compose up --build -d    # Start all services
+docker compose down              # Stop all services
+docker compose logs -f server    # View server logs
+docker compose restart server    # Restart server
 ```
-hmwssb-digital-signature/
-  client/                  # React frontend
-  server/
-    config/                # DB, Redis config
-    controllers/           # Route handlers
-    middleware/             # Auth, rate limiting, validation
-    models/                # Mongoose schemas
-    routes/                # Express routes
-    seeders/               # Hierarchy data
-    services/              # Business logic (OTP, PKI, PDF signing, etc.)
-    tests/                 # Test suite
-    validations/           # Joi schemas
-  docker-compose.yml
-```
-
-## Key Features
-
-- **OTP Security:** HMAC-SHA256 hashing, timing-safe comparison, per-user/IP rate limits, cooldown, exponential backoff
-- **PKI:** RSA-2048 key generation, X.509 certificates, P12 bundles (AES-256), cert chain verification
-- **PDF Signing:** PAdES-B-B (ETSI.CAdES.detached) via @signpdf
-- **Timestamping:** RFC 3161 via DigiCert TSA
-- **Monitoring:** Prometheus-format metrics, health endpoints, threshold alerts
-- **Compliance:** CERT-In 180-day log retention, append-only audit logs, 12-char password policy
 
 ## License
 
-Internal use only - Hyderabad Metropolitan Water Supply & Sewerage Board
+ISC

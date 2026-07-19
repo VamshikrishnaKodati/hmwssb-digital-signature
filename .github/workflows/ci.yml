@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
       - run: npm install
@@ -28,6 +28,18 @@ jobs:
     runs-on: ubuntu-latest
     env:
       P12_SIGNING_PASSWORD: ${{ secrets.P12_SIGNING_PASSWORD }}
+      JWT_SECRET: test-secret-must-be-at-least-32-characters-long!!
+      MONGO_URI: mongodb://localhost:27017/hmwssb-test
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: server
@@ -35,12 +47,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
       - run: npm ci
       - run: npm test
-      - name: Upload coverage
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -58,7 +70,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
       - run: npm install
@@ -78,7 +90,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
       - name: Audit server dependencies
         working-directory: server
         run: npm audit --audit-level=high

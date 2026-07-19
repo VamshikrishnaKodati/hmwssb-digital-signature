@@ -5,6 +5,7 @@ import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import OTPModal from "../../components/OTP/OTPModal";
 import { FaArrowLeft, FaFilePdf, FaDownload, FaPaperPlane, FaEdit, FaCheck, FaUndo, FaPenFancy, FaStamp } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 const LOGO_SRC = "/assets/logo/hmwssb-logo.png";
 
@@ -63,10 +64,10 @@ function AbstractWorkspace() {
   const data = estimate || {};
   const itemList = items.length > 0 ? items : (state?.items || []);
 
-  const materialRows = items.filter((i) => (i.description || i.category || "").toLowerCase() === "material");
-  const civilRows = items.filter((i) => (i.description || i.category || "").toLowerCase() === "civil");
+  const materialRows = items.filter((i) => (i.category || "").toLowerCase() === "material");
+  const civilRows = items.filter((i) => (i.category || "").toLowerCase() === "civil");
   const unclassifiedRows = items.filter((i) => {
-    const cat = (i.description || i.category || "").toLowerCase();
+    const cat = (i.category || "").toLowerCase();
     return cat !== "material" && cat !== "civil";
   });
 
@@ -141,7 +142,7 @@ function AbstractWorkspace() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       const msg = await getErrorMessage(error);
-      alert("Download failed: " + msg);
+      toast.error("Download failed: " + msg);
     } finally {
       setLoading(false);
     }
@@ -155,25 +156,25 @@ function AbstractWorkspace() {
       window.open(url, "_blank");
     } catch (error) {
       const msg = await getErrorMessage(error);
-      alert("Preview failed: " + msg);
+      toast.error("Preview failed: " + msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleStatusChange = async (newStatus, comment = "") => {
-    if (!estimateId) { alert("Missing estimate ID."); return; }
+    if (!estimateId) { toast.error("Missing estimate ID."); return; }
     setLoading(true);
     try {
       const response = await estimateApi.updateStatus(estimateId, { status: newStatus, comments: comment });
       if (response.data?.success) {
-        alert(`Status updated to "${newStatus}"`);
+        toast.success(`Status updated to "${newStatus}"`);
         await fetchEstimate(estimateId);
         await fetchMovements(estimateId);
       }
     } catch (error) {
       const msg = await getErrorMessage(error);
-      alert("Failed: " + msg);
+      toast.error("Failed: " + msg);
     } finally {
       setLoading(false);
     }
@@ -193,10 +194,10 @@ function AbstractWorkspace() {
   const canSubmit = (status === "Draft" || status === "Abstract Generated") && isOwner;
   const canEdit = (status === "Draft" || status === "Reverted") && isOwner;
   const canResubmit = status === "Reverted" && isOwner;
-  const canDgmReview = status === "Submitted" && role === "dgm";
-  const canDgmAct = status === "DGM Review" && role === "dgm";
-  const canGmAct = status === "GM Review" && role === "gm";
-  const canSendOtp = status === "OTP Pending" && isOwner;
+  const canDgmReview = (status === "Submitted" && (role === "dgm" || role === "ce"));
+  const canDgmAct = (status === "DGM Review" && (role === "dgm" || role === "ce"));
+  const canGmAct = (status === "GM Review" && (role === "gm" || role === "ce"));
+  const canSendOtp = status === "OTP Pending" && (isOwner || role === "ce" || role === "admin");
   const canMarkComplete = status === "Digitally Signed" && role === "admin";
 
   const statusColor = {

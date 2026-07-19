@@ -82,6 +82,29 @@ const createMemoryAdapter = () => ({
     return 'PONG';
   },
 
+  async lpush(key, value) {
+    const list = memoryStore.get(key) || [];
+    list.unshift(value);
+    memoryStore.set(key, list);
+    return list.length;
+  },
+
+  async rpop(key) {
+    const list = memoryStore.get(key) || [];
+    const value = list.pop();
+    if (list.length === 0) memoryStore.delete(key);
+    return value ?? null;
+  },
+
+  async llen(key) {
+    const list = memoryStore.get(key) || [];
+    return list.length;
+  },
+
+  async brpop(_key, _timeout) {
+    return null;
+  },
+
   on() {},
   disconnect() {},
 

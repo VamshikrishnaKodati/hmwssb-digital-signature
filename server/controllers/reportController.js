@@ -1,5 +1,7 @@
 import Estimate from '../models/Estimate.js';
 import AuditLog from '../models/AuditLog.js';
+import Signature from '../models/Signature.js';
+import User from '../models/User.js';
 import { success, paginated } from '../utils/apiResponse.js';
 import { buildReportFilter } from '../utils/sanitize.js';
 import logger from '../utils/logger.js';
@@ -96,6 +98,60 @@ export const getAuditLogs = async (req, res, next) => {
     const total = await AuditLog.countDocuments(filter);
 
     return paginated(res, { data: logs, total, page, limit });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getDashboardStats = async (req, res, next) => {
+  try {
+    const filter = {};
+    if (req.user.role === 'manager') {
+      filter.managerId = req.user.id;
+    }
+
+    const [totalEstimates, statusCounts, totals, recentSignatures, totalUsers] = await Promise.all([
+      Estimate.countDocuments(filter),
+      Estimate.aggregate([
+        { $match: filter },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+      Estimate.aggregate([
+        { $match: filter },
+        { $group: {
+          _id: null,
+          totalGrandTotal: { $sum: '$grandTotal' },
+          totalSubtotal: { $sum: '$subtotal' },
+          avgGrandTotal: { $avg: '$grandTotal' },
+        } },
+      ]),
+      Signature.countDocuments({ status: 'valid' }),
+      req.user.role === 'admin' ? User.countDocuments() : Promise.resolve(0),
+    ]);
+
+    const byStatus = {};
+    statusCounts.forEach(s => { byStatus[s._id] = s.count; });
+
+    const pendingApprovals = (byStatus['DGM Review'] || 0) + (byStatus['GM Review'] || 0) + (byStatus['OTP Pending'] || 0);
+    const signedCount = (byStatus['Digitally Signed'] || 0) + (byStatus['Hash Signed'] || 0);
+    const completedCount = byStatus['Completed'] || 0;
+
+    return success(res, {
+      data: {
+        totalEstimates,
+        pendingApprovals,
+        signedCount,
+        completedCount,
+        draftCount: byStatus['Draft'] || 0,
+        revertedCount: byStatus['Reverted'] || 0,
+        totalGrandTotal: totals[0]?.totalGrandTotal || 0,
+        totalSubtotal: totals[0]?.totalSubtotal || 0,
+        avgEstimateValue: totals[0]?.avgGrandTotal || 0,
+        totalSignatures: recentSignatures,
+        totalUsers,
+        byStatus,
+      },
+    });
   } catch (err) {
     next(err);
   }

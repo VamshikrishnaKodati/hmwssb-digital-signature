@@ -24,10 +24,13 @@ services:
     ports:
       - "5000:5000"
     env_file:
-      - ./server/.env
+      - path: ./server/.env
+        required: false
     environment:
       - MONGO_URI=mongodb://mongodb:27017/hmwssb
       - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-strong-secret-at-least-32-chars-long}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-Admin@123456}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -36,6 +39,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 15s
 
   client:
     build:
@@ -46,7 +50,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - server
+      server:
+        condition: service_healthy
 
 volumes:
   mongodb_data:

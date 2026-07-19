@@ -95,6 +95,14 @@ export const reportApi = {
   getReports: (params) => api.get("/reports", { params }),
   exportCsv: (params) => api.get("/reports/export/csv", { params, responseType: "blob" }),
   getAuditLogs: (params) => api.get("/reports/audit-logs", { params }),
+  getDashboardStats: () => api.get("/reports/dashboard-stats"),
+};
+
+export const signatureApi = {
+  verify: (estimateId) => api.get(`/signatures/verify/${estimateId}`),
+  getByEstimate: (estimateId) => api.get(`/signatures/${estimateId}`),
+  getHistory: (params) => api.get("/signatures", { params }),
+  revoke: (estimateId, data) => api.patch(`/signatures/${estimateId}/revoke`, data),
 };
 
 export default api;

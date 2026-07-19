@@ -23,8 +23,12 @@ const WORKFLOW_TRANSITIONS = {
 const ROLE_TRANSITIONS = {
   admin: ['Abstract Generated', 'Submitted', 'DGM Review', 'GM Review', 'OTP Pending', 'Reverted', 'Digitally Signed', 'Completed'],
   manager: ['Abstract Generated', 'Submitted'],
+  engineer: ['Abstract Generated', 'Submitted'],
   dgm: ['DGM Review', 'GM Review', 'Reverted', 'Digitally Signed'],
   gm: ['OTP Pending', 'Reverted', 'Digitally Signed'],
+  ce: ['DGM Review', 'GM Review', 'OTP Pending', 'Reverted', 'Digitally Signed'],
+  accounts: [],
+  tender: [],
   viewer: [],
 };
 
@@ -138,6 +142,8 @@ export const getEstimates = async (req, res, next) => {
       filter.status = filter.status || { $in: ['Submitted', 'DGM Review'] };
     } else if (role === 'gm') {
       filter.status = filter.status || { $in: ['GM Review'] };
+    } else if (role === 'ce') {
+      filter.status = filter.status || { $in: ['DGM Review', 'GM Review', 'OTP Pending'] };
     }
 
     const estimates = await Estimate.find(filter)
@@ -199,7 +205,7 @@ export const updateEstimate = async (req, res, next) => {
         civilCost: totals.civilCost,
         subtotal: totals.subtotal,
         gstAmount: totals.gstTotal,
-        lsAmount: totals.grandTotal - totals.subtotal - totals.gstTotal + Number(lsAmount || 0),
+        lsAmount: Number(lsAmount !== undefined ? lsAmount : estimate.lsAmount || 0),
         grandTotal: totals.grandTotal,
         items: createdItems.map((item) => item._id),
       });
@@ -354,6 +360,12 @@ export const getEstimatesByStatus = async (req, res, next) => {
     const filter = { status };
     if (req.user.role === 'manager') {
       filter.managerId = new mongoose.Types.ObjectId(req.user.id);
+    } else if (req.user.role === 'dgm') {
+      if (!['Submitted', 'DGM Review'].includes(status)) return success(res, { data: { estimates: [] } });
+    } else if (req.user.role === 'gm') {
+      if (!['GM Review', 'OTP Pending'].includes(status)) return success(res, { data: { estimates: [] } });
+    } else if (req.user.role === 'ce') {
+      if (!['DGM Review', 'GM Review', 'OTP Pending'].includes(status)) return success(res, { data: { estimates: [] } });
     }
     const estimates = await Estimate.find(filter).sort({ createdAt: -1 }).lean();
     return success(res, { data: { estimates } });

@@ -15,6 +15,7 @@ import itemRoutes from './routes/itemRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import hierarchyRoutes from './routes/hierarchyRoutes.js';
 import signatureRoutes from './routes/signatureRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import { getHealthStatus, getMetrics, formatPrometheus } from './services/monitoringService.js';
 import { connectDB, getConnectionStatus } from './config/db.js';
 import logger from './utils/logger.js';
@@ -72,6 +73,23 @@ app.get('/api/health', async (req, res) => {
   res.status(statusCode).json(healthCheck);
 });
 
+app.get('/api/status', (req, res) => {
+  const dbStatus = getConnectionStatus();
+  res.json({
+    service: 'hmwssb-digital-signature',
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    database: dbStatus ? 'connected' : 'disconnected',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    memory: {
+      heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    },
+  });
+});
+
 app.get('/api/health/detailed', async (req, res) => {
   const health = await getHealthStatus();
   res.status(health.status === 'healthy' ? 200 : 503).json(health);
@@ -96,6 +114,7 @@ app.use('/api/items', itemRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/hierarchy', hierarchyRoutes);
 app.use('/api/signatures', signatureRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((req, res, next) => {
   next(new AppError(`Route ${req.originalUrl} not found`, 404, 'NOT_FOUND'));

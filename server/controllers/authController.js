@@ -173,10 +173,11 @@ export const seedUsers = async () => {
   const devEmailBase = 'kodativamsikrishna';
   const devEmailDomain = 'gmail.com';
   const devMobile = '9392598134';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@123456';
 
   const users = [
     {
-      employeeId: 'EMP001', username: 'admin', password: 'Admin@123456',
+      employeeId: 'EMP001', username: 'admin', password: adminPassword,
       role: 'admin', name: 'System Administrator', designation: 'Administrator',
       email: `${devEmailBase}+admin@${devEmailDomain}`, mobile: devMobile,
       region: 'Head Office', zone: 'All', division: 'All', circle: 'All', ward: 'All',

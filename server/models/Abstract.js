@@ -10,6 +10,10 @@ const abstractSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Estimate',
   },
+  version: {
+    type: String,
+    default: 'V1.0',
+  },
   materialCost: { type: Number, default: 0 },
   civilCost: { type: Number, default: 0 },
   subtotal: { type: Number, default: 0 },
@@ -19,11 +23,23 @@ const abstractSchema = new mongoose.Schema({
   grandTotal: { type: Number, default: 0 },
   amountInWords: { type: String, default: '' },
   pdfPath: { type: String, default: '' },
+  signedPdfPath: { type: String, default: '' },
+  status: {
+    type: String,
+    enum: ['draft', 'generated', 'signed', 'archived'],
+    default: 'draft',
+  },
   generatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   },
   generatedByName: { type: String, default: '' },
+  signedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  signedByName: { type: String, default: '' },
+  signedAt: { type: Date },
   metadata: { type: mongoose.Schema.Types.Mixed },
 }, {
   timestamps: true,

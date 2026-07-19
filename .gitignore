@@ -10,6 +10,7 @@ node_modules/
 # Build output
 client/dist/
 server/uploads/*.pdf
+server/uploads/*_signed.pdf
 
 # OS files
 .DS_Store
@@ -35,3 +36,14 @@ test-results/
 
 # Debug files
 tmp-debug.err
+
+# Docker
+docker-compose.override.yml
+
+# Cache
+.cache/
+*.cache
+
+# Keys (generated at runtime, should not be committed)
+server/keys/*.pem
+server/keys/*.p12
