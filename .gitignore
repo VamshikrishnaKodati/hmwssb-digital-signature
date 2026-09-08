@@ -47,3 +47,11 @@ docker-compose.override.yml
 # Keys (generated at runtime, should not be committed)
 server/keys/*.pem
 server/keys/*.p12
+
+# E2E evidence and Figma reference captures
+e2e/evidence/
+e2e/references/*.png
+e2e/references/index.json
+e2e/node_modules/
+e2e/.runner.lock
+e2e/.runner.pid

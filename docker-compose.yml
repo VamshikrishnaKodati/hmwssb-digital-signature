@@ -1,65 +1,44 @@
 services:
-  mongodb:
-    image: mongo:7
-    container_name: hmwssb-mongodb
+  db:
+    image: postgres:17-alpine
+    container_name: hmwssb-db
     restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
     environment:
-      MONGO_INITDB_DATABASE: hmwssb
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-hmwssb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-hmwssb}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - hmwssb-net
 
   server:
     build:
-      context: ./server
-      dockerfile: Dockerfile
-      network: host
+      context: .
+      dockerfile: server/Dockerfile
     container_name: hmwssb-server
     restart: unless-stopped
     ports:
-      - "5000:5000"
-    env_file:
-      - ./server/.env
+      - "5001:5001"
     environment:
       - NODE_ENV=production
-      - MONGO_URI=mongodb://mongodb:27017/hmwssb
+      - PORT=5001
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-hmwssb}
       - JWT_SECRET=${JWT_SECRET:-change-this-to-a-strong-secret-at-least-32-chars-long}
-      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-Admin@123456}
-      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASS=${SMTP_PASS:-}
-      - SMTP_FROM=${SMTP_FROM:-HMWSSB Works Management}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
-      - TWILIO_FROM=${TWILIO_FROM:-}
-      - REDIS_ENABLED=${REDIS_ENABLED:-false}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - P12_SIGNING_PASSWORD=${P12_SIGNING_PASSWORD:-hmwssb-signing-2024}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:80,http://localhost,http://localhost:5173,http://localhost:5000}
-    volumes:
-      - server_uploads:/app/uploads
-      - server_keys:/app/keys
     depends_on:
-      mongodb:
+      db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"const http = require('http'); const req = http.get('http://localhost:5000/api/health', res => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.end();\""]
+      test: ["CMD-SHELL", "node -e \"const http=require('http');http.get('http://localhost:5001/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-    networks:
-      - hmwssb-net
 
   client:
     build:
@@ -72,14 +51,6 @@ services:
     depends_on:
       server:
         condition: service_healthy
-    networks:
-      - hmwssb-net
 
 volumes:
-  mongodb_data:
-  server_uploads:
-  server_keys:
-
-networks:
-  hmwssb-net:
-    driver: bridge
+  db_data:

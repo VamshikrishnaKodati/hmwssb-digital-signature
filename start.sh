@@ -11,7 +11,7 @@ if [ ! -f server/.env ]; then
 fi
 
 # Start server in background
-echo "Starting server on port 5000..."
+echo "Starting server on port 5001..."
 cd server && npm run dev &
 SERVER_PID=$!
 
@@ -24,9 +24,9 @@ cd ../client && npm run dev &
 CLIENT_PID=$!
 
 echo ""
-echo "Server: http://localhost:5000"
+echo "Server: http://localhost:5001"
 echo "Client: http://localhost:5173"
-echo "Health: http://localhost:5000/api/health"
+echo "Health: http://localhost:5001/api/health"
 echo ""
 echo "Press Ctrl+C to stop..."
 

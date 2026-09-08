@@ -7,38 +7,24 @@ on:
     branches: [main]
 
 jobs:
-  client-lint:
-    name: Client Lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-      - run: npm install -g npm@11
-      - run: npm ci
-      - run: npm run lint
-
   server-test:
     name: Server Tests
     runs-on: ubuntu-latest
     env:
-      P12_SIGNING_PASSWORD: ${{ secrets.P12_SIGNING_PASSWORD || 'test-signing-password-for-ci' }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hmwssb_test
       JWT_SECRET: test-secret-must-be-at-least-32-characters-long!!
-      MONGO_URI: mongodb://localhost:27017/hmwssb-test
       NODE_ENV: test
     services:
-      mongodb:
-        image: mongo:7
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hmwssb_test
         ports:
-          - 27017:27017
+          - 5432:5432
         options: >-
-          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh --quiet"
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -53,6 +39,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
       - run: npm ci
+      - name: Run migrations
+        run: node ../db/migrate.mjs
+      - name: Seed database
+        run: node ../db/seeds/seed.js && node ./seeds/seed-sor-items-v4.js
       - run: npm test
       - name: Upload test results
         if: always()

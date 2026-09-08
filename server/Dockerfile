@@ -2,26 +2,22 @@ FROM node:22
 
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends chromium && \
-    rm -rf /var/lib/apt/lists/*
+# Install server dependencies first (better layer caching)
+COPY server/package*.json ./server/
+RUN cd server && npm ci --omit=dev
 
-COPY package*.json ./
+# Copy application code + migrations
+COPY db ./db
+COPY server ./server
 
-RUN npm ci --omit=dev
+ENV NODE_ENV=production
 
-ENV CHROMIUM_PATH=/usr/bin/chromium
+WORKDIR /app/server
 
-COPY . .
+EXPOSE 5001
 
-RUN mkdir -p uploads keys && \
-    chown -R node:node /app
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD node -e "const http=require('http');http.get('http://localhost:5001/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
-EXPOSE 5000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/health || exit 1
-
-USER node
-
-CMD ["node", "server.js"]
+# Run migrations (idempotent) before starting the server
+CMD ["sh", "-c", "node ../db/migrate.mjs && node server.js"]
