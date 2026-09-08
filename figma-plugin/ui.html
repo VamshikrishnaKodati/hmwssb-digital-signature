@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>HMWSSB Design-to-Code</title>
+<style>
+  body { font: 12px/1.5 Inter, system-ui, sans-serif; margin: 0; padding: 12px; color: var(--figma-color-text); background: var(--figma-color-bg); }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  button { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--figma-color-border); background: var(--figma-color-bg); color: var(--figma-color-text); cursor: pointer; font: inherit; }
+  button:hover { background: var(--figma-color-bg-hover); }
+  button[disabled] { opacity: 0.5; cursor: default; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tab { flex: 1; }
+  .tab.active { background: var(--figma-color-bg-selected, #0d99ff); color: var(--figma-color-text-onbrand, #fff); border-color: transparent; }
+  pre { white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, monospace; font-size: 11px; margin: 0; padding: 8px; border-radius: 6px; background: var(--figma-color-bg-secondary); max-height: 380px; overflow: auto; }
+  .hint { color: var(--figma-color-text-secondary); font-size: 11px; margin-bottom: 8px; }
+  .field { margin-bottom: 8px; }
+  .field label { display: block; font-size: 11px; color: var(--figma-color-text-secondary); margin-bottom: 3px; }
+  .field input { width: 100%; box-sizing: border-box; padding: 5px 7px; border-radius: 6px; border: 1px solid var(--figma-color-border); background: var(--figma-color-bg); color: var(--figma-color-text); font: inherit; }
+  .status { font-size: 11px; margin-top: 6px; color: var(--figma-color-text-secondary); }
+  .status.ok { color: #138808; }
+  .status.err { color: #DC2626; }
+</style>
+</head>
+<body>
+  <div class="tabs">
+    <button id="tab-code" class="tab active">Design to Code</button>
+    <button id="tab-ref" class="tab">Workflow Reference</button>
+  </div>
+
+  <div id="view-code">
+    <div class="hint">Select a frame to inspect. Output auto-refreshes on selection change.</div>
+    <div class="row">
+      <button id="tokens">Extract tokens</button>
+      <button id="jsx">Generate component</button>
+      <button id="copy" disabled>Copy</button>
+    </div>
+    <pre id="out"></pre>
+  </div>
+
+  <div id="view-ref" style="display:none">
+    <div class="hint">Capture the selected frame as the visual reference for an e2e step (ref-server must run: <code>node e2e/ref-server.js</code>).</div>
+    <div class="field">
+      <label>Step ID (matches runner step, e.g. create_estimate)</label>
+      <input id="ref-step" placeholder="create_estimate" />
+    </div>
+    <div class="field">
+      <label>Route</label>
+      <input id="ref-route" placeholder="/estimates/new" />
+    </div>
+    <div class="field">
+      <label>Expected status (optional)</label>
+      <input id="ref-status" placeholder="Draft" />
+    </div>
+    <div class="row">
+      <button id="capture">Capture reference</button>
+    </div>
+    <pre id="ref-out"></pre>
+    <div class="status" id="ref-status-msg"></div>
+  </div>
+
+  <script>
+    const codeView = document.getElementById('view-code');
+    const refView = document.getElementById('view-ref');
+    const tabCode = document.getElementById('tab-code');
+    const tabRef = document.getElementById('tab-ref');
+    const out = document.getElementById('out');
+    const refOut = document.getElementById('ref-out');
+    const refMsg = document.getElementById('ref-status-msg');
+    const copyBtn = document.getElementById('copy');
+    const REF_SERVER = 'http://localhost:4725';
+
+    tabCode.onclick = () => { tabCode.classList.add('active'); tabRef.classList.remove('active'); codeView.style.display = ''; refView.style.display = 'none'; };
+    tabRef.onclick = () => { tabRef.classList.add('active'); tabCode.classList.remove('active'); refView.style.display = ''; codeView.style.display = 'none'; };
+
+    const setMsg = (ok, text) => { refMsg.textContent = text; refMsg.className = 'status ' + (ok ? 'ok' : 'err'); };
+
+    onmessage = (e) => {
+      const m = e.data.pluginMessage;
+      if (m.type === 'inspect') { out.textContent = m.data; copyBtn.disabled = true; }
+      if (m.type === 'tokens' || m.type === 'jsx') { out.textContent = m.data; copyBtn.disabled = false; }
+      if (m.type === 'reference-status') setMsg(!!m.ok, m.text || '');
+      if (m.type === 'reference') {
+        const { image, ...meta } = m.data;
+        refOut.textContent = JSON.stringify(meta, null, 2) + '\n[image: ' + image.length + ' chars base64]';
+        (async () => {
+          try {
+            const clean = meta.stepId.replace(/[^A-Za-z0-9_-]/g, '');
+            if (!clean) throw new Error('stepId is required');
+            const body = JSON.parse(await (await fetch(REF_SERVER + '/refs/' + clean, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta) })).text());
+            if (!body.ok) throw new Error('ref server rejected sidecar');
+            const imgBody = image.split(',')[1];
+            const res = await fetch(REF_SERVER + '/refs/' + clean + '/image', { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: Uint8Array.from(atob(imgBody), (c) => c.charCodeAt(0)) });
+            if (res.ok) setMsg(true, 'Captured ' + clean + ' (sidecar + PNG) to e2e/references/');
+            else throw new Error('PNG upload failed');
+          } catch (err) { setMsg(false, err.message); }
+        })();
+      }
+    };
+    const post = (type) => parent.postMessage({ pluginMessage: { type } }, '*');
+    document.getElementById('tokens').onclick = () => post('tokens');
+    document.getElementById('jsx').onclick = () => post('jsx');
+    copyBtn.onclick = () => navigator.clipboard.writeText(out.textContent);
+    document.getElementById('capture').onclick = () => {
+      refOut.textContent = '';
+      setMsg(false, '');
+      parent.postMessage({ pluginMessage: { type: 'reference', meta: {
+        stepId: document.getElementById('ref-step').value.trim(),
+        route: document.getElementById('ref-route').value.trim(),
+        status: document.getElementById('ref-status').value.trim(),
+      } } }, '*');
+    };
+  </script>
+</body>
+</html>

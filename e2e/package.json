@@ -1,0 +1,16 @@
+{
+  "name": "hmwssb-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Figma + Playwright workflow validation for HMWSSB Works Management System",
+  "scripts": {
+    "self-test": "node self-test.js",
+    "run": "node runner.js full",
+    "ref-server": "node ref-server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.48.0"
+  }
+}
