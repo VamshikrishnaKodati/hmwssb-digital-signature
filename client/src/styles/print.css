@@ -1,0 +1,231 @@
+@page {
+  size: A4 portrait;
+  margin: 20mm 18mm 20mm 18mm;
+}
+
+@media print {
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: Calibri, 'Times New Roman', serif;
+    font-size: 10pt;
+    line-height: 1.2;
+    color: #000;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print { display: none !important; }
+
+  .print-page {
+    width: 100%;
+    page-break-after: avoid;
+  }
+
+  .print-header {
+    text-align: center;
+    margin-bottom: 6pt;
+  }
+
+  .print-header h1 {
+    font-size: 16pt;
+    font-weight: bold;
+    margin: 0 0 2pt 0;
+    padding: 0;
+  }
+
+  .print-header h2 {
+    font-size: 13pt;
+    font-weight: bold;
+    margin: 0 0 4pt 0;
+    padding: 0;
+  }
+
+  .print-info {
+    font-size: 10pt;
+    font-weight: bold;
+    margin: 0 0 1pt 0;
+    padding: 0;
+  }
+
+  .print-info-normal {
+    font-size: 10pt;
+    font-weight: normal;
+    margin: 0 0 1pt 0;
+    padding: 0;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    table-layout: fixed;
+  }
+
+  .print-table th {
+    background-color: #1a237e;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 10pt;
+    text-align: center;
+    vertical-align: middle;
+    padding: 3pt 2pt;
+    border: 1pt solid #000;
+  }
+
+  .print-table td {
+    border: 0.5pt solid #000;
+    padding: 2pt 2pt;
+    vertical-align: top;
+    font-size: 9pt;
+  }
+
+  .print-table td.desc-cell {
+    text-align: left;
+    vertical-align: top;
+    word-wrap: break-word;
+    white-space: normal;
+    padding: 3pt 3pt;
+  }
+
+  .print-table td.center {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .print-table td.right {
+    text-align: right;
+    vertical-align: middle;
+  }
+
+  .col-sl { width: 5%; }
+  .col-desc { width: 50%; }
+  .col-num { width: 5%; }
+  .col-l { width: 4%; }
+  .col-b { width: 4%; }
+  .col-d { width: 4%; }
+  .col-qty { width: 8%; }
+  .col-rate { width: 9%; }
+  .col-unit { width: 5%; }
+  .col-amount { width: 10%; }
+
+  .col-abs-sl { width: 8%; }
+  .col-abs-desc { width: 62%; }
+  .col-abs-amount { width: 30%; }
+
+  .total-row td {
+    font-weight: bold;
+    font-size: 10pt;
+    border-top: 1pt solid #000;
+    padding: 3pt 2pt;
+  }
+
+  .total-label {
+    text-align: right;
+    padding-right: 4pt;
+  }
+
+  .total-amount {
+    text-align: right;
+  }
+
+  .words-row {
+    font-size: 10pt;
+    padding-top: 6pt;
+    text-align: left;
+  }
+
+  .section-row td {
+    font-weight: bold;
+    background-color: #f0f0f0;
+    font-size: 10pt;
+  }
+
+  .grand-total-row td {
+    font-weight: bold;
+    font-size: 11pt;
+    border-top: 1.5pt solid #000;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+}
+
+@media screen {
+  .print-wrapper {
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 20mm 18mm;
+    background: #fff;
+    font-family: Calibri, 'Times New Roman', serif;
+    font-size: 10pt;
+    color: #000;
+    line-height: 1.2;
+  }
+
+  .print-header { text-align: center; margin-bottom: 6pt; }
+  .print-header h1 { font-size: 16pt; font-weight: bold; margin: 0 0 2pt 0; }
+  .print-header h2 { font-size: 13pt; font-weight: bold; margin: 0 0 4pt 0; }
+  .print-info { font-size: 10pt; font-weight: bold; margin: 0 0 1pt 0; }
+  .print-info-normal { font-size: 10pt; font-weight: normal; margin: 0 0 1pt 0; }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    table-layout: fixed;
+  }
+
+  .print-table th {
+    background-color: #1a237e;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 10pt;
+    text-align: center;
+    vertical-align: middle;
+    padding: 3pt 2pt;
+    border: 1pt solid #000;
+  }
+
+  .print-table td {
+    border: 0.5pt solid #000;
+    padding: 2pt 2pt;
+    vertical-align: top;
+    font-size: 9pt;
+  }
+
+  .print-table td.desc-cell { text-align: left; vertical-align: top; word-wrap: break-word; white-space: normal; padding: 3pt 3pt; }
+  .print-table td.center { text-align: center; vertical-align: middle; }
+  .print-table td.right { text-align: right; vertical-align: middle; }
+
+  .col-sl { width: 5%; } .col-desc { width: 50%; } .col-num { width: 5%; }
+  .col-l { width: 4%; } .col-b { width: 4%; } .col-d { width: 4%; }
+  .col-qty { width: 8%; } .col-rate { width: 9%; } .col-unit { width: 5%; } .col-amount { width: 10%; }
+
+  .col-abs-sl { width: 8%; } .col-abs-desc { width: 62%; } .col-abs-amount { width: 30%; }
+
+  .total-row td { font-weight: bold; font-size: 10pt; border-top: 1pt solid #000; padding: 3pt 2pt; }
+  .total-label { text-align: right; padding-right: 4pt; }
+  .total-amount { text-align: right; }
+  .words-row { font-size: 10pt; padding-top: 6pt; text-align: left; }
+  .section-row td { font-weight: bold; background-color: #f0f0f0; font-size: 10pt; }
+  .grand-total-row td { font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #000; }
+
+  .no-print { display: block !important; }
+  .print-btn {
+    display: inline-block;
+    padding: 8px 20px;
+    background: #1a237e;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-bottom: 16px;
+  }
+  .print-btn:hover { background: #283593; }
+
+  .screen-only { display: block; }
+}
