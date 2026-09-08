@@ -1,139 +1,147 @@
-# HMWSSB Digital Signature System
+# HMWSSB Works Management System
 
-A complete works management system for Hyderabad Metropolitan Water Supply and Sewerage Board (HMWSSB) with digital signature capabilities, OTP-based authentication, and PAdES-compliant PDF signing.
+A complete works management system for Hyderabad Metropolitan Water Supply and Sewerage Board (HMWSSB) covering estimate preparation, multi-level approval workflow, tenders, agencies, work progress, billing, reports and PDF/Excel document export.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19, Vite 8, Bootstrap 5, React Router 7 |
-| Backend | Node.js 20+, Express 5, Mongoose 9 |
-| Database | MongoDB 7 |
-| PDF Signing | @signpdf, node-forge (RSA-2048), RFC 3161 timestamps |
-| Auth | JWT, bcrypt, HMAC-SHA256 OTP |
-| Docker | Multi-stage builds, health checks, auto-restart |
+| Frontend | React 18, Vite 5, Tailwind CSS 3.4, React Router 6 |
+| Backend | Node.js 20+, Express 4, pg (node-postgres) |
+| Database | PostgreSQL 16 |
+| Auth | JWT (jsonwebtoken), bcryptjs |
+| Documents | PDFKit (PDF), ExcelJS (workbook export) |
+| Tests | Node built-in test runner (`node --test`) |
 
 ## Requirements
 
 - Node.js 20+
-- MongoDB 7 (local or Docker)
-- Docker & Docker Compose (optional)
+- PostgreSQL 16 (local or Docker)
 
 ## Quick Start
 
-### Option 1: Docker (Recommended)
+### Local Development
+
+```bash
+# Install dependencies (root + client + server)
+npm run install:all
+
+# Copy the env template and set DATABASE_URL / JWT_SECRET
+copy server\.env.example server\.env
+
+# Create the database (e.g. hmwssb), then run migrations and seeds
+npm run migrate
+npm run seed
+
+# Start server + client together
+npm run dev
+```
+
+- Client: http://localhost:5173
+- API: http://localhost:5001
+- Health: http://localhost:5001/api/health
+
+Or run separately:
+
+```bash
+# Terminal 1 - Server
+cd server && npm run dev
+
+# Terminal 2 - Client
+cd client && npm run dev
+```
+
+### Docker
 
 ```bash
 docker compose up --build
 ```
 
-- Frontend: http://localhost
-- Backend API: http://localhost:5000
-- Health Check: http://localhost:5000/api/health
-
-### Option 2: Local Development
-
-```bash
-# Setup (installs deps, generates .env if missing)
-bash setup.sh          # Linux/macOS
-.\setup.ps1            # Windows PowerShell
-
-# Start both server and client
-bash start.sh          # Linux/macOS
-.\start.ps1            # Windows PowerShell
-```
-
-Or manually:
-
-```bash
-# Terminal 1 - Server
-cd server
-npm run dev
-
-# Terminal 2 - Client
-cd client
-npm run dev
-```
-
-- Client: http://localhost:5173
-- Server: http://localhost:5000
-
 ## Environment Variables
 
-Copy `server/.env.example` to `server/.env` and configure:
+Copy `server/.env.example` to `server/.env`:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `MONGO_URI` | Yes | MongoDB connection string |
-| `JWT_SECRET` | Yes | Min 32 characters. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `PORT` | No | Server port (default: 5000) |
-| `SMTP_*` | No | Email delivery settings |
-| `TWILIO_*` | No | SMS delivery settings |
-| `P12_SIGNING_PASSWORD` | No | Password for P12 signing certificate |
-| `REDIS_ENABLED` | No | Set to `false` to use in-memory cache (default) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string, e.g. `postgresql://postgres:postgres@localhost:5432/hmwssb` |
+| `JWT_SECRET` | Yes | Signing secret. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `PORT` | No | Server port (default: 5001) |
+| `JWT_EXPIRES_IN` | No | Token lifetime (default: 8h) |
+| `NODE_ENV` | No | `development` / `production` / `test` |
 
-## Default Test Accounts
+## Demo Accounts
 
-| Username | Password | Role |
-|----------|----------|------|
-| `admin` | `Admin@123456` | Admin |
-| `manager01` | `Manager@1234` | Manager |
-| `dgm01` | `Dgm@12345678` | DGM |
-| `gm01` | `Gm@123456789` | GM |
-| `ce01` | `Ce@123456789` | Chief Engineer |
-| `engineer01` | `Engineer@1234` | Engineer |
+All accounts share the password `password123`.
+
+| Username | Role |
+|----------|------|
+| `manager` | Manager |
+| `dgm` | DGM |
+| `gm` | GM |
+| `soradmin` | SoR Admin |
+| `tender_officer` | Tender Officer |
+| `director_admin` | Director of Administration |
+| `site_engineer` | Site Engineer |
+| `billing_officer` | Billing Officer |
+| `admin_officer` | Administrator |
 
 ## Project Structure
 
 ```
-├── server/                  # Backend API
-│   ├── config/              # DB, Redis configuration
+├── db/                      # SQL migrations + seeds
+│   ├── migrations/          # versioned SQL schema changes
+│   ├── scripts/             # migration runner
+│   └── seeds/               # core seed data
+├── server/                  # Backend API (Express + pg)
+│   ├── config/              # DB pool configuration
 │   ├── controllers/         # Route handlers
-│   ├── middleware/           # Auth, validation, error handling
-│   ├── models/              # Mongoose schemas (14 models)
-│   ├── routes/              # Express routes (9 route groups)
-│   ├── services/            # Business logic (11 services)
-│   ├── tests/               # Node.js built-in tests (11 files)
-│   ├── utils/               # Helpers (logger, email, SMS, PDF)
-│   └── validations/         # Joi schemas
-├── client/                  # Frontend SPA
-│   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── context/         # Auth context
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── pages/           # 9 page components
-│   │   ├── services/        # API client (axios)
-│   │   └── styles/          # Global CSS
-│   └── nginx.conf           # Production reverse proxy
-├── docker-compose.yml       # Full stack orchestration
-├── .github/workflows/ci.yml # CI/CD pipeline
-├── setup.sh / setup.ps1     # One-command setup
-└── start.sh / start.ps1     # One-command start
+│   ├── middleware/          # Auth, error handling
+│   ├── routes/              # Express route groups
+│   ├── seeds/               # users, SOR items, golden test data
+│   ├── tests/               # node:test golden tests
+│   └── utils/               # calc, PDF/Excel exporters, number-to-words
+├── client/                  # Frontend SPA (React + Vite + Tailwind)
+│   └── src/
+│       ├── components/      # UI components
+│       ├── contexts/        # Auth context
+│       ├── pages/           # Route pages
+│       └── utils/           # API client, helpers
+├── docker-compose.yml
+└── .github/workflows/ci.yml
 ```
 
 ## API Endpoints
 
+Main groups (all under `/api`):
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/auth/login` | User login |
-| GET | `/api/auth/profile` | Get current user profile |
-| POST | `/api/estimates` | Create estimate |
-| GET | `/api/estimates` | List estimates (paginated) |
-| PATCH | `/api/estimates/:id/status` | Update workflow status |
-| POST | `/api/otp/send` | Send OTP for signing |
-| POST | `/api/otp/verify` | Verify OTP and sign |
-| POST | `/api/pdf/generate` | Generate abstract PDF |
-| GET | `/api/signatures/verify/:id` | Verify digital signature |
-| GET | `/api/health` | Health check |
-| GET | `/api/status` | Service status |
+| POST | `/api/auth/logout` | Logout (clears client session) |
+| GET | `/api/auth/profile` | Current user profile |
+| PUT | `/api/auth/change-password` | Change password |
+| GET/POST | `/api/estimates` | List / create estimates |
+| GET/PUT | `/api/estimates/:id` | Get / update estimate |
+| GET | `/api/estimates/:id/versions` | Version history |
+| POST | `/api/workflow/:id/submit` | Submit for review |
+| POST | `/api/workflow/:id/{revert,approve,sign,publish-tender,select-agency,start-work,complete-work,submit-bill,archive}` | Workflow transitions |
+| GET | `/api/workflow/pending` | Pending approvals |
+| GET | `/api/workflow/:id/history` | Workflow history |
+| GET | `/api/items` | SOR item master (search/filter) |
+| GET | `/api/lookups/*` | Regions, zones, divisions, circles, wards, users |
+| GET | `/api/reports/*` | estimate-register, pending, approved, tender, agency, work-progress, billing, estimate-movement |
+| GET | `/api/exports/:id/{pdf,excel}` | Complete PDF / Excel document export |
+| GET | `/api/dashboard/stats` | Dashboard statistics |
 
 ## Workflow
 
 ```
-Draft → Abstract Generated → Submitted → DGM Review → GM Review → OTP Pending → Digitally Signed → Completed
-                    ↑                   ↓
-                    └── Reverted ←──────┘
+Draft → Submitted → DGM_Approved → Approved → Signed → TenderPublished → AgencySelected → WorkStarted → WorkCompleted → Billing → Completed
+   │       ↑
+   └───────┴── Reverted (returns to creator, requires Action Taken Report)
 ```
+
+Roles: Manager (create/submit) → DGM (approve) → GM (approve + digital sign & audit) → TenderOfficer (publish tender) → ProcurementOfficer (select agency) → SiteEngineer (start/complete work) → BillingOfficer (submit bill) → Administrator (archive/complete).
 
 ## Running Tests
 
@@ -142,13 +150,15 @@ cd server
 npm test
 ```
 
-## Docker Commands
+Seeds a golden estimate and asserts the full workflow end-to-end (9 tests).
+
+## Common Commands
 
 ```bash
-docker compose up --build -d    # Start all services
-docker compose down              # Stop all services
-docker compose logs -f server    # View server logs
-docker compose restart server    # Restart server
+npm run migrate     # run DB migrations (node db/migrate.mjs)
+npm run seed        # seed hierarchy, users and item master
+npm run build       # production build of client
+npm run dev         # server + client concurrently
 ```
 
 ## License
