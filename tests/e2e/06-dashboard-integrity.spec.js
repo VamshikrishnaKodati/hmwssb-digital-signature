@@ -33,12 +33,24 @@ test.describe('Dashboard data integrity (real data, KPI = drilldown)', () => {
     test(`${role.designation} dashboard renders real data`, async ({ page }) => {
       await loginAs(page, role.username);
 
-      // The dashboard must show the greeting (real user), operational overview
-      // and queue sections — all driven by /dashboard/stats backend data.
-      await expect(page.locator('[data-testid="dashboard-greeting"]')).toBeVisible({ timeout: 20000 });
-      const greeting = await page.locator('[data-testid="dashboard-greeting"]').textContent();
-      expect(greeting).toBeTruthy();
-      expect(greeting.length).toBeGreaterThan(5);
+      const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('user')));
+      const token = await page.evaluate(() => localStorage.getItem('token'));
+
+      // The dashboard must show the greeting (real user, other roles) or the
+      // Manager's attention section + overview — all driven by /dashboard/stats.
+      if (stored.Designation === 'Manager') {
+        await expect(page.locator('[data-testid="dashboard-shell"]')).toBeVisible({ timeout: 20000 });
+        await expect(page.locator('[data-testid="operational-overview"]')).toBeVisible({ timeout: 20000 });
+        // Manager attention section: Prepare Estimate + two count cards.
+        await expect(page.locator('h2', { hasText: 'Needs Your Attention' })).toBeVisible();
+        const attentionLinks = await page.locator('[aria-labelledby="attention-heading"] a').count();
+        expect(attentionLinks).toBe(3);
+      } else {
+        await expect(page.locator('[data-testid="dashboard-greeting"]')).toBeVisible({ timeout: 20000 });
+        const greeting = await page.locator('[data-testid="dashboard-greeting"]').textContent();
+        expect(greeting).toBeTruthy();
+        expect(greeting.length).toBeGreaterThan(5);
+      }
 
       // No error toast / retry state should be present.
       const body = await page.locator('body').textContent();
@@ -46,8 +58,6 @@ test.describe('Dashboard data integrity (real data, KPI = drilldown)', () => {
 
       // Cross-check: fetch the same dashboard payload via API and confirm the
       // role blob exists (no empty/fake dashboard).
-      const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('user')));
-      const token = await page.evaluate(() => localStorage.getItem('token'));
       const resp = await page.evaluate(async (tok) => {
         const r = await fetch('/api/dashboard/stats', { headers: { Authorization: 'Bearer ' + tok } });
         return await r.json();

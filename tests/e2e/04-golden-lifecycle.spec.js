@@ -135,24 +135,29 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
   test('STEP 1: Manager creates estimate with one item and submits to DGM', async ({ page }) => {
     await loginAs(page, 'manager');
     await page.goto('/estimates/new');
-    await page.waitForSelector('textarea', { timeout: 20000 });
+    await page.waitForSelector('#loc-ward', { timeout: 20000 });
 
-    // Location: Corp -> Zone -> Division -> Circle -> Ward (matching select)
-    const loc = page.locator('#loc-region');
-    await loc.selectOption({ index: 1 });
-    await page.waitForTimeout(500);
-    await page.locator('#loc-zone').selectOption({ index: 1 });
-    await page.waitForTimeout(500);
-    await page.locator('#loc-division').selectOption({ index: 1 });
-    await page.waitForTimeout(500);
-    await page.locator('#loc-circle').selectOption({ index: 1 });
-    await page.waitForTimeout(500);
+    // Location: Manager is circle-scoped, so Corp/Zone/Division/Circle are
+    // derived read-only fields (spec keeps them visible, non-editable); only
+    // Ward is selectable.
+    const scopeVals = await page.evaluate(() => ({
+      region: document.querySelector('#loc-region')?.value,
+      zone: document.querySelector('#loc-zone')?.value,
+      division: document.querySelector('#loc-division')?.value,
+      circle: document.querySelector('#loc-circle')?.value,
+    }));
+    expect(scopeVals.region).toBeTruthy();
+    expect(scopeVals.zone).toBeTruthy();
+    expect(scopeVals.division).toBeTruthy();
+    expect(scopeVals.circle).toBeTruthy();
+    expect(await page.locator('#loc-region').getAttribute('readonly')).toBeDefined();
     await page.locator('#loc-ward').selectOption({ index: 1 });
     await page.waitForTimeout(400);
 
     // Work details
     await page.locator('#work-category').selectOption({ index: 1 });
-    await page.locator('#name-of-work').fill('Golden Lifecycle E2E ' + Date.now());
+    const workName = 'Golden Lifecycle E2E ' + Date.now();
+    await page.locator('#name-of-work').fill(workName);
 
     // Item row: the new-estimate form seeds one draft row with a search box.
     const searchInput = page.locator('input.ec-search-row-input').first();
@@ -170,19 +175,17 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
     await page.locator('button:has-text("Save")').first().click();
     await page.waitForTimeout(3000);
 
-    // Capture EstimateNo from the page header (regenerate pattern EST/fy/ward/seq)
-    const body = await page.locator('body').textContent();
-    const m = body.match(/EST\/\d{4}-\d{2}\/[^/]+\/\d+/i);
-    EST_NO = m ? m[0] : null;
-    expect(EST_NO).toBeTruthy();
-    // resolve estimate id via API
+    // The redesigned page stays on /estimates/new after save (no EstimateNo in
+    // the DOM yet), so resolve the new estimate via the API by its unique name.
     const token = await page.evaluate(() => localStorage.getItem('token'));
-    const res = await page.evaluate(async ({ token, estNo }) => {
+    const res = await page.evaluate(async ({ token, workName }) => {
       const r = await fetch('/api/estimates?limit=500', { headers: { Authorization: 'Bearer ' + token } });
       const j = await r.json();
-      return (j.data || j).find(e => e.EstimateNo === estNo);
-    }, { token, estNo: EST_NO });
-    expect(res && res.EstimateID).toBeTruthy();
+      return (j.data || j).find(e => e.NameOfWork === workName);
+    }, { token, workName });
+    expect(res && res.EstimateNo).toBeTruthy();
+    EST_NO = res.EstimateNo;
+    expect(res.EstimateID).toBeTruthy();
     EID = res.EstimateID;
     console.log('GOLDEN Estimate', EST_NO, 'id', EID);
   });
