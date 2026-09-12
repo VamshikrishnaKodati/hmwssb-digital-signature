@@ -1,219 +1,386 @@
+/* ==========================================================================
+   Print presentation for the official estimate document.
+
+   The screen preview (.print-wrapper) mirrors the printed output exactly;
+   the application chrome around it is web-only (.no-print). All three
+   estimate sections flow continuously inside ONE printable document
+   (.estimate-print-document) — there are NO artificial page breaks between
+   Civil / Material / General Abstract. Page layout, table header repetition,
+   row breaks and the page-number footer are controlled here, together with
+   a compact print-specific typography and density scale.
+   ========================================================================== */
+
 @page {
   size: A4 portrait;
-  margin: 20mm 18mm 20mm 18mm;
+  margin: 8mm;
 }
 
+/* --- One continuous, printable document ------------------------------- */
+.estimate-print-document,
+.print-page {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* --- Compact print typography scale -------------------------------------
+   Document title ~13px, section headings ~9.5px, table/metadata ~8px,
+   signatures ~8px, with tight but readable leading. */
+.print-header {
+  text-align: center;
+}
+.print-header h1 {
+  font-size: 13px;
+  font-weight: bold;
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+}
+.print-header h2 {
+  font-size: 9.5px;
+  font-weight: bold;
+  letter-spacing: 0.4px;
+  margin: 2px 0 3px 0;
+  line-height: 1.2;
+}
+
+.print-info {
+  font-size: 8.5px;
+  font-weight: bold;
+  margin: 0;
+  line-height: 1.35;
+}
+.print-info-normal {
+  font-size: 8.5px;
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* --- Canonical document identification block -------------------------
+   Government of Telangana / HMWSSB / Works Management System /
+   ABSTRACT OF ESTIMATE + estimate information. Same block, same order,
+   same compact density as the server-generated PDF header. */
+.print-cover {
+  text-align: center;
+  margin-bottom: 3mm;
+}
+.print-cover h1 {
+  font-size: 12px;
+  font-weight: bold;
+  margin: 0 0 1px 0;
+  line-height: 1.2;
+  color: #0f2a52;
+}
+.print-cover .pc-board {
+  font-size: 9px;
+  font-weight: bold;
+  margin: 0;
+  line-height: 1.2;
+  color: #1a237e;
+}
+.print-cover .pc-wms {
+  font-size: 7px;
+  margin: 0;
+  line-height: 1.2;
+  color: #5a6a7f;
+}
+.print-cover .pc-rule {
+  border-top: 1.5px solid #1a237e;
+  margin: 5px 0;
+}
+.print-cover h2.pc-abstract {
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin: 2px 0 0 0;
+  line-height: 1.2;
+  color: #1a237e;
+}
+.print-cover .pc-sub {
+  font-size: 8.5px;
+  margin: 3px 0 6px 0;
+  color: #0f172a;
+  line-height: 1.3;
+}
+.print-cover-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  text-align: left;
+}
+.pc-cell {
+  border: 1px solid #cbd5e1;
+  padding: 3px 6px;
+  min-width: 0;
+}
+.pc-label {
+  font-size: 6.5px;
+  font-weight: bold;
+  color: #1a237e;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+.pc-value {
+  font-size: 8.5px;
+  color: #0f172a;
+  line-height: 1.3;
+  word-wrap: break-word;
+}
+
+/* --- Tables --------------------------------------------------------------
+   Headers repeat on continuation pages; individual rows and totals never
+   split. Tables themselves may continue naturally if content is long. */
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8px;
+  table-layout: fixed;
+  margin-top: 4px;
+}
+.print-table thead {
+  display: table-header-group;
+}
+.print-table tfoot {
+  display: table-footer-group;
+}
+.print-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-table th {
+  background-color: #1a237e;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 8px;
+  text-align: center;
+  vertical-align: middle;
+  padding: 2px 1px;
+  border: 1px solid #000;
+  line-height: 1.2;
+}
+.print-table td {
+  border: 0.5px solid #000;
+  padding: 1px 2px;
+  vertical-align: top;
+  font-size: 8px;
+  line-height: 1.25;
+}
+.print-table td.desc-cell {
+  text-align: left;
+  vertical-align: top;
+  word-wrap: break-word;
+  white-space: normal;
+  padding: 1.5px 2px;
+}
+.print-table td.center {
+  text-align: center;
+  vertical-align: middle;
+}
+.print-table td.right {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.col-sl { width: 4%; }
+.col-code { width: 8%; }
+.col-desc { width: 42%; }
+.col-num { width: 4%; }
+.col-l { width: 4%; }
+.col-b { width: 4%; }
+.col-d { width: 4%; }
+.col-qty { width: 7%; }
+.col-rate { width: 8%; }
+.col-unit { width: 5%; }
+.col-amount { width: 10%; }
+
+.col-abs-sl { width: 8%; }
+.col-abs-desc { width: 62%; }
+.col-abs-amount { width: 30%; }
+
+.total-row td {
+  font-weight: bold;
+  font-size: 8.5px;
+  border-top: 1px solid #000;
+  padding: 1.5px 2px;
+}
+.total-row {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.total-label {
+  text-align: right;
+  padding-right: 3px;
+}
+.total-amount {
+  text-align: right;
+}
+
+.words-row {
+  font-size: 8.5px;
+  padding-top: 2px;
+  margin-top: 2px;
+  text-align: left;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.section-row td {
+  font-weight: bold;
+  background-color: #f0f0f0;
+  font-size: 8.5px;
+  padding: 1.5px 2px;
+}
+.section-row {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.spacer-row td {
+  border: none !important;
+  padding: 1.5px 0 !important;
+}
+
+.grand-total-row td {
+  font-weight: bold;
+  font-size: 9.5px;
+  border-top: 1.5px solid #000;
+  padding: 2px 2px;
+}
+.grand-total-row {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* --- Signature / approval band -----------------------------------------
+   Horizontal, compact. Same three parties and order as the official
+   server-generated PDF (Prepared → Checked → Approved). */
+.print-signatures {
+  display: flex;
+  justify-content: space-between;
+  gap: 6mm;
+  margin-top: 6mm;
+}
+.print-sig {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+.print-sig-line {
+  border-top: 1px solid #000;
+  height: 12px;
+}
+.print-sig-label {
+  font-size: 8.5px;
+  font-weight: bold;
+  margin-top: 3px;
+  line-height: 1.2;
+}
+.print-sig-role {
+  font-size: 7.5px;
+  color: #334155;
+  margin-top: 1px;
+  line-height: 1.2;
+}
+
+/* --- Print-only handling of web chrome and page flow ------------------ */
 @media print {
   html, body {
     margin: 0;
     padding: 0;
-    font-family: Calibri, 'Times New Roman', serif;
-    font-size: 10pt;
-    line-height: 1.2;
-    color: #000;
     background: #fff;
+    font-family: Calibri, 'Times New Roman', serif;
+    font-size: 8.5px;
+    line-height: 1.15;
+    color: #000;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .no-print { display: none !important; }
+  /* Never print the web chrome. */
+  .app-shell,
+  .app-frame {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
 
-  .print-page {
+  .app-header,
+  .app-breadcrumb,
+  #app-navigation,
+  .no-print,
+  .screen-only {
+    display: none !important;
+  }
+
+  .app-main {
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* Sections flow continuously on the single A4 page. */
+  .print-wrapper {
+    max-width: none;
     width: 100%;
-    page-break-after: avoid;
+    margin: 0;
+    padding: 0 !important;
+    border: 0;
+    background: #fff;
   }
 
-  .print-header {
-    text-align: center;
-    margin-bottom: 6pt;
+  /* The canonical identification block (.print-cover) carries the logo,
+     the Government of Telangana / HMWSSB banner and the ABSTRACT OF
+     ESTIMATE title. The per-section headers therefore keep only their
+     ESTIMATE FOR ... / GENERAL ABSTRACT heading. */
+  .estimate-print-document > .print-page + .print-page {
+    margin-top: 3mm;
+  }
+  .estimate-print-document .print-page .print-header > div:first-child {
+    display: none;
+  }
+  .estimate-print-document .print-page .print-header h1 {
+    display: none;
+  }
+  .estimate-print-document .print-page .print-header {
+    margin: 0;
   }
 
-  .print-header h1 {
-    font-size: 16pt;
-    font-weight: bold;
-    margin: 0 0 2pt 0;
-    padding: 0;
-  }
-
-  .print-header h2 {
-    font-size: 13pt;
-    font-weight: bold;
-    margin: 0 0 4pt 0;
-    padding: 0;
-  }
-
-  .print-info {
-    font-size: 10pt;
-    font-weight: bold;
-    margin: 0 0 1pt 0;
-    padding: 0;
-  }
-
-  .print-info-normal {
-    font-size: 10pt;
-    font-weight: normal;
-    margin: 0 0 1pt 0;
-    padding: 0;
-  }
-
-  .print-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 9pt;
-    table-layout: fixed;
-  }
-
-  .print-table th {
-    background-color: #1a237e;
-    color: #ffffff;
-    font-weight: bold;
-    font-size: 10pt;
-    text-align: center;
-    vertical-align: middle;
-    padding: 3pt 2pt;
-    border: 1pt solid #000;
-  }
-
-  .print-table td {
-    border: 0.5pt solid #000;
-    padding: 2pt 2pt;
-    vertical-align: top;
-    font-size: 9pt;
-  }
-
-  .print-table td.desc-cell {
-    text-align: left;
-    vertical-align: top;
-    word-wrap: break-word;
-    white-space: normal;
-    padding: 3pt 3pt;
-  }
-
-  .print-table td.center {
-    text-align: center;
-    vertical-align: middle;
-  }
-
-  .print-table td.right {
-    text-align: right;
-    vertical-align: middle;
-  }
-
-  .col-sl { width: 5%; }
-  .col-desc { width: 50%; }
-  .col-num { width: 5%; }
-  .col-l { width: 4%; }
-  .col-b { width: 4%; }
-  .col-d { width: 4%; }
-  .col-qty { width: 8%; }
-  .col-rate { width: 9%; }
-  .col-unit { width: 5%; }
-  .col-amount { width: 10%; }
-
-  .col-abs-sl { width: 8%; }
-  .col-abs-desc { width: 62%; }
-  .col-abs-amount { width: 30%; }
-
-  .total-row td {
-    font-weight: bold;
-    font-size: 10pt;
-    border-top: 1pt solid #000;
-    padding: 3pt 2pt;
-  }
-
-  .total-label {
-    text-align: right;
-    padding-right: 4pt;
-  }
-
-  .total-amount {
-    text-align: right;
-  }
-
-  .words-row {
-    font-size: 10pt;
-    padding-top: 6pt;
-    text-align: left;
-  }
-
-  .section-row td {
-    font-weight: bold;
-    background-color: #f0f0f0;
-    font-size: 10pt;
-  }
-
-  .grand-total-row td {
-    font-weight: bold;
-    font-size: 11pt;
-    border-top: 1.5pt solid #000;
-  }
-
-  .page-break {
-    page-break-before: always;
+  /* Page number footer — honest "Page N" (no hard-coded total count). */
+  body::after {
+    content: "Page " counter(page);
+    position: fixed;
+    bottom: 2mm;
+    right: 4mm;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8px;
+    color: #475569;
   }
 }
 
+/* --- Screen mirror: the same document drawn as a paper sheet ----------- */
 @media screen {
   .print-wrapper {
     max-width: 210mm;
     margin: 0 auto;
-    padding: 20mm 18mm;
+    padding: 12mm 10mm;
     background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     font-family: Calibri, 'Times New Roman', serif;
-    font-size: 10pt;
     color: #000;
-    line-height: 1.2;
   }
 
-  .print-header { text-align: center; margin-bottom: 6pt; }
-  .print-header h1 { font-size: 16pt; font-weight: bold; margin: 0 0 2pt 0; }
-  .print-header h2 { font-size: 13pt; font-weight: bold; margin: 0 0 4pt 0; }
-  .print-info { font-size: 10pt; font-weight: bold; margin: 0 0 1pt 0; }
-  .print-info-normal { font-size: 10pt; font-weight: normal; margin: 0 0 1pt 0; }
-
-  .print-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 9pt;
-    table-layout: fixed;
+  .print-header {
+    margin-bottom: 4px;
   }
 
-  .print-table th {
-    background-color: #1a237e;
-    color: #ffffff;
-    font-weight: bold;
-    font-size: 10pt;
-    text-align: center;
-    vertical-align: middle;
-    padding: 3pt 2pt;
-    border: 1pt solid #000;
-  }
-
-  .print-table td {
-    border: 0.5pt solid #000;
-    padding: 2pt 2pt;
-    vertical-align: top;
-    font-size: 9pt;
-  }
-
-  .print-table td.desc-cell { text-align: left; vertical-align: top; word-wrap: break-word; white-space: normal; padding: 3pt 3pt; }
-  .print-table td.center { text-align: center; vertical-align: middle; }
-  .print-table td.right { text-align: right; vertical-align: middle; }
-
-  .col-sl { width: 5%; } .col-desc { width: 50%; } .col-num { width: 5%; }
-  .col-l { width: 4%; } .col-b { width: 4%; } .col-d { width: 4%; }
-  .col-qty { width: 8%; } .col-rate { width: 9%; } .col-unit { width: 5%; } .col-amount { width: 10%; }
-
-  .col-abs-sl { width: 8%; } .col-abs-desc { width: 62%; } .col-abs-amount { width: 30%; }
-
-  .total-row td { font-weight: bold; font-size: 10pt; border-top: 1pt solid #000; padding: 3pt 2pt; }
-  .total-label { text-align: right; padding-right: 4pt; }
-  .total-amount { text-align: right; }
-  .words-row { font-size: 10pt; padding-top: 6pt; text-align: left; }
-  .section-row td { font-weight: bold; background-color: #f0f0f0; font-size: 10pt; }
-  .grand-total-row td { font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #000; }
-
-  .no-print { display: block !important; }
   .print-btn {
     display: inline-block;
     padding: 8px 20px;
@@ -225,7 +392,7 @@
     cursor: pointer;
     margin-bottom: 16px;
   }
-  .print-btn:hover { background: #283593; }
-
-  .screen-only { display: block; }
+  .print-btn:hover {
+    background: #283593;
+  }
 }

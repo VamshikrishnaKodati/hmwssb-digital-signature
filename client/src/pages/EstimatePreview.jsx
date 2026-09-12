@@ -5,6 +5,7 @@ import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { downloadExport } from '../utils/download'
 import StatusBadge from '../components/shared/StatusBadge'
+import Logo from '../components/Logo'
 import CivilEstimatePrint from '../components/print/CivilEstimatePrint'
 import MaterialEstimatePrint from '../components/print/MaterialEstimatePrint'
 import GeneralAbstractPrint from '../components/print/GeneralAbstractPrint'
@@ -47,10 +48,16 @@ export default function EstimatePreview() {
   const civilItems = items.filter(i => i.Category === 'Civil')
   const materialItems = items.filter(i => i.Category === 'Material')
   const locParts = [estimate.RegionName, estimate.ZoneName, estimate.DivisionName, estimate.CircleName, estimate.WardName].filter(Boolean)
+  const preparedBy = estimate.CreatedByName
+    ? `${estimate.CreatedByName}${estimate.CreatedByDesignation ? ` (${estimate.CreatedByDesignation})` : ''}`
+    : null
+  const createdDate = estimate.CreatedDate
+    ? new Date(estimate.CreatedDate).toLocaleDateString('en-IN')
+    : null
 
   return (
     <div className="min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 mb-5">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(-1)} className="p-1.5 rounded text-[#64748B] hover:bg-[#F1F5F9]">
             <ArrowLeft className="w-4 h-4" />
@@ -74,8 +81,7 @@ export default function EstimatePreview() {
         </div>
       </div>
 
-      {/* Work Details */}
-      <div className="ec-card mb-5">
+      <div className="no-print ec-card mb-5">
         <div className="ec-card-header">
           <FileText className="w-4 h-4 text-[#1E3A5F]" />
           <span className="ec-card-title">Work Details</span>
@@ -102,21 +108,66 @@ export default function EstimatePreview() {
         </div>
       </div>
 
-      {/* Printable layout */}
-      <div className="print-wrapper">
+      {/* Printable layout — one continuous A4 document (no page breaks between sections) */}
+      <div className="print-wrapper estimate-print-document">
+        <div className="print-cover">
+          <div className="flex justify-center mb-2"><Logo size={36} /></div>
+          <h1>Government of Telangana</h1>
+          <p className="pc-board">HMWSSB - Hyderabad Metropolitan Water Supply &amp; Sewerage Board</p>
+          <p className="pc-wms">Works Management System</p>
+          <div className="pc-rule" />
+          <h2 className="pc-abstract">ABSTRACT OF ESTIMATE</h2>
+          <p className="pc-sub">
+            {estimate.EstimateNo || estimate.WorkID}
+            <span className="mx-1">|</span>
+            Financial Year {estimate.FinancialYear}
+          </p>
+          <div className="print-cover-grid">
+            {[
+              ['Estimate ID', estimate.EstimateNo || estimate.WorkID || '-', 'Name of Work', estimate.NameOfWork || '-'],
+              ['Work Category', estimate.WorkCategory || '-', 'Location', locParts.length ? locParts.join(' → ') : '-'],
+              ['Status', estimate.Status || '-', 'Version', String(estimate.Version || 1)],
+              ['Prepared By', preparedBy || '-', 'Prepared Date', createdDate || '-'],
+            ].map(([l1, v1, l2, v2]) => [
+              <div className="pc-cell" key={l1}>
+                <p className="pc-label">{l1}</p>
+                <p className="pc-value">{v1}</p>
+              </div>,
+              <div className="pc-cell" key={l2}>
+                <p className="pc-label">{l2}</p>
+                <p className="pc-value">{v2}</p>
+              </div>,
+            ])}
+          </div>
+        </div>
         {civilItems.length > 0 && (
           <CivilEstimatePrint estimate={estimate} items={civilItems} />
         )}
-        {civilItems.length > 0 && materialItems.length > 0 && <div className="page-break" />}
         {materialItems.length > 0 && (
           <MaterialEstimatePrint estimate={estimate} items={materialItems} />
         )}
-        {(civilItems.length > 0 || materialItems.length > 0) && <div className="page-break" />}
         <GeneralAbstractPrint
           estimate={estimate}
           items={items}
           abstract={estimate.Abstract || {}}
         />
+        <div className="print-signatures">
+          <div className="print-sig">
+            <div className="print-sig-line" />
+            <div className="print-sig-label">Prepared by</div>
+            <div className="print-sig-role">Manager / Engineer</div>
+          </div>
+          <div className="print-sig">
+            <div className="print-sig-line" />
+            <div className="print-sig-label">Checked by</div>
+            <div className="print-sig-role">DGM (Works)</div>
+          </div>
+          <div className="print-sig">
+            <div className="print-sig-line" />
+            <div className="print-sig-label">Approved by</div>
+            <div className="print-sig-role">GM (Works)</div>
+          </div>
+        </div>
       </div>
 
       {/* Grand Total summary strip */}

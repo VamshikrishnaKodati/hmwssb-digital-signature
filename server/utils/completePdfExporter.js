@@ -6,14 +6,32 @@ const { numberToWords } = require('./numberToWords');
 const { inr, collect } = require('./format');
 
 const TEMPLATE_DIR = path.join(__dirname, '../templates');
-const MARGIN = 45;
+// ~8mm margins — the same @page margins the browser Print document uses, so
+// the downloaded PDF and the printed page share one canonical A4 layout.
+const MARGIN = 23;
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
-const CONTENT_BOTTOM = PAGE_HEIGHT - 67;
+
+const FOOTER_LINE_Y = PAGE_HEIGHT - 46;
+const CONTENT_BOTTOM = FOOTER_LINE_Y - 10;
 
 const NAVY = '#1a237e';
 const LIGHT_GRAY = '#f2f2f2';
+
+// Compact type scale in pt. ppi = 72, browser px * 0.75 => same physical size.
+const T_GOVT = 9;
+const T_BOARD = 6.7;
+const T_WMS = 5.3;
+const T_DOC_TITLE = 10.5;
+const T_LABEL = 5.3;
+const T_INFO = 6.5;
+const T_SECTION_TITLE = 7.5;
+const T_SEC_INFO = 6.4;
+const T_TABLE_HDR = 6.3;
+const T_TABLE = 6;
+const T_TOTAL = 6.8;
+const T_WORDS = 6.5;
 
 function fmt(n, dec = 2) {
   if (n === null || n === undefined || n === '') return '';
@@ -30,6 +48,25 @@ function watermarkFor(status) {
   if (s === 'submitted') return 'UNDER REVIEW';
   if (['approved', 'dgmapproved', 'signed', 'signedaudited'].includes(s)) return 'APPROVED';
   return null;
+}
+
+function locationLine(locNames) {
+  const parts = [];
+  if (locNames.region) parts.push(`Region: ${locNames.region}`);
+  if (locNames.zone) parts.push(`Zone: ${locNames.zone}`);
+  if (locNames.division) parts.push(`Division: ${locNames.division}`);
+  if (locNames.circle) parts.push(`Circle: ${locNames.circle}`);
+  if (locNames.ward) parts.push(`Ward: ${locNames.ward}`);
+  return parts.join(',  ');
+}
+
+function fmtDate(d) {
+  return d ? new Date(d).toLocaleDateString('en-IN') : '';
+}
+
+function ensureSpace(doc, y, needed) {
+  if (y + needed > CONTENT_BOTTOM) { doc.addPage(); return MARGIN; }
+  return y;
 }
 
 async function generateCompletePDF(data) {
@@ -53,13 +90,14 @@ async function generateCompletePDF(data) {
 
   const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true });
 
-  renderCover(doc, { header, abstract, locNames, createdBy, genStamp });
-  doc.addPage();
-  renderItemsSection(doc, { header, title: 'ESTIMATE FOR CIVIL WORK', items: civil });
-  doc.addPage();
-  renderItemsSection(doc, { header, title: 'ESTIMATE FOR MATERIAL', items: material });
-  doc.addPage();
-  renderAbstractSection(doc, { header, abstract, genStamp, qrBuffer });
+  let y = renderHeaderBlock(doc, { header, locNames, createdBy });
+  if (civil.length) {
+    y = renderItemsSection(doc, { header, locNames, title: 'ESTIMATE FOR CIVIL WORK', items: civil, y, totalLabel: 'Part-I : Working Items Total' });
+  }
+  if (material.length) {
+    y = renderItemsSection(doc, { header, locNames, title: 'ESTIMATE FOR MATERIAL', items: material, y, totalLabel: 'Part-I : Cost of Materials Total' });
+  }
+  renderAbstractSection(doc, { header, locNames, abstract, genStamp, qrBuffer, y });
 
   renderPageChrome(doc, { genStamp, status: header.Status });
 
@@ -67,125 +105,142 @@ async function generateCompletePDF(data) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Cover page                                                          */
+/* Canonical document header (Government of Telangana / HMWSSB /       */
+/* ABSTRACT OF ESTIMATE / estimate information)                        */
 /* ------------------------------------------------------------------ */
-function renderCover(doc, { header, abstract, locNames, createdBy, genStamp }) {
-  let y = 55;
+function renderHeaderBlock(doc, { header, locNames, createdBy }) {
+  let y = MARGIN;
 
   try {
     const logoPath = path.join(TEMPLATE_DIR, 'hmwssb-logo.png');
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, (PAGE_WIDTH - 95) / 2, y, { width: 95 });
-      y += 95 + 8;
+      doc.image(logoPath, (PAGE_WIDTH - 56) / 2, y, { width: 56 });
+      y += 48;
     }
   } catch (_) { /* logo optional */ }
 
-  doc.fillColor('#0f2a52').font('Helvetica-Bold').fontSize(17).text('Government of Telangana', MARGIN, y, {
-    align: 'center', width: CONTENT_WIDTH,
-  });
-  y = doc.y + 4;
-  doc.fillColor(NAVY).fontSize(11.5).text(
-    'HYDERABAD METROPOLITAN WATER SUPPLY & SEWERAGE BOARD',
-    MARGIN, y, { align: 'center', width: CONTENT_WIDTH }
-  );
-  y = doc.y + 2;
-  doc.fillColor('#5a6a7f').fontSize(9).font('Helvetica').text(
-    'Works Management System',
-    MARGIN, y, { align: 'center', width: CONTENT_WIDTH }
-  );
-  y = doc.y + 10;
+  doc.fillColor('#0f2a52').font('Helvetica-Bold').fontSize(T_GOVT)
+    .text('Government of Telangana', MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
+  y += 11;
 
-  doc.moveTo(MARGIN, y).lineTo(PAGE_WIDTH - MARGIN, y).lineWidth(1.2).strokeColor(NAVY).stroke();
-  y += 22;
+  doc.fillColor(NAVY).fontSize(T_BOARD)
+    .text('HYDERABAD METROPOLITAN WATER SUPPLY & SEWERAGE BOARD', MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
+  y += 8.5;
 
-  doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(20).text('ABSTRACT OF ESTIMATE', MARGIN, y, {
-    align: 'center', width: CONTENT_WIDTH,
-  });
-  y = doc.y + 4;
-  doc.fillColor('#0f172a').fontSize(12).text(
-    `${header.EstimateNo || header.WorkID || ''}   |   Financial Year ${header.FinancialYear || ''}`,
-    MARGIN, y, { align: 'center', width: CONTENT_WIDTH }
-  );
-  y = doc.y + 18;
+  doc.fillColor('#5a6a7f').font('Helvetica').fontSize(T_WMS)
+    .text('Works Management System', MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
+  y += 6;
 
-  const rows = [
-    ['Estimate ID', header.EstimateNo || header.WorkID || '-'],
-    ['Name of Work', header.NameOfWork || '-'],
-    ['Work Category', header.WorkCategory || '-'],
-    ['Location', locationLine(locNames) || '-'],
-    ['Status', header.Status || '-'],
-    ['Version', String(header.Version || 1)],
-    ['Prepared By', createdBy ? `${createdBy.Name} (${createdBy.Designation})` : '-'],
-    ['Prepared Date', header.CreatedDate ? new Date(header.CreatedDate).toLocaleDateString('en-IN') : '-'],
+  doc.moveTo(MARGIN, y).lineTo(PAGE_WIDTH - MARGIN, y).lineWidth(1).strokeColor(NAVY).stroke();
+  y += 9;
+
+  doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(T_DOC_TITLE)
+    .text('ABSTRACT OF ESTIMATE', MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
+  y += 13;
+
+  doc.fillColor('#0f172a').font('Helvetica').fontSize(T_INFO)
+    .text(`${header.EstimateNo || header.WorkID || ''}   |   Financial Year ${header.FinancialYear || ''}`, MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
+  y += 9;
+
+  y = drawInfoGrid(doc, { header, locNames, createdBy, y });
+  doc.moveTo(MARGIN, y).lineTo(PAGE_WIDTH - MARGIN, y).lineWidth(0.6).strokeColor('#cbd5e1').stroke();
+  return y + 9;
+}
+
+function drawInfoGrid(doc, { header, locNames, createdBy, y }) {
+  const pairs = [
+    {
+      l: 'Estimate ID', v: header.EstimateNo || header.WorkID || '-',
+      l2: 'Name of Work', v2: header.NameOfWork || '-',
+    },
+    {
+      l: 'Work Category', v: header.WorkCategory || '-',
+      l2: 'Location', v2: locationLine(locNames) || '-',
+    },
+    {
+      l: 'Status', v: header.Status || '-',
+      l2: 'Version', v2: String(header.Version || 1),
+    },
+    {
+      l: 'Prepared By', v: createdBy ? `${createdBy.Name} (${createdBy.Designation})` : '-',
+      l2: 'Prepared Date', v2: fmtDate(header.CreatedDate) || '-',
+    },
   ];
+  const colW = CONTENT_WIDTH / 2;
+  const rowH = 15;
 
-  y = drawKeyValueTable(doc, rows, y, 24);
+  function cell(cy, offset, label, value) {
+    const x = MARGIN + offset;
+    doc.rect(x, cy, colW, rowH).stroke('#cbd5e1');
+    doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(T_LABEL)
+      .text(String(label).toUpperCase(), x + 4, cy + 1.5, { width: colW - 8, lineBreak: false });
+    doc.fillColor('#0f172a').font('Helvetica').fontSize(T_INFO)
+      .text(String(value), x + 4, cy + 6.5, { width: colW - 8, lineBreak: false });
+  }
 
-  y += 14;
-  const grandTotal = abstract ? Number(abstract.GrandTotal) : 0;
-  doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text(
-    `Grand Total : ${inr(grandTotal)}`,
-    MARGIN, y, { align: 'center', width: CONTENT_WIDTH }
-  );
-  y = doc.y + 16;
-  doc.fillColor('#334155').font('Helvetica').fontSize(8.5).text(
-    `(Rupees ${numberToWords(grandTotal)})`,
-    MARGIN, y, { align: 'center', width: CONTENT_WIDTH }
-  );
-  y = doc.y + 26;
+  for (const p of pairs) {
+    cell(y, 0, p.l, p.v);
+    cell(y, colW, p.l2, p.v2);
+    y += rowH;
+  }
+  return y;
+}
 
-  doc.moveTo(MARGIN, y).lineTo(PAGE_WIDTH - MARGIN, y).lineWidth(0.8).strokeColor('#cbd5e1').stroke();
-  y += 12;
-  doc.fillColor('#64748b').fontSize(8).text(
-    `This document is generated by the HMWSSB Works Management System on ${genStamp}.`,
-    MARGIN, y, { align: 'center', width: CONTENT_WIDTH }
-  );
+/* ------------------------------------------------------------------ */
+/* Section header lines common to Civil / Material / Abstract         */
+/* ------------------------------------------------------------------ */
+function renderSectionInfo(doc, { header, locNames, y }) {
+  doc.font('Helvetica').fontSize(T_SEC_INFO).fillColor('#334155');
+  doc.text(`Name of Work : ${header.NameOfWork || ''}`, MARGIN, y, { width: CONTENT_WIDTH });
+  y += 8.5;
+  const locLine = locationLine(locNames);
+  if (locLine) {
+    doc.text(locLine, MARGIN, y, { width: CONTENT_WIDTH });
+    y += 8.5;
+  }
+  const date = fmtDate(header.CreatedDate);
+  doc.text(`Estimate No : ${header.EstimateNo || header.WorkID || ''}    Financial Year : ${header.FinancialYear || ''}    Date : ${date}`, MARGIN, y, { width: CONTENT_WIDTH });
+  y += 11;
+  return y;
 }
 
 /* ------------------------------------------------------------------ */
 /* Items section (Civil / Material)                                    */
 /* ------------------------------------------------------------------ */
-const ITEM_HEADERS = ['S.No', 'Item Code', 'Description of Work', 'Formula', 'N', 'L', 'B', 'D', 'Qty', 'Unit', 'Rate', 'Amount'];
-const ITEM_WIDTHS = [20, 52, 140, 26, 20, 20, 20, 20, 34, 26, 42, 46];
+// Canonical item table columns shared with the browser Print document.
+const ITEM_HEADERS = ['S.No', 'Item Code', 'Description of Work', 'No', 'L', 'B', 'D', 'Qty', 'Unit', 'Rate', 'Amount'];
+const ITEM_WIDTHS = [16, 47, 214, 24, 24, 24, 24, 46, 27, 50, 53];
 const ITEM_TOTAL_W = ITEM_WIDTHS.reduce((a, b) => a + b, 0);
-const ROW_PAD = 5;
 
-function renderItemsSection(doc, { header, title, items }) {
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(NAVY)
-    .text(title, MARGIN, 40, { align: 'center', width: CONTENT_WIDTH });
-  doc.moveDown(0.4);
-  doc.font('Helvetica').fontSize(8.5).fillColor('#334155')
-    .text(`Name of Work : ${header.NameOfWork || ''}`, MARGIN, doc.y + 2, { width: CONTENT_WIDTH });
-  let y = doc.y + 10;
-
-  if (items.length === 0) {
-    doc.fillColor('#64748b').fontSize(9).font('Helvetica')
-      .text('No items in this category.', MARGIN, y, { width: CONTENT_WIDTH });
-    return;
-  }
-
-  const total = items.reduce((s, d) => s + Number(d.Amount || 0), 0);
+function renderItemsSection(doc, { header, locNames, title, items, y, totalLabel }) {
+  y = ensureSpace(doc, y, 92);
+  doc.font('Helvetica-Bold').fontSize(T_SECTION_TITLE).fillColor(NAVY)
+    .text(title, MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
+  y += 10;
+  y = renderSectionInfo(doc, { header, locNames, y });
   y = drawItemTable(doc, { title, items, startY: y });
 
-  y += 10;
-  doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a')
-    .text('Total : ' + inr(total), MARGIN, y, { align: 'right', width: CONTENT_WIDTH });
-  y = doc.y + 4;
-  doc.font('Helvetica').fontSize(8.5).fillColor('#334155')
+  y = ensureSpace(doc, y, 22);
+  const total = items.reduce((s, d) => s + Number(d.Amount || 0), 0);
+  doc.font('Helvetica-Bold').fontSize(T_TOTAL).fillColor('#0f172a')
+    .text(`${totalLabel} : ${inr(total)}`, MARGIN, y, { align: 'right', width: CONTENT_WIDTH });
+  y += 8;
+  doc.font('Helvetica').fontSize(T_WORDS).fillColor('#334155')
     .text(`(Rupees ${numberToWords(total)})`, MARGIN, y, { width: CONTENT_WIDTH });
+  return y + 10;
 }
 
 function drawItemTable(doc, { title, items, startY }) {
-  const headerHeight = 16;
-  const lineHeight = 9;
+  const headerHeight = 11;
+  const lineHeight = 6.6;
 
   function drawHeader(y) {
     doc.rect(MARGIN, y, ITEM_TOTAL_W, headerHeight).fill(NAVY);
     let x = MARGIN;
     ITEM_HEADERS.forEach((h, i) => {
-      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(6.5);
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(T_TABLE_HDR);
       const align = i === 2 ? 'left' : 'center';
-      doc.text(h, x + 2, y + 4, { width: ITEM_WIDTHS[i] - 4, align, lineHeight });
+      doc.text(h, x + 2, y + 2, { width: ITEM_WIDTHS[i] - 4, align, lineHeight });
       x += ITEM_WIDTHS[i];
     });
     doc.rect(MARGIN, y, ITEM_TOTAL_W, headerHeight).stroke(NAVY);
@@ -200,7 +255,7 @@ function drawItemTable(doc, { title, items, startY }) {
       ));
       lines = Math.max(lines, n);
     });
-    return lines * lineHeight + ROW_PAD;
+    return lines * lineHeight + 4;
   }
 
   let y = drawHeader(startY);
@@ -210,7 +265,6 @@ function drawItemTable(doc, { title, items, startY }) {
       String(i + 1),
       d.ItemCode || '',
       d.Description || '',
-      d.FormulaType || '',
       d.N ?? '',
       d.L ?? '',
       d.B ?? '',
@@ -224,9 +278,7 @@ function drawItemTable(doc, { title, items, startY }) {
 
     if (y + rh > CONTENT_BOTTOM) {
       doc.addPage();
-      doc.font('Helvetica-Bold').fontSize(10).fillColor(NAVY)
-        .text(title, MARGIN, 40, { align: 'center', width: CONTENT_WIDTH });
-      y = drawHeader(doc.y + 10);
+      y = drawHeader(MARGIN);
     }
 
     doc.rect(MARGIN, y, ITEM_TOTAL_W, rh).stroke('#cbd5e1');
@@ -236,11 +288,9 @@ function drawItemTable(doc, { title, items, startY }) {
     }
     let x = MARGIN;
     values.forEach((v, j) => {
-      doc.fillColor('#0f172a').font('Helvetica').fontSize(7);
-      const align = j === 1 || j === 2 ? 'left' : (j === 0 || j === 9 ? 'center' : 'right');
-      doc.text(String(v), x + 2, y + ROW_PAD / 2, {
-        width: ITEM_WIDTHS[j] - 4, align, lineHeight,
-      });
+      doc.fillColor('#0f172a').font('Helvetica').fontSize(T_TABLE);
+      const align = j === 2 ? 'left' : (j === 7 || j === 9 || j === 10 ? 'right' : 'center');
+      doc.text(String(v), x + 2, y + 2, { width: ITEM_WIDTHS[j] - 4, align, lineHeight });
       x += ITEM_WIDTHS[j];
     });
     y += rh;
@@ -252,7 +302,7 @@ function drawItemTable(doc, { title, items, startY }) {
 /* ------------------------------------------------------------------ */
 /* Abstract section                                                    */
 /* ------------------------------------------------------------------ */
-function renderAbstractSection(doc, { header, abstract, genStamp, qrBuffer }) {
+function renderAbstractSection(doc, { header, locNames, abstract, genStamp, qrBuffer, y }) {
   const civilTotal = abstract ? Number(abstract.CivilTotal) : 0;
   const materialTotal = abstract ? Number(abstract.MaterialTotal) : 0;
   const costOfEstimate = abstract ? Number(abstract.CostOfEstimate) : civilTotal + materialTotal;
@@ -263,44 +313,43 @@ function renderAbstractSection(doc, { header, abstract, genStamp, qrBuffer }) {
   const subtotal = abstract && abstract.Subtotal != null ? Number(abstract.Subtotal) : costOfEstimate + gst;
   const grandTotal = abstract ? Number(abstract.GrandTotal) : subtotal + additionalItemsTotal + lsProvision;
 
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(NAVY)
-    .text('GENERAL ABSTRACT', MARGIN, 40, { align: 'center', width: CONTENT_WIDTH });
-  doc.moveDown(0.4);
-  doc.font('Helvetica').fontSize(8.5).fillColor('#334155')
-    .text(`Name of Work : ${header.NameOfWork || ''}`, MARGIN, doc.y + 2, { width: CONTENT_WIDTH });
-  let y = doc.y + 10;
+  y = ensureSpace(doc, y, 92);
+  doc.font('Helvetica-Bold').fontSize(T_SECTION_TITLE).fillColor(NAVY)
+    .text('GENERAL ABSTRACT', MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
+  y += 10;
+  y = renderSectionInfo(doc, { header, locNames, y });
 
-  const absWidths = [46, 330, 129];
+  const absWidths = [40, 360, 149];
   const absTotal = absWidths.reduce((a, b) => a + b, 0);
-  const headerH = 18;
+  const headerH = 15;
 
   doc.rect(MARGIN, y, absTotal, headerH).fill(NAVY);
   ['Sl.No', 'Description', 'Amount (Rs.)'].forEach((h, i) => {
-    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8);
+    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(6.8);
     const x0 = MARGIN + absWidths.slice(0, i).reduce((a, b) => a + b, 0);
-    doc.text(h, x0 + 2, y + 5, { width: absWidths[i] - 4, align: i === 2 ? 'right' : 'center' });
+    doc.text(h, x0 + 2, y + 4, { width: absWidths[i] - 4, align: i === 2 ? 'right' : 'center' });
   });
   doc.rect(MARGIN, y, absTotal, headerH).stroke(NAVY);
   y += headerH;
 
   const rows = [
-    { cells: ['', 'PART-I : WORKING ITEMS', ''], bold: true, section: true },
+    { cells: ['', 'Part-I : Working Items', ''], bold: true, section: true },
     { cells: ['1', 'Cost of Material', inr(materialTotal)], bold: false },
     { cells: ['2', 'Cost of Civil Work', inr(civilTotal)], bold: false },
-    { cells: ['', 'Cost of Estimate (Civil + Material)', inr(costOfEstimate)], bold: true },
-    { cells: ['', 'PART-II : ADDITIONAL ITEMS', ''], bold: true, section: true },
+    { cells: ['', 'Cost of Estimate : Part-I', inr(costOfEstimate)], bold: true },
+    { cells: ['', 'Part-II : Additional Items', ''], bold: true, section: true },
     { cells: ['3', `GST @ ${gstPercent}%`, inr(gst)], bold: false },
     { cells: ['4', 'Additional Items', inr(additionalItemsTotal)], bold: false },
-    { cells: ['', 'PART-III : LS PROVISIONS', ''], bold: true, section: true },
+    { cells: ['', 'Part-III : LS Provisions', ''], bold: true, section: true },
     { cells: ['5', 'LS unforeseen items and rounding off', inr(lsProvision)], bold: false },
     { cells: ['', '', ''], bold: false, spacer: true },
-    { cells: ['', 'GRAND TOTAL (Part-I + Part-II + Part-III)', inr(grandTotal)], bold: true, grand: true },
+    { cells: ['', 'Grand Total (Part-I + Part-II + Part-III)', inr(grandTotal)], bold: true, grand: true },
   ];
 
   for (const rd of rows) {
-    if (y > CONTENT_BOTTOM - 40) {
+    if (y > CONTENT_BOTTOM - 34) {
       doc.addPage();
-      y = 55;
+      y = MARGIN;
     }
     if (rd.spacer) { y += 8; continue; }
     if (rd.section) doc.rect(MARGIN, y, absTotal, headerH).fill(LIGHT_GRAY);
@@ -310,72 +359,45 @@ function renderAbstractSection(doc, { header, abstract, genStamp, qrBuffer }) {
     let x = MARGIN;
     rd.cells.forEach((v, i) => {
       const color = rd.grand ? '#ffffff' : (rd.section ? NAVY : '#0f172a');
-      doc.fillColor(color).font(rd.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8.5);
+      doc.fillColor(color).font(rd.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(6.5);
       const align = i === 2 ? 'right' : (i === 0 ? 'center' : 'left');
-      doc.text(String(v), x + 3, y + 5, { width: absWidths[i] - 6, align });
+      doc.text(String(v), x + 3, y + 4, { width: absWidths[i] - 6, align });
       x += absWidths[i];
     });
     y += headerH;
   }
 
   y += 8;
-  doc.font('Helvetica').fontSize(9).fillColor('#0f172a')
+  y = ensureSpace(doc, y, 16);
+  doc.font('Helvetica').fontSize(7).fillColor('#0f172a')
     .text(`(Rupees ${numberToWords(grandTotal)})`, MARGIN, y, { align: 'center', width: CONTENT_WIDTH });
-  y = doc.y + 24;
+  y += 12;
 
+  y = ensureSpace(doc, y, 96);
   const sigW = 150;
   const gap = (CONTENT_WIDTH - 3 * sigW) / 2;
   const labels = ['Prepared by', 'Checked by', 'Approved by'];
+  const roles = ['Manager / Engineer', 'DGM (Works)', 'GM (Works)'];
   let sx = MARGIN;
-  labels.forEach((l) => {
+  labels.forEach((l, i) => {
     doc.moveTo(sx, y).lineTo(sx + sigW, y).lineWidth(0.8).strokeColor('#475569').stroke();
-    doc.fillColor('#475569').font('Helvetica-Bold').fontSize(8.5)
-      .text(l, sx, y + 6, { width: sigW, align: 'center' });
-    doc.font('Helvetica').fontSize(7.5).fillColor('#64748b')
-      .text(l === 'Prepared by' ? 'Manager / Engineer' : l === 'Checked by' ? 'DGM (Works)' : 'GM (Works)', sx, y + 18, { width: sigW, align: 'center' });
+    doc.fillColor('#475569').font('Helvetica-Bold').fontSize(6.5)
+      .text(l, sx, y + 5, { width: sigW, align: 'center' });
+    doc.font('Helvetica').fontSize(5.8).fillColor('#64748b')
+      .text(roles[i], sx, y + 14, { width: sigW, align: 'center' });
     sx += sigW + gap;
   });
 
-  const qrSize = 78;
-  doc.image(qrBuffer, PAGE_WIDTH - MARGIN - qrSize, y + 6, { width: qrSize });
-  doc.font('Helvetica').fontSize(7).fillColor('#64748b')
-    .text('Scan to verify', PAGE_WIDTH - MARGIN - qrSize, y + qrSize + 8, { width: qrSize, align: 'center' });
+  const qrSize = 70;
+  doc.image(qrBuffer, PAGE_WIDTH - MARGIN - qrSize, y + 3, { width: qrSize });
+  doc.font('Helvetica').fontSize(5.8).fillColor('#64748b')
+    .text('Scan to verify', PAGE_WIDTH - MARGIN - qrSize, y + qrSize + 6, { width: qrSize, align: 'center' });
 }
 
 /* ------------------------------------------------------------------ */
-/* Shared helpers                                                      */
+/* Page chrome: watermark + footer (derived page numbers, never hard-  */
+/* coded totals)                                                       */
 /* ------------------------------------------------------------------ */
-function locationLine(locNames) {
-  const parts = [];
-  if (locNames.region) parts.push(`Region: ${locNames.region}`);
-  if (locNames.zone) parts.push(`Zone: ${locNames.zone}`);
-  if (locNames.division) parts.push(`Division: ${locNames.division}`);
-  if (locNames.circle) parts.push(`Circle: ${locNames.circle}`);
-  if (locNames.ward) parts.push(`Ward: ${locNames.ward}`);
-  return parts.join(',  ');
-}
-
-function drawKeyValueTable(doc, rows, startY, rowHeight) {
-  const labelW = 150;
-  const valueW = CONTENT_WIDTH - labelW;
-  let y = startY;
-
-  rows.forEach(([label, value], i) => {
-    doc.rect(MARGIN, y, labelW, rowHeight).fill(LIGHT_GRAY);
-    doc.rect(MARGIN, y, labelW, rowHeight).stroke('#cbd5e1');
-    doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(8.5)
-      .text(label, MARGIN + 6, y + (rowHeight - 10) / 2, { width: labelW - 12, lineBreak: false });
-
-    doc.rect(MARGIN + labelW, y, valueW, rowHeight).stroke('#cbd5e1');
-    if (i % 2 === 1) doc.rect(MARGIN + labelW, y, valueW, rowHeight).fill('#fafbfc');
-    doc.fillColor('#0f172a').font('Helvetica').fontSize(8.5)
-      .text(String(value), MARGIN + labelW + 6, y + (rowHeight - 10) / 2, { width: valueW - 12, lineBreak: false });
-
-    y += rowHeight;
-  });
-  return y;
-}
-
 function renderPageChrome(doc, { genStamp, status }) {
   const watermark = watermarkFor(status);
   const range = doc.bufferedPageRange();
@@ -392,16 +414,16 @@ function renderPageChrome(doc, { genStamp, status }) {
     }
 
     doc.lineWidth(0.6).strokeColor('#cbd5e1')
-      .moveTo(MARGIN, PAGE_HEIGHT - 59).lineTo(PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 59).stroke();
+      .moveTo(MARGIN, FOOTER_LINE_Y).lineTo(PAGE_WIDTH - MARGIN, FOOTER_LINE_Y).stroke();
 
-    doc.font('Helvetica').fontSize(7.5).fillColor('#64748b');
+    doc.font('Helvetica').fontSize(6).fillColor('#64748b');
     doc.text(
       `HMWSSB Works Management System  |  Generated on ${genStamp}`,
-      MARGIN, PAGE_HEIGHT - 55, { width: CONTENT_WIDTH * 0.6, lineBreak: false }
+      MARGIN, FOOTER_LINE_Y + 5, { width: CONTENT_WIDTH * 0.6, lineBreak: false }
     );
     doc.text(
       `Page ${i - range.start + 1} of ${range.count}`,
-      PAGE_WIDTH - MARGIN - 90, PAGE_HEIGHT - 55, { width: 90, align: 'right', lineBreak: false }
+      PAGE_WIDTH - MARGIN - 90, FOOTER_LINE_Y + 5, { width: 90, align: 'right', lineBreak: false }
     );
   }
 }

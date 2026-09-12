@@ -34,13 +34,14 @@ export default function CivilEstimatePrint({ estimate, items }) {
       <p className="print-info">Name of Work : {estimate.NameOfWork || ''}</p>
       {locLine && <p className="print-info-normal">{locLine}</p>}
       <p className="print-info-normal">
-        Estimate No : {estimate.EstimateNo || estimate.WorkID || ''} &nbsp;&nbsp;&nbsp;&nbsp; Date : {date}
+        Estimate No : {estimate.EstimateNo || estimate.WorkID || ''} &nbsp;&nbsp;&nbsp; Financial Year : {estimate.FinancialYear || ''} &nbsp;&nbsp;&nbsp; Date : {date}
       </p>
 
       <table className="print-table">
         <thead>
           <tr>
             <th className="col-sl">S.No</th>
+            <th className="col-code">Item Code</th>
             <th className="col-desc">Description of Work</th>
             <th className="col-num">No</th>
             <th className="col-l">L</th>
@@ -56,6 +57,7 @@ export default function CivilEstimatePrint({ estimate, items }) {
           {items.map((d, i) => (
             <tr key={d.DetailID || i}>
               <td className="center">{i + 1}</td>
+              <td className="center">{d.ItemCode || ''}</td>
               <td className="desc-cell">{d.Description || ''}</td>
               <td className="center">{d.N || ''}</td>
               <td className="center">{d.L || ''}</td>
@@ -70,14 +72,14 @@ export default function CivilEstimatePrint({ estimate, items }) {
         </tbody>
         <tfoot>
           <tr className="total-row">
-            <td colSpan="9" className="total-label">Part-I : Working Items Total</td>
+            <td colSpan="10" className="total-label">Part-I : Working Items Total</td>
             <td className="total-amount">{fmt(total)}</td>
           </tr>
         </tfoot>
       </table>
 
       {estimate.Abstract?.CivilTotalInWords && (
-        <p className="words-row">(Rupees {estimate.Abstract.CivilTotalInWords} Only)</p>
+        <p className="words-row">(Rupees {estimate.Abstract.CivilTotalInWords})</p>
       )}
     </div>
   )

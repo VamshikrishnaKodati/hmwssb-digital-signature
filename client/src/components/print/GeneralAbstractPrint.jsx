@@ -40,7 +40,7 @@ export default function GeneralAbstractPrint({ estimate, items, abstract }) {
       <p className="print-info">Name of Work : {estimate.NameOfWork || ''}</p>
       {locLine && <p className="print-info-normal">{locLine}</p>}
       <p className="print-info-normal">
-        Estimate No : {estimate.EstimateNo || estimate.WorkID || ''} &nbsp;&nbsp;&nbsp;&nbsp; Date : {date}
+        Estimate No : {estimate.EstimateNo || estimate.WorkID || ''} &nbsp;&nbsp;&nbsp; Financial Year : {estimate.FinancialYear || ''} &nbsp;&nbsp;&nbsp; Date : {date}
       </p>
 
       <table className="print-table">
@@ -106,7 +106,7 @@ export default function GeneralAbstractPrint({ estimate, items, abstract }) {
         </tbody>
       </table>
 
-      <p className="words-row" style={{ textAlign: 'center' }}>(Rupees {abstract?.GrandTotalInWords || ''} Only)</p>
+      <p className="words-row" style={{ textAlign: 'center' }}>(Rupees {abstract?.GrandTotalInWords || ''})</p>
     </div>
   )
 }
