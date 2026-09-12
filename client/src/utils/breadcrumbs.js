@@ -22,8 +22,18 @@ const detailTitles = [
 export function buildBreadcrumbs(pathname) {
   if (!pathname || pathname === '/login') return []
 
+  if (pathname === '/dashboard') return [
+    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Home' },
+  ]
+
+  if (pathname === '/estimates/new') return [
+    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Estimates', to: '/estimates' },
+    { label: 'Create Estimate' },
+  ]
+
   const crumbs = [{ label: 'Dashboard', to: '/dashboard' }]
-  if (pathname === '/dashboard') return crumbs
 
   const nav = navItems.find(i => isPathActive(i.path, pathname))
 

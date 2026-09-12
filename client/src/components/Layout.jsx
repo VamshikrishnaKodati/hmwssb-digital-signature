@@ -92,8 +92,10 @@ export default function Layout({ children }) {
     ? (nav.expanded ? 'lg:pl-[260px]' : 'lg:pl-[72px]')
     : ''
 
+  const isDashboard = location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/')
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F7FA]">
+    <div className="app-shell flex h-screen overflow-hidden">
       <NavigationDrawer
         visibleItems={visibleItems}
         currentPath={location.pathname}
@@ -110,8 +112,8 @@ export default function Layout({ children }) {
         onLogoutClick={() => { nav.closeDrawer(); setShowLogoutDialog(true) }}
       />
 
-      <div className={`flex-1 flex flex-col min-w-0 transition-[padding-left] duration-300 ${contentPadding}`}>
-        <header className="h-14 bg-white border-b border-[#E2E8F0] flex items-center gap-3 px-3 md:px-5 shrink-0 z-20">
+      <div className={`app-frame flex-1 flex flex-col min-w-0 transition-[padding-left] duration-300 ${contentPadding}`}>
+        <header className="app-header h-14 bg-white border-b border-[#E2E8F0] flex items-center gap-3 px-3 md:px-5 shrink-0 z-20">
           <button
             onClick={handleHamburger}
             aria-label={nav.desktopOpen || nav.mobileOpen ? 'Close navigation (Ctrl+B)' : 'Open navigation (Ctrl+B)'}
@@ -187,12 +189,12 @@ export default function Layout({ children }) {
         </header>
 
         {breadcrumbs.length > 0 && (
-          <div className="h-9 bg-white border-b border-[#E2E8F0] flex items-center px-3 md:px-5 shrink-0 overflow-x-auto">
+          <div className="app-breadcrumb h-9 bg-white border-b border-[#E2E8F0] flex items-center px-3 md:px-5 shrink-0 overflow-x-auto">
             <Breadcrumb items={breadcrumbs} />
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6" id="app-main">
+        <main className={`app-main flex-1 overflow-y-auto p-4 md:p-6 ${isDashboard ? 'bg-open' : ''}`} id="app-main">
           {children}
         </main>
       </div>

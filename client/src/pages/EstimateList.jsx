@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
-  Plus, Search, Eye, FileText, Edit3, Send, X, Loader,
+  Plus, Search, FileText, Edit3, Send, X, Loader,
   CheckCircle, RotateCcw, SlidersHorizontal, Trash2, ShieldCheck,
 } from 'lucide-react'
 import api from '../utils/api'
@@ -282,7 +282,6 @@ export default function EstimateList() {
 
   const handleAction = (action, est) => {
     switch (action) {
-      case 'view': navigate(`/estimates/${est.EstimateID}/view`); break
       case 'preview': navigate(`/estimates/${est.EstimateID}/preview`); break
       case 'edit': navigate(`/estimates/${est.EstimateID}/edit`); break
       case 'delete': openDelete(est); break
@@ -290,12 +289,16 @@ export default function EstimateList() {
     }
   }
 
+  const openEstimate = (e, id) => {
+    if (e.target.closest('a,button')) return
+    navigate(`/estimates/${id}`)
+  }
+
   const buildMenuActions = useCallback((est) => {
     if (!est) return []
     const canEdit = est.Status === 'Draft' || est.Status === 'Reverted'
     const canDelete = canEdit && est.CreatedBy === user.UserID
     const items = [
-      { key: 'view', icon: Eye, label: 'View Estimate', onClick: () => handleAction('view', est) },
       { key: 'preview', icon: FileText, label: 'Preview Estimate', onClick: () => handleAction('preview', est) },
     ]
     if (canEdit) items.push({ key: 'edit', icon: Edit3, label: 'Edit Estimate', onClick: () => handleAction('edit', est) })
@@ -411,13 +414,16 @@ export default function EstimateList() {
                 <tbody className="divide-y divide-[#F1F5F9]">
                   {estimates.map((e) => (
                       <tr key={e.EstimateID} id={`est-row-${e.EstimateID}`}
-                        className={`transition-colors hover:bg-[#F8FAFC] ${e.EstimateID === highlightId ? 'ec-row-highlight' : ''}`}>
+                        onClick={(ev) => openEstimate(ev, e.EstimateID)}
+                        className={`group cursor-pointer transition-colors hover:bg-[#F1F5F9] ${e.EstimateID === highlightId ? 'ec-row-highlight' : ''}`}>
                         <td className="px-3 py-3 align-top">
-                          <div className="font-mono text-[11px] font-semibold text-[#1E3A5F] leading-tight" title={e.EstimateNo}>{e.EstimateNo || e.WorkID}</div>
+                          <Link to={`/estimates/${e.EstimateID}`}
+                            className="inline font-mono text-[11px] font-semibold text-[#1E3A5F] leading-tight rounded hover:text-[#2563EB] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A5F]/30"
+                            title={e.EstimateNo}>{e.EstimateNo || e.WorkID}</Link>
                           <div className="text-[10px] text-[#94A3B8] mt-0.5">v{e.Version}</div>
                         </td>
                         <td className="px-3 py-3 align-top">
-                          <div className="text-xs font-medium text-[#0F172A] leading-snug line-clamp-2" title={e.NameOfWork}>{e.NameOfWork}</div>
+                          <div className="text-xs font-medium text-[#0F172A] leading-snug line-clamp-2 group-hover:text-[#1E3A5F] transition-colors" title={e.NameOfWork}>{e.NameOfWork}</div>
                         </td>
                         <td className="px-3 py-3 align-top">
                           {e.WorkCategory ? (
@@ -446,10 +452,12 @@ export default function EstimateList() {
             <div className="md:hidden divide-y divide-[#F1F5F9]">
               {estimates.map((e) => (
                   <div key={e.EstimateID} id={`est-row-${e.EstimateID}`}
-                    className={`p-3 ${e.EstimateID === highlightId ? 'ec-row-highlight' : ''}`}>
+                    onClick={(ev) => openEstimate(ev, e.EstimateID)}
+                    className={`p-3 cursor-pointer transition-colors hover:bg-[#F1F5F9] ${e.EstimateID === highlightId ? 'ec-row-highlight' : ''}`}>
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div>
-                        <div className="font-mono text-[11px] font-semibold text-[#1E3A5F]">{e.EstimateNo || e.WorkID} <span className="text-[10px] text-[#94A3B8] font-normal">v{e.Version}</span></div>
+                        <Link to={`/estimates/${e.EstimateID}`}
+                          className="inline font-mono text-[11px] font-semibold text-[#1E3A5F] rounded hover:text-[#2563EB] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A5F]/30">{e.EstimateNo || e.WorkID}</Link> <span className="text-[10px] text-[#94A3B8] font-normal">v{e.Version}</span>
                         <div className="text-xs font-medium text-[#0F172A] truncate max-w-[220px]" title={e.NameOfWork}>{e.NameOfWork}</div>
                       </div>
                       <StatusBadge status={e.Status} />

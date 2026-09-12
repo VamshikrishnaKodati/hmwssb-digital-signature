@@ -111,7 +111,7 @@ export default function DemoAccounts({ onSelect, className = '' }) {
                     className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-[#1E3A5F] bg-[#F1F5F9] hover:bg-[#E2E8F0] transition-colors"
                   >
                     <User className="w-2.5 h-2.5" />
-                    {ROLE_LABELS[acc.role] || acc.role}
+                    {ROLE_LABELS[acc.role] || acc.role}{acc.name && acc.name !== (ROLE_LABELS[acc.role] || acc.role) ? ` · ${acc.name}` : ''}
                   </button>
                 ))}
               </div>

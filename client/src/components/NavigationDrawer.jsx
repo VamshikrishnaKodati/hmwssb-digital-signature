@@ -372,7 +372,7 @@ export default function NavigationDrawer({
         <>
           <motion.div
             key="nav-backdrop"
-            className="fixed inset-0 z-40 bg-[#0F172A]/50 backdrop-blur-[1px]"
+            className="fixed inset-0 z-40 bg-[#0F172A]/20"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -390,7 +390,7 @@ export default function NavigationDrawer({
             animate={{ x: 0 }}
             exit={{ x: -DRAWER_WIDTH }}
             transition={{ type: 'tween', duration: DRAWER_TRANSITION / 1000, ease }}
-            className="fixed left-0 top-0 bottom-0 z-50 flex w-[260px] flex-col bg-white shadow-[4px_0_24px_rgba(15,23,42,0.12)] border-r border-[#E2E8F0]"
+            className="fixed left-0 top-0 bottom-0 z-50 flex w-[260px] flex-col shadow-[4px_0_24px_rgba(15,23,42,0.12)] border-r border-[#E2E8F0]"
           >
             {inner}
           </motion.aside>
@@ -407,7 +407,7 @@ export default function NavigationDrawer({
           initial={false}
           animate={{ width: collapsed ? DRAWER_RAIL_WIDTH : DRAWER_WIDTH }}
           transition={{ type: 'tween', duration: DRAWER_TRANSITION / 1000, ease }}
-          className="fixed left-0 top-0 bottom-0 z-30 hidden lg:flex flex-col bg-white border-r border-[#E2E8F0] shadow-[2px_0_12px_rgba(15,23,42,0.04)]"
+          className="fixed left-0 top-0 bottom-0 z-30 hidden lg:flex flex-col border-r border-[#E2E8F0] shadow-[2px_0_12px_rgba(15,23,42,0.04)]"
         >
           {inner}
         </motion.aside>

@@ -228,7 +228,7 @@
     @apply text-[11px] font-bold uppercase tracking-wide text-[#1E3A5F] mb-2;
   }
   .ec-ga-row {
-    @apply flex items-center justify-between gap-3 py-1;
+    @apply flex items-center justify-between gap-3 py-0.5;
   }
   .ec-ga-label {
     @apply text-[13px] text-[#475569];
@@ -238,7 +238,7 @@
   }
   .ec-ga-dotted {
     border-top: 1px dotted #94A3B8;
-    margin: 7px 0;
+    margin: 4px 0;
   }
   .ec-ga-row-total {
     @apply py-1.5;
@@ -317,10 +317,114 @@
     @apply flex items-center justify-end gap-3 mt-2;
   }
   .ec-ga-ls-empty-cell {
-    @apply px-2 py-3 text-center text-xs text-[#94A3B8];
+    @apply px-2 py-2 text-center text-xs text-[#94A3B8];
   }
   .ec-ga-ls-table tr:last-child td {
     border-bottom: none;
+  }
+
+  /* --- Estimate Summary: two main containers ---
+     Container 1 = Part-I + Part-II, Container 2 = Part-III + Grand Total.
+     The pastel treatments are INTERNAL sections inside the white containers,
+     not independent top-level cards. */
+  .ec-sum2-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-4 items-start;
+  }
+  .ec-sum2-card {
+    @apply flex flex-col gap-2 p-4 min-w-0 rounded-xl border border-[#E2E8F0] bg-white shadow-sm;
+  }
+  .ec-sum2-divider {
+    @apply flex-none my-0.5;
+    border-top: 1px solid #E2E8F0;
+  }
+  .ec-sum2-section {
+    @apply flex flex-col rounded-lg py-2.5 px-3 min-w-0;
+  }
+  .ec-sum2-part-i {
+    @apply bg-[#EFF6FF];
+  }
+  .ec-sum2-part-ii {
+    @apply bg-[#ECFDF5];
+  }
+  .ec-sum2-part-iii {
+    @apply bg-[#F5F3FF];
+  }
+  .ec-sum2-grand {
+    @apply bg-[#FEFCE8];
+  }
+  .ec-sum2-title {
+    @apply text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A5F] mb-0.5;
+  }
+  .ec-sum2-subtitle {
+    @apply text-[10px] font-medium uppercase tracking-wide text-[#64748B] mb-1.5;
+  }
+  .ec-sum2-note {
+    @apply text-[10px] text-[#64748B] mb-1.5 leading-snug;
+  }
+  .ec-sum2-total {
+    @apply mt-2 pt-2 flex items-center justify-between gap-2;
+    border-top: 1px dotted #94A3B8;
+  }
+  .ec-sum2-total-label {
+    @apply text-[11px] font-bold text-[#1E3A5F];
+  }
+  .ec-sum2-total-value {
+    @apply text-sm font-bold text-[#1E3A5F] tabular-nums whitespace-nowrap;
+  }
+  .ec-sum2-grand-total {
+    @apply mt-3 pt-2.5;
+    border-top: 3px double #1E3A5F;
+  }
+  .ec-sum2-grand-total-label {
+    @apply text-[13px] font-extrabold text-[#1E3A5F];
+  }
+  .ec-sum2-grand-total-value {
+    @apply text-xl font-extrabold text-[#1E3A5F] tabular-nums whitespace-nowrap;
+  }
+  .ec-sum2-breakdown {
+    @apply space-y-1;
+  }
+  .ec-sum2-bd-row {
+    @apply flex items-center justify-between gap-2 text-[11px];
+  }
+  .ec-sum2-bd-label {
+    @apply text-[#475569];
+  }
+  .ec-sum2-bd-value {
+    @apply font-semibold text-[#0F172A] tabular-nums whitespace-nowrap;
+  }
+  .ec-sum2-gst-row {
+    @apply flex items-center justify-between gap-2 mb-1;
+  }
+  .ec-sum2-desc-textarea {
+    @apply ec-input !py-1.5 !px-2 text-xs w-full;
+    resize: vertical;
+    field-sizing: content;
+    min-height: 3.4em;
+    max-height: 6.5em;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
+    line-height: 1.35;
+  }
+  /* Bounded item-list region: rows scroll inside, never the page. */
+  .ec-sum2-ls-scroll {
+    @apply max-h-[200px] overflow-y-auto;
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+  .ec-sum2-ls-scroll th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .ec-sum2-ls-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .ec-sum2-ls-scroll::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 8px;
   }
 
   /* --- Section --- */
@@ -926,6 +1030,93 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Create Estimate: location details --- */
+.ef-loc-field {
+  @apply min-w-0;
+}
+.ef-loc-label {
+  @apply block text-[10px] font-medium text-[#64748B] mb-1 truncate;
+}
+.ef-loc-input {
+  @apply w-full border border-[#D1D5DB] rounded-lg bg-white text-xs text-[#1E293B] px-2.5 py-1.5
+         focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]/20
+         placeholder:text-[#94A3B8] transition-colors;
+}
+
+.ef-action-bar {
+  @apply flex items-center justify-between gap-3 bg-white border border-[#E2E8F0] rounded-lg px-4 py-3 mb-4 shadow-sm;
+}
+
+/* --- HMWSSB background artwork -------------------------------------------
+   One shared branded background for the Officer Portal. The image
+   (client/public/image.png) is a public asset rendered as the background of
+   the main content area (.app-main) — behind every white content surface —
+   under a translucent white wash so text stays dominant. Intensity tiers:
+   the dashboard (open space) shows more artwork (.bg-open), standard
+   business pages keep a quieter default, tablet/mobile reduce visibility.
+   Pure CSS + the existing asset; no JS, no extra downloads. Print output is
+   unaffected (print.css clears .app-main to #fff). */
+.app-shell {
+  background-color: #F5F7FA;
+}
+
+.app-main {
+  background-image:
+    linear-gradient(rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.94)),
+    url('/image.png');
+  background-repeat: no-repeat, no-repeat;
+  background-position: center top, center top;
+  background-size: auto, cover;
+  background-attachment: scroll, fixed;
+}
+
+.app-main.bg-open {
+  background-image:
+    linear-gradient(rgba(248, 250, 252, 0.7), rgba(255, 255, 255, 0.9)),
+    url('/image.png');
+}
+
+/* Navigation sidebar — near-white, water-tinted; the artwork shows very
+   faintly, slightly more in the lower portion. Menu text stays crisp. */
+#app-navigation {
+  background-color: #fbfdff;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.97) 55%, rgba(224, 241, 255, 0.9) 100%),
+    url('/image.png');
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto, cover;
+  background-position: center top, center bottom;
+}
+
+/* Tablet: quieter artwork, normal scrolling behaviour. */
+@media (max-width: 1023px) {
+  .app-main {
+    background-attachment: scroll, scroll;
+    background-image:
+      linear-gradient(rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 0.97)),
+      url('/image.png');
+  }
+  .app-main.bg-open {
+    background-image:
+      linear-gradient(rgba(248, 250, 252, 0.86), rgba(255, 255, 255, 0.95)),
+      url('/image.png');
+  }
+}
+
+/* Mobile: very light treatment; navigation stays fully readable. */
+@media (max-width: 767px) {
+  .app-main,
+  .app-main.bg-open {
+    background-image:
+      linear-gradient(rgba(250, 251, 252, 0.96), rgba(255, 255, 255, 0.98)),
+      url('/image.png');
+    background-attachment: scroll, scroll;
+  }
+  #app-navigation {
+    background-image: linear-gradient(180deg, #ffffff, #f1f7ff);
   }
 }
 

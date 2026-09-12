@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, useDeferredValue, Fr
 import { useParams, useNavigate, useBlocker, Link } from 'react-router-dom'
 import {
   Search, X, Save, RotateCcw, Send,
-  MapPin, Briefcase, Package, ChevronDown,
+  Briefcase, Package,
   Clock, Lock, Printer, History, ClipboardList, Plus, Trash2, Check, Loader2
 } from 'lucide-react'
 import api from '../utils/api'
@@ -18,14 +18,6 @@ const SNAP_KEY = 'est_form_snapshot'
 const RESTORE_KEY = 'est_form_scroll'
 const EDITABLE_STATUSES = ['Draft', 'Reverted']
 const GST_OPTIONS = [0, 5, 12, 18]
-const STATUS_BADGE = {
-  Draft: 'ec-badge-draft',
-  Submitted: 'ec-badge-submitted',
-  Approved: 'ec-badge-approved',
-  Reverted: 'ec-badge-reverted',
-  Pending: 'ec-badge-pending',
-}
-const statusBadgeClass = (s) => STATUS_BADGE[s] || 'ec-badge-draft'
 
 export default function EstimateForm() {
   const { id } = useParams()
@@ -46,11 +38,6 @@ export default function EstimateForm() {
     const m = now.getMonth() + 1
     return m >= 4 ? `${y}-${(y + 1).toString().slice(-2)}` : `${y - 1}-${y.toString().slice(-2)}`
   })()
-  const nextFY = (() => {
-    const [a, b] = currentFY.split('-').map(Number)
-    return `${a + 1}-${String(b + 1).padStart(2, '0')}`
-  })()
-
   const [header, setHeader] = useState({
     EstimateNo: '', NameOfWork: '', WorkCategory: '',
     RegionID: '', ZoneID: '', DivisionID: '', CircleID: '', WardID: '',
@@ -95,8 +82,15 @@ export default function EstimateForm() {
   const [wardResults, setWardResults] = useState([])
   const [wardSearching, setWardSearching] = useState(false)
   const [showWardSearch, setShowWardSearch] = useState(false)
+  const [scopeWardIds, setScopeWardIds] = useState(null) // Set of allowed WardIDs, null = unrestricted
+  const [scopeCircleIds, setScopeCircleIds] = useState(null)
+  const [scopeInfo, setScopeInfo] = useState(null)
 
   const readOnly = isEdit && header.Status && !EDITABLE_STATUSES.includes(header.Status)
+
+  const isManagerScope = scopeInfo?.role === 'Manager' && scopeInfo?.scopeType === 'Circle'
+  const nodeName = scopeInfo?.node?.nodeName || ''
+  const assignedLoc = isManagerScope ? (scopeInfo?.assigned?.location || null) : null
 
   useEffect(() => {
     Promise.all([
@@ -111,18 +105,51 @@ export default function EstimateForm() {
         circles: cir.data || [], wards: war.data || [],
       })
     }).catch(() => {})
+    // Location-scope officers may only create estimates inside their assigned
+    // node; /users/me/scope is the intersection the server will enforce.
+    api.get('/users/me/scope').then(r => {
+      const s = r.data
+      if (s && s.scopeType !== 'All') {
+        setScopeWardIds(new Set((s.wards || []).map(w => Number(w.WardID))))
+        setScopeCircleIds(new Set((s.circles || []).map(c => Number(c.CircleID || c.ID))))
+        const node = s.nodes && s.nodes[0]
+        setScopeInfo({
+          role: s.role,
+          scopeType: s.scopeType,
+          node: node || null,
+          assigned: s.assignedLocation || null,
+        })
+      }
+    }).catch(() => {})
     if (id) loadEstimate()
   }, [id])
 
   // Options for each level come from the authoritative DB relationships. The
   // user may start at any level; options narrow by the nearest selected
   // ancestor (or the full list if none is chosen yet).
-  const locOpts = useMemo(() => ({
-    zones: optionsFor(lookups, 'zones', header),
-    divisions: optionsFor(lookups, 'divisions', header),
-    circles: optionsFor(lookups, 'circles', header),
-    wards: optionsFor(lookups, 'wards', header),
-  }), [lookups, header.RegionID, header.ZoneID, header.DivisionID, header.CircleID])
+  const locOpts = useMemo(() => {
+    const wards = optionsFor(lookups, 'wards', header)
+    const scopedWards = scopeWardIds
+      ? wards.filter(w => scopeWardIds.has(Number(w.WardID)))
+      : wards
+    const cur = header.WardID
+    const curWard = cur !== '' && Number(cur) && !scopedWards.some(o => String(o.WardID) === String(cur))
+      ? lookups.wards.find(x => String(x.WardID) === String(cur))
+      : null
+    const circles = optionsFor(lookups, 'circles', header)
+    const scopedCircles = scopeCircleIds
+      ? circles.filter(c => scopeCircleIds.has(Number(c.CircleID)))
+      : circles
+    const curCircle = header.CircleID !== '' && !scopedCircles.some(c => String(c.CircleID) === String(header.CircleID))
+      ? circles.find(c => String(c.CircleID) === String(header.CircleID))
+      : null
+    return {
+      zones: optionsFor(lookups, 'zones', header),
+      divisions: optionsFor(lookups, 'divisions', header),
+      circles: curCircle ? [...scopedCircles, curCircle] : scopedCircles,
+      wards: curWard ? [...scopedWards, curWard] : scopedWards,
+    }
+  }, [lookups, header.RegionID, header.ZoneID, header.DivisionID, header.CircleID, header.WardID, scopeWardIds, scopeCircleIds])
 
   const loadEstimate = async () => {
     try {
@@ -267,10 +294,11 @@ export default function EstimateForm() {
     setWardSearching(true)
     try {
       const res = await api.get('/lookups/wards/search', { params: { q: term } })
-      setWardResults(res.data || [])
+      const rows = res.data || []
+      setWardResults(scopeWardIds ? rows.filter(w => scopeWardIds.has(Number(w.WardID))) : rows)
     } catch (_) { setWardResults([]) }
     setWardSearching(false)
-  }, [])
+  }, [scopeWardIds])
 
   useEffect(() => {
     const timer = setTimeout(() => { if (wardQuery) searchWards(wardQuery) }, 300)
@@ -301,14 +329,6 @@ export default function EstimateForm() {
     setDirty(true)
     clearError('WardID')
   }
-
-  const locationPath = [
-    lookups.regions.find(r => r.RegionID === Number(header.RegionID))?.Name,
-    locOpts.zones.find(z => z.ZoneID === Number(header.ZoneID))?.Name,
-    locOpts.divisions.find(d => d.DivisionID === Number(header.DivisionID))?.Name,
-    locOpts.circles.find(c => c.CircleID === Number(header.CircleID))?.Name,
-    locOpts.wards.find(w => w.WardID === Number(header.WardID))?.Name,
-  ].filter(Boolean)
 
   const searchItems = useCallback(async (term) => {
     if (!term.trim()) { setSearchResults([]); return }
@@ -570,7 +590,8 @@ export default function EstimateForm() {
     setLsProvisions(prev => [...prev, { _tempId: tempId, Description: '', Amount: 0 }])
     setDirty(true)
     requestAnimationFrame(() => {
-      document.getElementById(`ls-desc-${tempId}`)?.focus()
+      const el = document.getElementById(`ls-desc-${tempId}`)
+      if (el) { el.focus(); el.scrollIntoView({ block: 'nearest' }) }
     })
   }
 
@@ -589,7 +610,8 @@ export default function EstimateForm() {
     setAdditionalItems(prev => [...prev, { _tempId: tempId, Description: '', Amount: 0 }])
     setDirty(true)
     requestAnimationFrame(() => {
-      document.getElementById(`ai-desc-${tempId}`)?.focus()
+      const el = document.getElementById(`ai-desc-${tempId}`)
+      if (el) { el.focus(); el.scrollIntoView({ block: 'nearest' }) }
     })
   }
 
@@ -743,8 +765,10 @@ export default function EstimateForm() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h1 className="ec-page-title">{isEdit ? `Edit Estimate: ${header.EstimateNo}` : 'New Estimate'}</h1>
-              <p className="ec-page-subtitle">{isEdit ? `Estimate No: ${header.EstimateNo}` : 'Create a new work estimate'}</p>
+              <h1 className="ec-page-title">{isEdit ? `Edit Estimate: ${header.EstimateNo}` : 'Create Estimate'}</h1>
+              <p className="ec-page-subtitle">
+                {isEdit ? `Estimate No: ${header.EstimateNo}` : 'Prepare a new estimate for your assigned works'}
+              </p>
             </div>
             {(isEdit || draftIdRef.current) && lastSavedLabel && (
               <span className="flex items-center gap-1.5 text-[11px] text-[#64748B] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1.5">
@@ -811,181 +835,189 @@ export default function EstimateForm() {
 
           {isEdit && <WorkflowStepper currentStatus={header.Status || 'Draft'} />}
 
-          <div className="ec-card mb-6 overflow-hidden">
-            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#E2E8F0]">
-              <div className="px-4 py-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8] mb-1">Estimate No</div>
-                <div className="text-sm font-semibold text-[#1E293B] font-mono truncate">
-                  {header.EstimateNo || 'Auto Generated after Save'}
-                </div>
-              </div>
-              <div className="px-4 py-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8] mb-1">Financial Year</div>
-                {isEdit ? (
-                  <div className="text-sm font-semibold text-[#1E293B]">{header.FinancialYear || currentFY}</div>
+          <div id="loc-details" className="mb-5">
+            <h3 className="text-xs font-semibold text-[#475569] mb-2">Location</h3>
+            <fieldset disabled={readOnly} className="min-w-0">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {isManagerScope ? (
+                  <>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-region">Corp</label>
+                      <input id="loc-region" type="text" readOnly tabIndex={-1}
+                        className="ef-loc-input"
+                        value={assignedLoc?.RegionName || '—'} />
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-zone">Zone</label>
+                      <input id="loc-zone" type="text" readOnly tabIndex={-1}
+                        className="ef-loc-input"
+                        value={assignedLoc?.ZoneName || '—'} />
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-division">Division</label>
+                      <input id="loc-division" type="text" readOnly tabIndex={-1}
+                        className="ef-loc-input"
+                        value={assignedLoc?.DivisionName || '—'} />
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-circle">Circle</label>
+                      <input id="loc-circle" type="text" readOnly tabIndex={-1}
+                        className="ef-loc-input"
+                        value={assignedLoc?.CircleName || nodeName || '—'} />
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-ward">Ward <span className="text-[#DC2626]">*</span></label>
+                      <select id="loc-ward" name="WardID" value={header.WardID} onChange={handleLocationChange('WardID')}
+                        className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}>
+                        <option value="">Select Ward</option>
+                        {locOpts.wards.map(w => (
+                          <option key={w.WardID} value={w.WardID}>{w.Name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="ward-search">Search</label>
+                      <div className="relative">
+                        <input id="ward-search" name="wardSearch" type="text"
+                          placeholder={nodeName ? `Search ${nodeName}...` : 'Search ward...'}
+                          value={wardQuery}
+                          onChange={e => { setWardQuery(e.target.value); setShowWardSearch(true) }}
+                          onFocus={() => setShowWardSearch(true)}
+                          className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}
+                        />
+                        {wardSearching && <div className="absolute right-2.5 top-1/2 -translate-y-1/2"><div className="ec-spinner w-3.5 h-3.5" /></div>}
+                        {showWardSearch && wardResults.length > 0 && (
+                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md max-h-56 overflow-y-auto">
+                            {wardResults.map(w => (
+                              <button key={w.WardID} type="button" onClick={() => selectWard(w)}
+                                className="block w-full text-left px-3 py-2 text-xs hover:bg-[#F8FAFC] border-b border-[#F1F5F9] last:border-0">
+                                <span className="font-medium text-[#1E3A5F]">{w.WardName}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {showWardSearch && wardQuery && wardResults.length === 0 && !wardSearching && (
+                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md p-3">
+                            <p className="text-xs text-[#94A3B8] text-center">No wards found</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 ) : (
-                  <select id="FinancialYear" name="FinancialYear" value={header.FinancialYear || currentFY}
-                    onChange={set('FinancialYear')}
-                    className="ec-input !py-1 !px-2 text-xs font-semibold text-[#1E293B]">
-                    <option value={currentFY}>{currentFY} (Current)</option>
-                    <option value={nextFY}>{nextFY}</option>
-                  </select>
+                  <>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-region">Corp</label>
+                      <select id="loc-region" name="RegionID" value={header.RegionID} onChange={handleLocationChange('RegionID')}
+                        className="ef-loc-input">
+                        <option value="">Select Corp</option>
+                        {lookups.regions.map(r => (
+                          <option key={r.RegionID} value={r.RegionID}>{r.Name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-zone">Zone</label>
+                      <select id="loc-zone" name="ZoneID" value={header.ZoneID} onChange={handleLocationChange('ZoneID')}
+                        className="ef-loc-input">
+                        <option value="">Select Zone</option>
+                        {locOpts.zones.map(z => (
+                          <option key={z.ZoneID} value={z.ZoneID}>{z.Name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-division">Division</label>
+                      <select id="loc-division" name="DivisionID" value={header.DivisionID} onChange={handleLocationChange('DivisionID')}
+                        className="ef-loc-input">
+                        <option value="">Select Division</option>
+                        {locOpts.divisions.map(d => (
+                          <option key={d.DivisionID} value={d.DivisionID}>{d.Name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-circle">Circle</label>
+                      <select id="loc-circle" name="CircleID" value={header.CircleID} onChange={handleLocationChange('CircleID')}
+                        className="ef-loc-input">
+                        <option value="">Select Circle</option>
+                        {locOpts.circles.map(c => (
+                          <option key={c.CircleID} value={c.CircleID}>{c.Name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="loc-ward">Ward <span className="text-[#DC2626]">*</span></label>
+                      <select id="loc-ward" name="WardID" value={header.WardID} onChange={handleLocationChange('WardID')}
+                        className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}>
+                        <option value="">Select Ward</option>
+                        {locOpts.wards.map(w => (
+                          <option key={w.WardID} value={w.WardID}>{w.Name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ef-loc-field">
+                      <label className="ef-loc-label" htmlFor="ward-search">Search</label>
+                      <div className="relative">
+                        <input id="ward-search" name="wardSearch" type="text"
+                          placeholder="Search ward name..."
+                          value={wardQuery}
+                          onChange={e => { setWardQuery(e.target.value); setShowWardSearch(true) }}
+                          onFocus={() => setShowWardSearch(true)}
+                          className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}
+                        />
+                        {wardSearching && <div className="absolute right-2.5 top-1/2 -translate-y-1/2"><div className="ec-spinner w-3.5 h-3.5" /></div>}
+                        {showWardSearch && wardResults.length > 0 && (
+                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md max-h-56 overflow-y-auto">
+                            {wardResults.map(w => (
+                              <button key={w.WardID} type="button" onClick={() => selectWard(w)}
+                                className="block w-full text-left px-3 py-2 text-xs hover:bg-[#F8FAFC] border-b border-[#F1F5F9] last:border-0">
+                                <span className="font-medium text-[#1E3A5F]">{w.WardName}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {showWardSearch && wardQuery && wardResults.length === 0 && !wardSearching && (
+                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md p-3">
+                            <p className="text-xs text-[#94A3B8] text-center">No wards found</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
-              <div className="px-4 py-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8] mb-1">Status</div>
-                <span className={statusBadgeClass(header.Status || 'Draft')}>{header.Status || 'Draft'}</span>
-              </div>
-            </div>
+              {errors.WardID && <p className="ec-error-text mt-2">{errors.WardID}</p>}
+            </fieldset>
           </div>
 
-          <div className="ec-card mb-5">
-            <div className="ec-card-header">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#1E3A5F]" />
-                <span className="ec-card-title">Location Details</span>
-              </div>
-              {locationPath.length > 0 && (
-                <div className="flex items-center gap-1.5 text-xs text-[#64748B]">
-                  {locationPath.map((name, i) => (
-                    <span key={i} className="flex items-center gap-1">
-                      {i > 0 && <ChevronDown className="w-2.5 h-2.5 -rotate-90 text-[#CBD5E1]" />}
-                      <span className="bg-[#F1F5F9] px-2 py-0.5 rounded text-[#475569]">{name}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="ec-card-body">
-              <fieldset disabled={readOnly} className="min-w-0">
-                <div className="ec-grid-2 mb-4">
-                  <div className="ec-form-group">
-                    <label className="ec-label" htmlFor="loc-region">Corp</label>
-                    <select id="loc-region" name="RegionID" value={header.RegionID} onChange={handleLocationChange('RegionID')}
-                      className={`ec-input ${errors.WardID ? 'ec-input-error' : ''}`}>
-                      <option value="">Select Corp</option>
-                      {lookups.regions.map(r => (
-                        <option key={r.RegionID} value={r.RegionID}>{r.Name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="ec-form-group">
-                    <label className="ec-label" htmlFor="loc-zone">Zone</label>
-                    <select id="loc-zone" name="ZoneID" value={header.ZoneID} onChange={handleLocationChange('ZoneID')}
-                      className="ec-input">
-                      <option value="">Select Zone</option>
-                      {locOpts.zones.map(z => (
-                        <option key={z.ZoneID} value={z.ZoneID}>{z.Name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="ec-form-group">
-                    <label className="ec-label" htmlFor="loc-division">Division</label>
-                    <select id="loc-division" name="DivisionID" value={header.DivisionID} onChange={handleLocationChange('DivisionID')}
-                      className="ec-input">
-                      <option value="">Select Division</option>
-                      {locOpts.divisions.map(d => (
-                        <option key={d.DivisionID} value={d.DivisionID}>{d.Name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="ec-form-group">
-                    <label className="ec-label" htmlFor="loc-circle">Circle</label>
-                    <select id="loc-circle" name="CircleID" value={header.CircleID} onChange={handleLocationChange('CircleID')}
-                      className="ec-input">
-                      <option value="">Select Circle</option>
-                      {locOpts.circles.map(c => (
-                        <option key={c.CircleID} value={c.CircleID}>{c.Name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="ec-form-group">
-                    <label className="ec-label" htmlFor="loc-ward">Ward</label>
-                    <select id="loc-ward" name="WardID" value={header.WardID} onChange={handleLocationChange('WardID')}
-                      className={`ec-input ${errors.WardID ? 'ec-input-error' : ''}`}>
-                      <option value="">Select Ward</option>
-                      {locOpts.wards.map(w => (
-                        <option key={w.WardID} value={w.WardID}>{w.Name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="ec-form-group">
-                  <label className="ec-label" htmlFor="ward-search">Or search ward no. / name</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-                    <input
-                      id="ward-search"
-                      name="wardSearch"
-                      type="text"
-                      placeholder="Don't know the ward no.? Type part of the name, e.g. 'bhandari'..."
-                      value={wardQuery}
-                      onChange={e => { setWardQuery(e.target.value); setShowWardSearch(true) }}
-                      onFocus={() => setShowWardSearch(true)}
-                      className={`ec-input pl-9 ${errors.WardID ? 'ec-input-error' : ''}`}
-                    />
-                    {wardSearching && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="ec-spinner w-4 h-4" /></div>}
-                    {showWardSearch && wardResults.length > 0 && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-lg max-h-72 overflow-y-auto">
-                        {wardResults.map(w => (
-                          <button key={w.WardID} type="button" onClick={() => selectWard(w)}
-                            className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-[#F8FAFC] border-b border-[#F1F5F9] last:border-0 transition-colors">
-                            <MapPin className="w-3.5 h-3.5 text-[#1E3A5F] shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs font-semibold text-[#1E3A5F]">{w.WardName}</div>
-                              <div className="text-[10px] text-[#64748B] truncate">
-                                {w.RegionName} → {w.ZoneName} → {w.DivisionName} → {w.CircleName}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {showWardSearch && wardQuery && wardResults.length === 0 && !wardSearching && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-lg p-3">
-                        <p className="text-xs text-[#94A3B8] text-center">No wards found</p>
-                      </div>
-                    )}
-                  </div>
-                  {errors.WardID && <p className="ec-error-text">{errors.WardID}</p>}
-                </div>
-              </fieldset>
-            </div>
-          </div>
-
-          <div className="ec-card mb-5">
-            <div className="ec-card-header">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-[#1E3A5F]" />
-                <span className="ec-card-title">Work Details</span>
-              </div>
-            </div>
-            <div className="ec-card-body space-y-4">
-              <fieldset disabled={readOnly} className="min-w-0">
-                <div className="ec-form-group">
-                  <label className="ec-label" htmlFor="work-category">Work Category <span className="text-[#DC2626]">*</span></label>
+          <div id="work-details" className="mb-5">
+            <h3 className="text-xs font-semibold text-[#475569] mb-2">Work Details</h3>
+            <fieldset disabled={readOnly} className="min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-1">
+                  <label className="ef-loc-label" htmlFor="work-category">Work Category <span className="text-[#DC2626]">*</span></label>
                   <select id="work-category" name="WorkCategory" value={header.WorkCategory} onChange={set('WorkCategory')}
-                    className={`ec-input ${errors.WorkCategory ? 'ec-input-error' : ''}`}>
-                    <option value="">Select Work Category</option>
+                    className={`ef-loc-input ${errors.WorkCategory ? 'ec-input-error' : ''}`}>
+                    <option value="">Select</option>
                     {WORK_CATEGORIES.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                   {errors.WorkCategory && <p className="ec-error-text">{errors.WorkCategory}</p>}
                 </div>
-                <div className="ec-form-group">
-                  <label className="ec-label" htmlFor="name-of-work">Name of Work <span className="text-[#DC2626]">*</span></label>
-                  <textarea id="name-of-work" name="NameOfWork" value={header.NameOfWork} onChange={set('NameOfWork')}
-                    className={`ec-textarea ${errors.NameOfWork ? 'ec-input-error' : ''}`}
-                    placeholder="Enter a descriptive name for this work"
-                    rows={2} onFocus={() => clearError('NameOfWork')} />
+                <div className="sm:col-span-3">
+                  <label className="ef-loc-label" htmlFor="name-of-work">Work Name <span className="text-[#DC2626]">*</span></label>
+                  <input id="name-of-work" name="NameOfWork" type="text" value={header.NameOfWork} onChange={set('NameOfWork')}
+                    className={`ef-loc-input ${errors.NameOfWork ? 'ec-input-error' : ''}`}
+                    placeholder="Enter work name" onFocus={() => clearError('NameOfWork')} />
                   {errors.NameOfWork && <p className="ec-error-text">{errors.NameOfWork}</p>}
                 </div>
-              </fieldset>
-            </div>
+              </div>
+            </fieldset>
           </div>
 
-          <div className="ec-card mb-5">
+          <div className="ec-card mb-5" id="estimate-items">
             <div className="ec-card-header">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-[#1E3A5F]" />
@@ -1049,194 +1081,214 @@ export default function EstimateForm() {
             </div>
           </div>
 
-          <div className="ec-card mb-5">
+          <div className="ec-card mb-5" id="cost-summary">
             <div className="ec-card-header">
               <span className="ec-card-title">Estimate Summary</span>
+              <span className="text-[11px] text-[#94A3B8]">All amounts are in Indian Rupees (₹)</span>
             </div>
-            <div className="ec-card-body ec-ga-body">
+            <div className="ec-card-body">
+              <div className="ec-sum2-grid">
 
-              <div className="ec-ga-section">
-                <h4 className="ec-ga-part-title">PART-I : WORKING ITEMS</h4>
-                <div className="ec-ga-row">
-                  <span className="ec-ga-label">Cost of Material</span>
-                  <span className="ec-ga-value">₹{fmt(totals.material)}</span>
+                <div className="ec-sum2-card" aria-label="Part-I and Part-II summary">
+                  <section className="ec-sum2-section ec-sum2-part-i" aria-label="Part-I Working Items">
+                    <h4 className="ec-sum2-title">PART-I</h4>
+                    <p className="ec-sum2-subtitle">Working Items</p>
+                    <div className="ec-ga-row">
+                      <span className="ec-ga-label">Cost of Material</span>
+                      <span className="ec-ga-value">₹{fmt(totals.material)}</span>
+                    </div>
+                    <div className="ec-ga-row">
+                      <span className="ec-ga-label">Cost of Civil Work</span>
+                      <span className="ec-ga-value">₹{fmt(totals.civil)}</span>
+                    </div>
+                    <div className="ec-ga-dotted" />
+                    <div className="ec-ga-row ec-ga-row-total">
+                      <span className="ec-ga-label ec-ga-label-total">Cost of Estimate : Part-I</span>
+                      <span className="ec-ga-value ec-ga-value-total">₹{fmt(totals.costOfEst)}</span>
+                    </div>
+                  </section>
+
+                  <div className="ec-sum2-divider" />
+
+                  <section className="ec-sum2-section ec-sum2-part-ii" aria-label="Part-II Additional Items">
+                    <h4 className="ec-sum2-title">PART-II</h4>
+                    <p className="ec-sum2-subtitle">Additional Items</p>
+                    <p className="ec-sum2-note">Add non-schedule items, contingencies etc.</p>
+                    <fieldset disabled={readOnly} className="min-w-0">
+                      <div className="ec-sum2-gst-row">
+                        <label htmlFor="gst" className="ec-ga-label">GST (%)</label>
+                        <select id="gst" name="GSTPercent" value={header.GSTPercent} onChange={set('GSTPercent')}
+                          className={`ec-ga-select ${errors.GSTPercent ? 'ec-input-error' : ''}`}>
+                          {gstOptions.map(g => <option key={g} value={g}>{g}%</option>)}
+                        </select>
+                      </div>
+                      {errors.GSTPercent && <p className="ec-error-text">{errors.GSTPercent}</p>}
+                      <div className="ec-ga-ls-table-wrap ec-sum2-ls-scroll mt-2">
+                        <table className="ec-ga-ls-table">
+                          <colgroup>
+                            <col className="ec-ga-ls-col-desc" />
+                            <col className="ec-ga-ls-col-amt" />
+                            <col className="ec-ga-ls-col-act" />
+                          </colgroup>
+                          <thead>
+                            <tr>
+                              <th className="ec-ga-ls-th">Description</th>
+                              <th className="ec-ga-ls-th ec-ga-ls-th-amt">Amount (₹)</th>
+                              <th className="ec-ga-ls-th ec-ga-ls-th-act">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {additionalItems.length === 0 && (
+                              <tr>
+                                <td colSpan="3" className="ec-ga-ls-empty-cell">No additional items added yet</td>
+                              </tr>
+                            )}
+                            {additionalItems.map(r => (
+                              <tr key={r._tempId}>
+                                <td className="ec-ga-ls-td">
+                                  <textarea id={`ai-desc-${r._tempId}`} rows={2} value={r.Description}
+                                    placeholder="Enter Description..."
+                                    onChange={e => updateAdditionalItem(r._tempId, 'Description', e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        document.getElementById(`ai-amt-${r._tempId}`)?.focus()
+                                      }
+                                    }}
+                                    className="ec-sum2-desc-textarea" />
+                                </td>
+                                <td className="ec-ga-ls-td">
+                                  <input id={`ai-amt-${r._tempId}`} type="number" step="0.01" min="0" value={r.Amount}
+                                    placeholder="0.00"
+                                    onChange={e => updateAdditionalItem(r._tempId, 'Amount', e.target.value)}
+                                    className="ec-ga-ls-input ec-ga-ls-input-amt" />
+                                </td>
+                                <td className="ec-ga-ls-td ec-ga-ls-td-act">
+                                  <button type="button" onClick={() => removeAdditionalItem(r._tempId)}
+                                    className="ec-ga-ls-remove" aria-label="Remove additional item">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="ec-ga-ls-actions">
+                        <button type="button" onClick={addAdditionalItem} className="ec-ga-ls-add">
+                          <Plus className="w-3.5 h-3.5" /> Add Item
+                        </button>
+                      </div>
+                      <div className="ec-sum2-total">
+                        <span className="ec-sum2-total-label">Additional Items Total</span>
+                        <span className="ec-sum2-total-value">₹{fmt(totals.additional)}</span>
+                      </div>
+                    </fieldset>
+                  </section>
                 </div>
-                <div className="ec-ga-row">
-                  <span className="ec-ga-label">Cost of Civil Work</span>
-                  <span className="ec-ga-value">₹{fmt(totals.civil)}</span>
+
+                <div className="ec-sum2-card" aria-label="Part-III and Grand Total summary">
+                  <section className="ec-sum2-section ec-sum2-part-iii" aria-label="Part-III LS Provisions">
+                    <h4 className="ec-sum2-title">PART-III</h4>
+                    <p className="ec-sum2-subtitle">LS Provisions</p>
+                    <p className="ec-sum2-note">LS Unforeseen Items &amp; Rounding Off</p>
+                    <fieldset disabled={readOnly} className="min-w-0">
+                      <div className="ec-ga-ls-table-wrap ec-sum2-ls-scroll">
+                        <table className="ec-ga-ls-table">
+                          <colgroup>
+                            <col className="ec-ga-ls-col-desc" />
+                            <col className="ec-ga-ls-col-amt" />
+                            <col className="ec-ga-ls-col-act" />
+                          </colgroup>
+                          <thead>
+                            <tr>
+                              <th className="ec-ga-ls-th">Description</th>
+                              <th className="ec-ga-ls-th ec-ga-ls-th-amt">Amount (₹)</th>
+                              <th className="ec-ga-ls-th ec-ga-ls-th-act">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lsProvisions.length === 0 && (
+                              <tr>
+                                <td colSpan="3" className="ec-ga-ls-empty-cell">No LS provisions added yet</td>
+                              </tr>
+                            )}
+                            {lsProvisions.map(r => (
+                              <tr key={r._tempId}>
+                                <td className="ec-ga-ls-td">
+                                  <textarea id={`ls-desc-${r._tempId}`} rows={2} value={r.Description}
+                                    placeholder="LS unforeseen items and rounding off..."
+                                    onChange={e => updateLsProvision(r._tempId, 'Description', e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        document.getElementById(`ls-amt-${r._tempId}`)?.focus()
+                                      }
+                                    }}
+                                    className="ec-sum2-desc-textarea" />
+                                </td>
+                                <td className="ec-ga-ls-td">
+                                  <input id={`ls-amt-${r._tempId}`} type="number" step="0.01" min="0" value={r.Amount}
+                                    placeholder="0.00"
+                                    onChange={e => updateLsProvision(r._tempId, 'Amount', e.target.value)}
+                                    className="ec-ga-ls-input ec-ga-ls-input-amt" />
+                                </td>
+                                <td className="ec-ga-ls-td ec-ga-ls-td-act">
+                                  <button type="button" onClick={() => removeLsProvision(r._tempId)}
+                                    className="ec-ga-ls-remove" aria-label="Remove LS provision">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="ec-ga-ls-actions">
+                        <button type="button" onClick={addLsProvision} className="ec-ga-ls-add">
+                          <Plus className="w-3.5 h-3.5" /> Add Item
+                        </button>
+                      </div>
+                      <div className="ec-sum2-total">
+                        <span className="ec-sum2-total-label">LS Provision Total</span>
+                        <span className="ec-sum2-total-value">₹{fmt(totals.lsProv)}</span>
+                      </div>
+                    </fieldset>
+                  </section>
+
+                  <div className="ec-sum2-divider" />
+
+                  <section className="ec-sum2-section ec-sum2-grand" aria-label="Grand Total">
+                    <h4 className="ec-sum2-title">GRAND TOTAL</h4>
+                    <p className="ec-sum2-subtitle">Part-I + Part-II + Part-III</p>
+                    <div className="ec-sum2-breakdown">
+                      <div className="ec-sum2-bd-row">
+                        <span className="ec-sum2-bd-label">Part-I (Working Items)</span>
+                        <span className="ec-sum2-bd-value">₹{fmt(totals.costOfEst)}</span>
+                      </div>
+                      <div className="ec-sum2-bd-row">
+                        <span className="ec-sum2-bd-label">Part-II (Additional Items)</span>
+                        <span className="ec-sum2-bd-value">₹{fmt(totals.additional)}</span>
+                      </div>
+                      <div className="ec-sum2-bd-row">
+                        <span className="ec-sum2-bd-label">GST @ {Number(header.GSTPercent) || 0}%</span>
+                        <span className="ec-sum2-bd-value">₹{fmt(totals.gst)}</span>
+                      </div>
+                      <div className="ec-sum2-bd-row">
+                        <span className="ec-sum2-bd-label">Part-III (LS Provisions)</span>
+                        <span className="ec-sum2-bd-value">₹{fmt(totals.lsProv)}</span>
+                      </div>
+                    </div>
+                    <div className="ec-sum2-grand-total">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="ec-sum2-grand-total-label">Grand Total</span>
+                        <span className="ec-sum2-grand-total-value">₹{fmt(totals.grandTotal)}</span>
+                      </div>
+                    </div>
+                  </section>
                 </div>
-                <div className="ec-ga-dotted" />
-                <div className="ec-ga-row ec-ga-row-total">
-                  <span className="ec-ga-label ec-ga-label-total">Cost of Estimate : Part-I</span>
-                  <span className="ec-ga-value ec-ga-value-total">₹{fmt(totals.costOfEst)}</span>
-                </div>
-              </div>
 
-              <div className="ec-ga-section">
-                <h4 className="ec-ga-part-title">PART-II : ADDITIONAL ITEMS</h4>
-                <fieldset disabled={readOnly} className="min-w-0">
-                  <div className="ec-ga-row">
-                    <label htmlFor="gst" className="ec-ga-label">GST (%)</label>
-                    <select id="gst" name="GSTPercent" value={header.GSTPercent} onChange={set('GSTPercent')}
-                      className={`ec-ga-select ${errors.GSTPercent ? 'ec-input-error' : ''}`}>
-                      {gstOptions.map(g => <option key={g} value={g}>{g}%</option>)}
-                    </select>
-                  </div>
-                  {errors.GSTPercent && <p className="ec-error-text">{errors.GSTPercent}</p>}
-                  <div className="ec-ga-row">
-                    <span className="ec-ga-label">GST Amount</span>
-                    <span className="ec-ga-value">₹{fmt(totals.gst)}</span>
-                  </div>
-                  <p className="ec-ga-ls-caption">Additional Items</p>
-                  <div className="ec-ga-ls-table-wrap">
-                    <table className="ec-ga-ls-table">
-                      <colgroup>
-                        <col className="ec-ga-ls-col-desc" />
-                        <col className="ec-ga-ls-col-amt" />
-                        <col className="ec-ga-ls-col-act" />
-                      </colgroup>
-                      <thead>
-                        <tr>
-                          <th className="ec-ga-ls-th">Description</th>
-                          <th className="ec-ga-ls-th ec-ga-ls-th-amt">Amount (₹)</th>
-                          <th className="ec-ga-ls-th ec-ga-ls-th-act">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {additionalItems.length === 0 && (
-                          <tr>
-                            <td colSpan="3" className="ec-ga-ls-empty-cell">No additional items added yet</td>
-                          </tr>
-                        )}
-                        {additionalItems.map(r => (
-                          <tr key={r._tempId}>
-                            <td className="ec-ga-ls-td">
-                              <input id={`ai-desc-${r._tempId}`} type="text" value={r.Description}
-                                placeholder="Enter Description..."
-                                onChange={e => updateAdditionalItem(r._tempId, 'Description', e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    document.getElementById(`ai-amt-${r._tempId}`)?.focus()
-                                  }
-                                }}
-                                className="ec-ga-ls-input" />
-                            </td>
-                            <td className="ec-ga-ls-td">
-                              <input id={`ai-amt-${r._tempId}`} type="number" step="0.01" min="0" value={r.Amount}
-                                placeholder="0.00"
-                                onChange={e => updateAdditionalItem(r._tempId, 'Amount', e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    e.target.blur()
-                                  }
-                                }}
-                                className="ec-ga-ls-input ec-ga-ls-input-amt" />
-                            </td>
-                            <td className="ec-ga-ls-td ec-ga-ls-td-act">
-                              <button type="button" onClick={() => removeAdditionalItem(r._tempId)}
-                                className="ec-ga-ls-remove" aria-label="Remove additional item">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="ec-ga-ls-actions">
-                    <button type="button" onClick={addAdditionalItem} className="ec-ga-ls-add">
-                      <Plus className="w-3.5 h-3.5" /> Add Item
-                    </button>
-                  </div>
-                  <div className="ec-ga-ls-total">
-                    <span className="ec-ga-label ec-ga-label-total">Additional Items Total</span>
-                    <span className="ec-ga-value ec-ga-value-total">₹{fmt(totals.additional)}</span>
-                  </div>
-                </fieldset>
               </div>
-
-              <div className="ec-ga-section">
-                <h4 className="ec-ga-part-title">PART-III : LS PROVISIONS</h4>
-                <fieldset disabled={readOnly} className="min-w-0">
-                  <p className="ec-ga-ls-caption">LS Unforeseen Items &amp; Rounding Off</p>
-                  <div className="ec-ga-ls-table-wrap">
-                    <table className="ec-ga-ls-table">
-                      <colgroup>
-                        <col className="ec-ga-ls-col-desc" />
-                        <col className="ec-ga-ls-col-amt" />
-                        <col className="ec-ga-ls-col-act" />
-                      </colgroup>
-                      <thead>
-                        <tr>
-                          <th className="ec-ga-ls-th">Description</th>
-                          <th className="ec-ga-ls-th ec-ga-ls-th-amt">Amount (₹)</th>
-                          <th className="ec-ga-ls-th ec-ga-ls-th-act">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {lsProvisions.length === 0 && (
-                          <tr>
-                            <td colSpan="3" className="ec-ga-ls-empty-cell">No LS provisions added yet</td>
-                          </tr>
-                        )}
-                        {lsProvisions.map(r => (
-                          <tr key={r._tempId}>
-                            <td className="ec-ga-ls-td">
-                              <input id={`ls-desc-${r._tempId}`} type="text" value={r.Description}
-                                placeholder="Enter Description..."
-                                onChange={e => updateLsProvision(r._tempId, 'Description', e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    document.getElementById(`ls-amt-${r._tempId}`)?.focus()
-                                  }
-                                }}
-                                className="ec-ga-ls-input" />
-                            </td>
-                            <td className="ec-ga-ls-td">
-                              <input id={`ls-amt-${r._tempId}`} type="number" step="0.01" min="0" value={r.Amount}
-                                placeholder="0.00"
-                                onChange={e => updateLsProvision(r._tempId, 'Amount', e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    e.target.blur()
-                                  }
-                                }}
-                                className="ec-ga-ls-input ec-ga-ls-input-amt" />
-                            </td>
-                            <td className="ec-ga-ls-td ec-ga-ls-td-act">
-                              <button type="button" onClick={() => removeLsProvision(r._tempId)}
-                                className="ec-ga-ls-remove" aria-label="Remove LS provision">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="ec-ga-ls-actions">
-                    <button type="button" onClick={addLsProvision} className="ec-ga-ls-add">
-                      <Plus className="w-3.5 h-3.5" /> Add Item
-                    </button>
-                  </div>
-                  <div className="ec-ga-ls-total">
-                    <span className="ec-ga-label ec-ga-label-total">LS Provision Total</span>
-                    <span className="ec-ga-value ec-ga-value-total">₹{fmt(totals.lsProv)}</span>
-                  </div>
-                </fieldset>
-              </div>
-
-              <div className="ec-ga-grand">
-                <div className="ec-ga-row">
-                  <span className="ec-ga-grand-label">Grand Total (Part-I + Part-II + Part-III)</span>
-                  <span className="ec-ga-grand-value">₹{fmt(totals.grandTotal)}</span>
-                </div>
-              </div>
-
             </div>
           </div>
 
@@ -1256,85 +1308,65 @@ export default function EstimateForm() {
             </div>
           )}
 
-          <div className="ec-card mb-5">
-            <div className="ec-card-header">
-              <span className="ec-card-title">Quick Info</span>
-            </div>
-            <div className="ec-card-body space-y-2 text-xs text-[#64748B]">
-              <div className="flex justify-between"><span>Total Items:</span><span className="font-medium text-[#1E293B]">{items.length}</span></div>
-              <div className="flex justify-between"><span>Civil Items:</span><span className="font-medium text-[#1E293B]">{items.filter(i => i.Category === 'Civil').length}</span></div>
-              <div className="flex justify-between"><span>Material Items:</span><span className="font-medium text-[#1E293B]">{items.filter(i => i.Category === 'Material').length}</span></div>
-              {(isEdit || draftIdRef.current) && (
-                <div className="flex justify-between"><span>Estimate ID:</span><span className="font-medium text-[#1E293B]">{header.EstimateNo || 'Draft (unsaved)'}</span></div>
-              )}
-              <div className="flex justify-between"><span>Current Status:</span><span className="font-medium text-[#1E293B]">{header.Status || 'New'}</span></div>
-              {(isEdit || draftIdRef.current) && lastSavedLabel && (
-                <div className="flex justify-between border-t border-[#E2E8F0] pt-2">
-                  <span>Last saved:</span><span className="font-medium text-[#1E293B]">{lastSavedLabel}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {!readOnly && isEdit && header.Status === 'Reverted' && (
-            <div className="flex flex-wrap items-center gap-3 pb-6">
-              <button type="button" onClick={() => saveEstimate({})} disabled={saving || saved}
-                className={saved ? 'ec-btn ec-btn-success ec-btn-saved' : 'ec-btn ec-btn-primary'}>
-                {saving ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                ) : saved ? (
-                  <><Check className="w-4 h-4 ec-btn-saved-icon" /> Saved</>
+          {!readOnly && (
+            <div className="ef-action-bar flex-wrap gap-3" id="preview-submit">
+              <div className="flex flex-wrap items-center gap-3">
+                {isEdit && header.Status === 'Reverted' ? (
+                  <>
+                    <button type="button" onClick={() => saveEstimate({})} disabled={saving || saved}
+                      className={saved ? 'ec-btn ec-btn-success ec-btn-saved' : 'ec-btn ec-btn-primary'}>
+                      {saving ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                      ) : saved ? (
+                        <><Check className="w-4 h-4 ec-btn-saved-icon" /> Saved</>
+                      ) : (
+                        <><Save className="w-4 h-4" /> Save Changes</>
+                      )}
+                    </button>
+                    <button type="button" onClick={async () => {
+                      if (!header.ActionTakenReport?.trim()) {
+                        toast.error('Please describe the corrections made before resubmitting.')
+                        setErrors(prev => ({ ...prev, ActionTakenReport: 'Action Taken Report is required for resubmission' }))
+                        document.getElementById('atr')?.focus()
+                        return
+                      }
+                      const savedId = await saveEstimate({})
+                      if (savedId) {
+                        skipBlockerRef.current = true
+                        navigate(`/estimates/${savedId}`)
+                      }
+                    }} disabled={saving}
+                      className="ec-btn ec-btn-primary">
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      {saving ? 'Saving...' : 'Submit to DGM'}
+                    </button>
+                  </>
                 ) : (
-                  <><Save className="w-4 h-4" /> Save Changes</>
+                  <>
+                    <button type="button" onClick={() => saveEstimate({})} disabled={saving || saved}
+                      className={saved ? 'ec-btn ec-btn-success ec-btn-saved' : 'ec-btn ec-btn-primary'}>
+                      {saving ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                      ) : saved ? (
+                        <><Check className="w-4 h-4 ec-btn-saved-icon" /> Saved</>
+                      ) : (
+                        <><Save className="w-4 h-4" /> Save</>
+                      )}
+                    </button>
+                    <button type="button" onClick={goToMyEstimates} className="ec-btn-ghost">
+                      <ClipboardList className="w-4 h-4" /> My Estimates
+                    </button>
+                    {!isEdit && (
+                      <button type="button" onClick={handleReset} className="ec-btn-ghost">
+                        <RotateCcw className="w-4 h-4" /> Reset
+                      </button>
+                    )}
+                  </>
                 )}
-              </button>
-              <button type="button" onClick={async () => {
-                if (!header.ActionTakenReport?.trim()) {
-                  toast.error('Please describe the corrections made before resubmitting.')
-                  setErrors(prev => ({ ...prev, ActionTakenReport: 'Action Taken Report is required for resubmission' }))
-                  document.getElementById('atr')?.focus()
-                  return
-                }
-                const savedId = await saveEstimate({})
-                if (savedId) {
-                  skipBlockerRef.current = true
-                  navigate(`/estimates/${savedId}`)
-                }
-              }} disabled={saving}
-                className="ec-btn ec-btn-primary">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {saving ? 'Saving...' : 'Submit to DGM'}
-              </button>
-              <button type="button" onClick={goToMyEstimates} className="ec-btn-ghost">
-                <ClipboardList className="w-4 h-4" /> My Estimates
-              </button>
-              <button type="button" onClick={handleCancel} className="ec-btn-ghost">
-                <X className="w-4 h-4" /> Cancel
-              </button>
-            </div>
-          )}
-
-          {!readOnly && !(isEdit && header.Status === 'Reverted') && (
-            <div className="flex flex-wrap items-center gap-3 pb-6">
-              <button type="button" onClick={() => saveEstimate({})} disabled={saving || saved}
-                className={saved ? 'ec-btn ec-btn-success ec-btn-saved' : 'ec-btn ec-btn-primary'}>
-                {saving ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                ) : saved ? (
-                  <><Check className="w-4 h-4 ec-btn-saved-icon" /> Saved</>
-                ) : (
-                  <><Save className="w-4 h-4" /> Save</>
-                )}
-              </button>
-              <button type="button" onClick={goToMyEstimates} className="ec-btn-ghost">
-                <ClipboardList className="w-4 h-4" /> My Estimates
-              </button>
-              <button type="button" onClick={handleReset} className="ec-btn-ghost">
-                <RotateCcw className="w-4 h-4" /> Reset
-              </button>
-              <button type="button" onClick={handleCancel} className="ec-btn-ghost">
-                <X className="w-4 h-4" /> Cancel
-              </button>
+                <button type="button" onClick={handleCancel} className="ec-btn-ghost">
+                  <X className="w-4 h-4" /> Cancel
+                </button>
+              </div>
             </div>
           )}
         </div>
