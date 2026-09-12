@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { countScope, PIPELINE_STAGES, PIPELINE_STAGE_EXPR } = require('../utils/estimateScope');
 const { getSlaSummary } = require('../utils/sla');
+const { isLocationRole, accessibleCirclesSql } = require('../services/locationScope');
 
 // Bills sitting on a role's desk (by CurrentOwner + stage), oldest-SLA first.
 async function billQueueFor(userId, statuses) {
@@ -38,6 +39,17 @@ exports.getStats = async (req, res, next) => {
     const userId = req.user.UserID;
     const designation = req.user.Designation;
 
+    // Location-scope enforcement for the board-wide summary cards. Non-board
+    // roles only see counts inside their assigned circles (or created by them).
+    const locScope = isLocationRole(designation);
+    const locParams = locScope ? [userId] : [];
+    const locWhere = locScope
+      ? `("CircleID" IN (${accessibleCirclesSql(designation, 1)}) OR "CreatedBy" = $1)`
+      : null;
+    const locJoin = locScope
+      ? `(eh."CircleID" IN (${accessibleCirclesSql(designation, 1)}) OR eh."CreatedBy" = $1)`
+      : null;
+
     // Global stats
     const globalStats = await db.query(`
       SELECT
@@ -57,21 +69,26 @@ exports.getStats = async (req, res, next) => {
         COUNT(*) FILTER (WHERE "CreatedDate" >= CURRENT_DATE)::int as "today",
         COUNT(*) FILTER (WHERE "CreatedDate" >= date_trunc('month', CURRENT_DATE))::int as "this_month"
       FROM "EstimateHeader"
-    `);
+      ${locWhere ? 'WHERE ' + locWhere : ''}
+    `, locParams);
 
     const totalValue = await db.query(`
-      SELECT COALESCE(SUM("GrandTotal"),0) as "totalValue" FROM "Abstract"
-    `);
+      SELECT COALESCE(SUM(ab."GrandTotal"),0) as "totalValue" FROM "Abstract" ab
+      ${locJoin ? `JOIN "EstimateHeader" eh ON eh."EstimateID" = ab."EstimateID" AND ${locJoin}` : ''}
+    `, locParams);
 
+    const ehScope = locJoin
+      ? `AND EXISTS (SELECT 1 FROM "EstimateHeader" eh WHERE eh."EstimateID" = t."EstimateID" AND ${locJoin})`
+      : '';
     const moduleCounts = await db.query(`
       SELECT
-        (SELECT COUNT(*)::int FROM "Tender" WHERE "Status" <> 'Awarded') as "pendingTenders",
-        (SELECT COUNT(*)::int FROM "Agency") as "agenciesAssigned",
-        (SELECT COUNT(*)::int FROM "EstimateHeader" WHERE "Status" = 'WorkStarted') as "worksInProgress",
-        (SELECT COUNT(*)::int FROM "Billing" WHERE "Status" NOT IN ('Paid','Cancelled')) as "billsPending",
-        (SELECT COUNT(*)::int FROM "Tender" WHERE "Status" = 'Awarded') as "awardedTenders",
-        (SELECT COUNT(*)::int FROM "Billing" WHERE "Status" = 'Paid') as "billsPaid"
-    `);
+        (SELECT COUNT(*)::int FROM "Tender" t WHERE t."Status" <> 'Awarded' ${ehScope}) as "pendingTenders",
+        (SELECT COUNT(*)::int FROM "Agency" a WHERE EXISTS (SELECT 1 FROM "EstimateHeader" eh WHERE eh."EstimateID" = a."EstimateID" AND ${locJoin || 'TRUE'})) as "agenciesAssigned",
+        (SELECT COUNT(*)::int FROM "EstimateHeader" eh WHERE eh."Status" = 'WorkStarted' AND (${locJoin || 'TRUE'})) as "worksInProgress",
+        (SELECT COUNT(*)::int FROM "Billing" b WHERE b."Status" NOT IN ('Paid','Cancelled') AND EXISTS (SELECT 1 FROM "EstimateHeader" eh WHERE eh."EstimateID" = b."EstimateID" AND ${locJoin || 'TRUE'})) as "billsPending",
+        (SELECT COUNT(*)::int FROM "Tender" t WHERE t."Status" = 'Awarded' ${ehScope}) as "awardedTenders",
+        (SELECT COUNT(*)::int FROM "Billing" b WHERE b."Status" = 'Paid' AND EXISTS (SELECT 1 FROM "EstimateHeader" eh WHERE eh."EstimateID" = b."EstimateID" AND ${locJoin || 'TRUE'})) as "billsPaid"
+    `, locParams);
 
     // Role-scoped queue counts. Every card on the dashboard maps to one of these
     // so the badge value always matches the rows the filtered list returns.

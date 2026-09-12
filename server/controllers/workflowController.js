@@ -9,6 +9,7 @@ const { generateFcnNo } = require('../utils/fcnNo');
 const { buildOtpEmailHtml, buildOtpEmailText, buildWorkflowEmailHtml, buildWorkflowEmailText } = require('../utils/emailTemplate');
 const { startSla, stopSla } = require('../utils/sla');
 const { logOtp } = require('../utils/devOtpLog');
+const { resolveApprovalUser } = require('../services/locationScope');
 
 async function getEstimate(estimateId) {
   const r = await db.query('SELECT * FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId]);
@@ -244,8 +245,20 @@ exports.submitEstimate = async (req, res, next) => {
       return res.status(409).json({ error: 'OTP has already been used. Request a new OTP.' });
     }
 
-    const dgm = await findUserByDesignation('DGM');
+    // Location-aware routing: the DGM of the estimate's division owns the
+    // review. Maker-checker: the creator can never be their own approver, so a
+    // (defensive) self-match escalates straight past DGM to the GM.
+    let dgm = await resolveApprovalUser('DGM', est);
+    let escToGm = false;
+    let gm = null;
+    if (dgm && dgm.UserID === est.CreatedBy) {
+      escToGm = true;
+      gm = await resolveApprovalUser('GM', est);
+      if (!gm) return res.status(400).json({ error: 'No GM found in system' });
+    }
     if (!dgm) return res.status(400).json({ error: 'No DGM found in system' });
+    const nextOwner = escToGm ? gm : dgm;
+    const nextStatus = escToGm ? 'DGM_Approved' : 'Submitted';
 
     const currentVersion = await getOrCreateVersion(estimateId);
 
@@ -255,11 +268,11 @@ exports.submitEstimate = async (req, res, next) => {
     try {
       await client.query('BEGIN');
       const upd = await client.query(
-        `UPDATE "EstimateHeader" SET "Status" = 'Submitted', "CurrentOwner" = $1,
-         "SubmissionDate" = now(), "LastModifiedBy" = $2, "LastModifiedDate" = now(),
-         "ActionTakenReport" = COALESCE($3, "ActionTakenReport")
-         WHERE "EstimateID" = $4 AND "Status" IN ('Draft','Reverted')`,
-        [dgm.UserID, userId, remarks || null, estimateId]
+        `UPDATE "EstimateHeader" SET "Status" = $1, "CurrentOwner" = $2,
+         "SubmissionDate" = now(), "LastModifiedBy" = $3, "LastModifiedDate" = now(),
+         "ActionTakenReport" = COALESCE($4, "ActionTakenReport")
+         WHERE "EstimateID" = $5 AND "Status" IN ('Draft','Reverted')`,
+        [nextStatus, nextOwner.UserID, userId, remarks || null, estimateId]
       );
       if (upd.rowCount === 0) {
         await client.query('ROLLBACK');
@@ -269,13 +282,15 @@ exports.submitEstimate = async (req, res, next) => {
       await client.query(
         `INSERT INTO "Workflow" ("EstimateID","FromUserID","ToUserID","Action","Version","OTPVerified","Remarks")
          VALUES ($1,$2,$3,'Submit',$4,TRUE,$5)`,
-        [estimateId, userId, dgm.UserID, currentVersion, remarks || 'Submitted for DGM review']
+        [estimateId, userId, nextOwner.UserID, currentVersion,
+         escToGm ? 'Submitted for DGM review (escalated to GM: maker-checker)' : 'Submitted for DGM review']
       );
 
       await client.query(
         `INSERT INTO "AuditLog" ("EstimateID","UserID","Action","Remarks")
          VALUES ($1,$2,'Submit',$3)`,
-        [estimateId, userId, `Estimate ${est.EstimateNo} submitted to DGM (v${currentVersion})`]
+        [estimateId, userId,
+          `Estimate ${est.EstimateNo} submitted to ${escToGm ? 'GM (maker-checker escalation)' : 'DGM'} (v${currentVersion})`]
       );
 
       await client.query('COMMIT');
@@ -286,21 +301,21 @@ exports.submitEstimate = async (req, res, next) => {
       client.release();
     }
 
-    // Start SLA for DGM review stage
-    await startSla('Estimate', 'DGM', estimateId, 'EstimateHeader');
+    // Start SLA for the review stage
+    await startSla('Estimate', escToGm ? 'GM' : 'DGM', estimateId, 'EstimateHeader');
 
-    await sendNotification(estimateId, dgm.UserID, 'Submit',
+    await sendNotification(estimateId, nextOwner.UserID, 'Submit',
       `Estimate ${est.EstimateNo} has been submitted for your review`, {
         email: {
-          to: await resolveEmail(dgm.UserID),
+          to: await resolveEmail(nextOwner.UserID),
           subject: `HMWSSB - Estimate ${est.EstimateNo} submitted for your review`,
-          recipientName: dgm.Name, estimateNo: est.EstimateNo, workName: est.NameOfWork,
-          action: 'Submitted for DGM review',
+          recipientName: nextOwner.Name, estimateNo: est.EstimateNo, workName: est.NameOfWork,
+          action: `Submitted for ${escToGm ? 'GM' : 'DGM'} review`,
           fromUser: req.user.Name || req.user.Username, fromDesignation: req.user.Designation,
           dateTime: formatIstTime(new Date()),
         }
       });
-    res.json({ message: 'Estimate forwarded to DGM for review' });
+    res.json({ message: escToGm ? 'Estimate forwarded to GM for review (creator overrode DGM slot)' : 'Estimate forwarded to DGM for review' });
   } catch (err) { next(err); }
 };
 
@@ -379,7 +394,7 @@ exports.approveEstimate = async (req, res, next) => {
       if (est.Status !== 'Submitted')
         return res.status(400).json({ error: 'DGM can only approve Submitted estimates' });
 
-      const gm = await findUserByDesignation('GM');
+      const gm = await resolveApprovalUser('GM', est);
       if (!gm) return res.status(400).json({ error: 'No GM found in system' });
 
       const currentVersion = await getOrCreateVersion(estimateId);
@@ -560,7 +575,7 @@ exports.verifyDgmApprove = async (req, res, next) => {
     if (freshEst.Status !== 'Submitted')
       return res.status(409).json({ error: 'Estimate is no longer in Submitted status. Refresh and try again.' });
 
-    const gm = await findUserByDesignation('GM');
+    const gm = await resolveApprovalUser('GM', est);
     if (!gm) return res.status(400).json({ error: 'No GM found in system' });
 
     const currentVersion = await getOrCreateVersion(estimateId);
@@ -772,7 +787,7 @@ exports.signAndAuditEstimate = async (req, res, next) => {
       return res.status(409).json({ error: 'OTP has already been used. Request a new OTP.' });
     }
 
-    const cgm = await findUserByDesignation('CGM');
+    const cgm = await resolveApprovalUser('CGM', est);
     if (!cgm) return res.status(400).json({ error: 'No CGM found in system' });
 
     const currentVersion = await getOrCreateVersion(estimateId);

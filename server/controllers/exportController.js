@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { generateCompletePDF } = require('../utils/completePdfExporter');
 const { generateCompleteWorkbook } = require('../utils/workbookExporter');
 const { fetchLocationNames } = require('../utils/locations');
+const { estimateInScope } = require('../services/locationScope');
 
 function estimateFileName(estimate, ext) {
   const base = (estimate.EstimateNo || estimate.WorkID || `ESTIMATE_${estimate.EstimateID}`).replace(/\//g, '_');
@@ -71,6 +72,9 @@ exports.exportCompletePDF = async (req, res, next) => {
   try {
     const data = await getEstimateData(req.params.id);
     if (!data) return res.status(404).json({ error: 'Estimate not found' });
+    if (!(await estimateInScope(req.user, data.header))) {
+      return res.status(403).json({ error: 'This estimate is outside your assigned scope' });
+    }
     const buffer = await generateCompletePDF(data);
     sendFile(res, buffer, 'application/pdf', estimateFileName(data.header, 'pdf'));
   } catch (err) { next(err); }
@@ -80,6 +84,9 @@ exports.exportCompleteWorkbook = async (req, res, next) => {
   try {
     const data = await getEstimateData(req.params.id);
     if (!data) return res.status(404).json({ error: 'Estimate not found' });
+    if (!(await estimateInScope(req.user, data.header))) {
+      return res.status(403).json({ error: 'This estimate is outside your assigned scope' });
+    }
     const buffer = await generateCompleteWorkbook(data);
     sendFile(res, buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', estimateFileName(data.header, 'xlsx'));
   } catch (err) { next(err); }

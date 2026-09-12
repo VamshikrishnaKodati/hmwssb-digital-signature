@@ -4,6 +4,8 @@ require('dotenv').config({ path: path.join(__dirname, '../../server/.env') });
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const { seedLocations } = require('../../server/seeds/seed-locations');
+const { seedScopeAssignments } = require('../../server/seeds/seed-scope');
+const { seedSlaData } = require('../../server/seeds/seed-sla');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/hmwssb',
@@ -14,7 +16,11 @@ async function seed() {
     console.log('Seeding database...');
 
     // Clear existing data (CASCADE handles FK ordering)
-    await pool.query('TRUNCATE "FinanceWorkflow","BillingPayments","Billing","WorkProgressPhotos","WorkProgress","AgencyEvaluation","Agency","Bid","TenderDocuments","Tender","Notification","SignatureOTP","MeasurementBook","Workflow","Abstract","EstimateLSProvision","EstimateAdditionalItem","EstimateDetails","Versions","AuditLog","DeletedEstimates","EstimateHeader","ItemMasterRateHistory","ItemMaster","Users","Wards","Circles","Divisions","Zones","Regions" RESTART IDENTITY CASCADE');
+    await pool.query('TRUNCATE "FinanceWorkflow","BillingPayments","Billing","WorkProgressPhotos","WorkProgress","AgencyEvaluation","Agency","Bid","TenderDocuments","Tender","Notification","SignatureOTP","MeasurementBook","Workflow","Abstract","EstimateLSProvision","EstimateAdditionalItem","EstimateDetails","Versions","AuditLog","DeletedEstimates","EstimateHeader","ItemMasterRateHistory","ItemMaster","Users","Wards","Circles","Divisions","Zones","Regions","AssignmentAudit","ManagerCircleAssignment","DGMDivisionAssignment","GMZoneAssignment","CGMCorporationAssignment" RESTART IDENTITY CASCADE');
+
+    // TRUNCATE "Users" CASCADE also wipes SlaDefinition/EscalationRule (FK to Users);
+    // migrations never re-run, so restore their defaults here.
+    await seedSlaData(pool);
 
     // Seed hierarchy (full 300-row GHMC location data)
     await seedLocations(pool);
@@ -48,6 +54,10 @@ async function seed() {
       `SELECT setval(pg_get_serial_sequence('"Users"', 'UserID'), COALESCE((SELECT MAX("UserID") FROM "Users"), 1))`
     );
     console.log('Users seeded');
+
+    // Seed location-scope assignments (60 managers, 24 DGMs, GM/CGM dev slots)
+    await seedScopeAssignments(pool);
+    console.log('Location-scope assignments seeded');
 
     // Seed Item Master
     const items = [

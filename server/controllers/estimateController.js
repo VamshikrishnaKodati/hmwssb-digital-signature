@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { buildEstimateScope, orderClause, PIPELINE_STAGES } = require('../utils/estimateScope');
 const { calcAbstract } = require('../utils/calc');
 const { numberToWords } = require('../utils/numberToWords');
+const { getLocationChainFromWard, locationInScope, estimateInScope, estimateScopeConds } = require('../services/locationScope');
 
 const WORK_CATEGORIES = ['Water Supply', 'Sewerage', 'EAM'];
 
@@ -210,6 +211,17 @@ exports.createEstimate = async (req, res, next) => {
       return res.status(400).json({ error: 'FinancialYear must be in YYYY-YY format' });
     }
 
+    // The ward is the source of truth for the full location chain; the client
+    // may send Region/Zone/Division/Circle for display, but the chain is
+    // always derived from the ward so scope enforcement cannot be bypassed.
+    const chain = await getLocationChainFromWard(WardID);
+    if (!chain) {
+      return res.status(400).json({ error: 'Selected ward is not part of the location hierarchy' });
+    }
+    if (!(await locationInScope(req.user, chain))) {
+      return res.status(403).json({ error: 'Estimates can be created only for wards within your assigned scope' });
+    }
+
     const lsRows = Array.isArray(LSProvisions) ? LSProvisions : [];
     const lsProvisionTotal = Math.round(
       lsRows.reduce((s, r) => s + (parseFloat(r.Amount) || 0), 0) * 100
@@ -238,7 +250,7 @@ exports.createEstimate = async (req, res, next) => {
                      'Draft',1,$15,$15,$16,now())
              RETURNING *`,
             [estimateNo, estimateNo, NameOfWork, financialYear, wardCode, sequence,
-             RegionID, ZoneID, DivisionID, CircleID, WardID,
+             chain.RegionID, chain.ZoneID, chain.DivisionID, chain.CircleID, WardID,
              WorkCategory, GSTPercent || 18, lsProvisionTotal,
              req.user.UserID, req.user.UserID]
           );
@@ -323,19 +335,44 @@ exports.createEstimate = async (req, res, next) => {
 
 exports.updateEstimate = async (req, res, next) => {
   try {
-    const estimateId = req.params.id;
+    const estimateId = Number(req.params.id);
+    if (!Number.isInteger(estimateId) || estimateId <= 0) return res.status(404).json({ error: 'Estimate not found' });
     const header = await db.query('SELECT * FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId]);
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
 
     const guard = editableBy(header.rows[0], req.user);
     if (!guard.ok) return res.status(403).json({ error: guard.error });
 
-    const { NameOfWork, RegionID, ZoneID, DivisionID, CircleID, WardID,
+    const { NameOfWork, RegionID: reqRegionID, ZoneID: reqZoneID, DivisionID: reqDivisionID, CircleID: reqCircleID, WardID,
             WorkCategory, GSTPercent, LSProvision, LSProvisions, AdditionalItems, Items,
             ActionTakenReport } = req.body;
+    let RegionID = reqRegionID, ZoneID = reqZoneID, DivisionID = reqDivisionID, CircleID = reqCircleID;
 
     if (WorkCategory !== undefined && !WORK_CATEGORIES.includes(WorkCategory)) {
       return res.status(400).json({ error: 'WorkCategory must be one of: Water Supply, Sewerage, EAM' });
+    }
+
+    // Location edits are reconciled against the ward's chain so the estimate's
+    // Region/Zone/Division/Circle can never desync from its ward, and the
+    // resulting location stays inside the creator's scope.
+    if (RegionID !== undefined || ZoneID !== undefined || DivisionID !== undefined || CircleID !== undefined || WardID !== undefined) {
+      const targetWardId = WardID ?? header.rows[0].WardID;
+      const chain = await getLocationChainFromWard(targetWardId);
+      if (!chain) {
+        return res.status(400).json({ error: 'Selected ward is not part of the location hierarchy' });
+      }
+      for (const [col, val] of Object.entries({ RegionID, ZoneID, DivisionID, CircleID })) {
+        if (val !== undefined && Number(val) !== chain[col]) {
+          return res.status(400).json({ error: `${col} does not match the ward's location chain` });
+        }
+      }
+      if (!(await locationInScope(req.user, chain))) {
+        return res.status(403).json({ error: 'Location is outside your assigned scope' });
+      }
+      RegionID = chain.RegionID;
+      ZoneID = chain.ZoneID;
+      DivisionID = chain.DivisionID;
+      CircleID = chain.CircleID;
     }
 
     // Load the pre-save state so the new version can carry a precise change diff.
@@ -467,7 +504,8 @@ async function getFullEstimate(estimateId) {
     `SELECT eh.*,
        r."Name" AS "RegionName", z."Name" AS "ZoneName",
        d."Name" AS "DivisionName", c."Name" AS "CircleName", w."Name" AS "WardName",
-       cb."Name" AS "CompletedByName", sb."Name" AS "StartedByName"
+       cb."Name" AS "CompletedByName", sb."Name" AS "StartedByName",
+       crb."Name" AS "CreatedByName", crb."Designation" AS "CreatedByDesignation"
      FROM "EstimateHeader" eh
      LEFT JOIN "Regions" r ON r."RegionID" = eh."RegionID"
      LEFT JOIN "Zones" z ON z."ZoneID" = eh."ZoneID"
@@ -476,6 +514,7 @@ async function getFullEstimate(estimateId) {
      LEFT JOIN "Wards" w ON w."WardID" = eh."WardID"
      LEFT JOIN "Users" cb ON cb."UserID" = eh."CompletedBy"
      LEFT JOIN "Users" sb ON sb."UserID" = eh."StartedBy"
+     LEFT JOIN "Users" crb ON crb."UserID" = eh."CreatedBy"
      WHERE eh."EstimateID" = $1`,
     [estimateId]
   );
@@ -566,8 +605,13 @@ async function upsertAbstract(estimateId, dbc = db) {
 
 exports.getEstimate = async (req, res, next) => {
   try {
-    const full = await getFullEstimate(req.params.id);
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(404).json({ error: 'Estimate not found' });
+    const full = await getFullEstimate(id);
     if (!full.EstimateID) return res.status(404).json({ error: 'Estimate not found' });
+    if (!(await estimateInScope(req.user, full))) {
+      return res.status(403).json({ error: 'This estimate is outside your assigned scope' });
+    }
     res.json(full);
   } catch (err) {
     next(err);
@@ -609,6 +653,12 @@ exports.listEstimates = async (req, res, next) => {
       conditions.push(`COALESCE(ab."GrandTotal",0) <= $${params.length + 1}`);
       params.push(amountTo);
     }
+
+    // Location-scope enforcement: non-board-wide roles only see estimates in
+    // their assigned circles (or estimates they created).
+    const locScope = await estimateScopeConds(req.user, 'eh', params.length + 1);
+    conditions.push(...locScope.conds);
+    params.push(...locScope.params);
 
     if (conditions.length > 0) sql += ' WHERE ' + conditions.join(' AND ');
     sql += ' ORDER BY eh."CreatedDate" DESC';
@@ -657,6 +707,9 @@ exports.getMyEstimates = async (req, res, next) => {
     else scope = 'assignedOrCreated';
 
     const { conds, params } = buildEstimateScope({ userId, scope, statuses, actions, search, stage, today: today === 'true' || today === '1' });
+    const locScope = await estimateScopeConds(req.user, 'eh', params.length + 1);
+    conds.push(...locScope.conds);
+    params.push(...locScope.params);
     if (conds.length === 0) return res.json([]);
 
     // The stage predicate reads the current-owner designation via the `ou` alias.
@@ -730,13 +783,15 @@ exports.recalculateItem = async (req, res, next) => {
 
 exports.getVersions = async (req, res, next) => {
   try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(404).json({ error: 'Estimate not found' });
     const result = await db.query(
       `SELECT v.*, u."Name" as "CreatedByName"
        FROM "Versions" v
        LEFT JOIN "Users" u ON u."UserID" = v."CreatedBy"
        WHERE v."EstimateID" = $1
        ORDER BY v."VersionNumber" DESC`,
-      [req.params.id]
+      [id]
     );
     res.json(result.rows);
   } catch (err) {

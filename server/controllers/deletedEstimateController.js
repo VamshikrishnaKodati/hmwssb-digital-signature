@@ -285,7 +285,7 @@ exports.listDeletedEstimates = async (req, res, next) => {
 
     let query = `
       SELECT de.*,
-        u.Name as "DeletedByName"
+        u."Name" as "DeletedByName"
       FROM "DeletedEstimates" de
       LEFT JOIN "Users" u ON u."UserID" = de."DeletedBy"
       WHERE de."RestoreStatus" = 'deleted'
@@ -319,14 +319,16 @@ exports.listDeletedEstimates = async (req, res, next) => {
 
 exports.getDeletedEstimate = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0)
+      return res.status(404).json({ error: 'Deleted estimate not found' });
     const designation = req.user.Designation;
 
     if (!['Manager', 'Administrator', 'GM', 'DGM'].includes(designation))
       return res.status(403).json({ error: 'Not authorized' });
 
     const result = await db.query(
-      `SELECT de.*, u.Name as "DeletedByName"
+      `SELECT de.*, u."Name" as "DeletedByName"
        FROM "DeletedEstimates" de
        LEFT JOIN "Users" u ON u."UserID" = de."DeletedBy"
        WHERE de."DeletedEstimateID" = $1 AND de."RestoreStatus" = 'deleted'`,
@@ -342,7 +344,9 @@ exports.getDeletedEstimate = async (req, res, next) => {
 
 exports.requestRestoreOtp = async (req, res, next) => {
   try {
-    const deletedEstimateId = req.params.id;
+    const deletedEstimateId = Number(req.params.id);
+    if (!Number.isInteger(deletedEstimateId) || deletedEstimateId <= 0)
+      return res.status(404).json({ error: 'Deleted estimate not found' });
     const userId = req.user.UserID;
 
     if (!['Manager', 'Administrator'].includes(req.user.Designation))

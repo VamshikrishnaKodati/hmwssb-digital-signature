@@ -22,7 +22,8 @@ exports.login = async (req, res, next) => {
     }
 
     const result = await db.query(
-      `SELECT "UserID","Username","PasswordHash","Name","Designation",
+      `SELECT "UserID","Username","PasswordHash","Name","Designation","DesignationTitle",
+              "EmployeeCode","EffectiveFrom","EffectiveTo",
               "RegionID","ZoneID","DivisionID","CircleID","WardID",
               "MobileNumber","Email"
        FROM "Users" WHERE "Username" = $1 AND "IsActive" IS NOT FALSE`,
@@ -64,6 +65,10 @@ exports.login = async (req, res, next) => {
         Username: user.Username,
         Name: user.Name,
         Designation: user.Designation,
+        DesignationTitle: user.DesignationTitle,
+        EmployeeCode: user.EmployeeCode,
+        EffectiveFrom: user.EffectiveFrom,
+        EffectiveTo: user.EffectiveTo,
         RegionID: user.RegionID,
         ZoneID: user.ZoneID,
         DivisionID: user.DivisionID,
@@ -92,7 +97,8 @@ exports.getDemoAccounts = async (_req, res) => {
     `SELECT "UserID","Username","Name","Designation" FROM "Users"
      WHERE "Username" IN ('manager','dgm','gm','cgm','dop','ed','md',
        'soradmin','director_admin','finance_head','finance_manager','finance_clerk',
-       'tender_officer','site_engineer','billing_officer','admin_officer')
+       'tender_officer','site_engineer','billing_officer','admin_officer',
+       'mgr-001','mgr-039','mgr-060','dgm-001','dgm-016','dgm-024')
      ORDER BY "UserID"`
   );
   res.json({
@@ -108,7 +114,8 @@ exports.getDemoAccounts = async (_req, res) => {
 exports.getProfile = async (req, res, next) => {
   try {
     const result = await db.query(
-      `SELECT "UserID","Username","Name","Designation",
+      `SELECT "UserID","Username","Name","Designation","DesignationTitle",
+              "EmployeeCode","EffectiveFrom","EffectiveTo",
               "RegionID","ZoneID","DivisionID","CircleID","WardID",
               "MobileNumber","Email"
        FROM "Users" WHERE "UserID" = $1`,
