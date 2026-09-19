@@ -54,6 +54,7 @@ const ACTION_TO_STAGE_KEY = {
  * - sla: optional { status: 'Normal'|'Warning'|'Overdue', dueAt, escalationLevel }
  * - showOwner: boolean — show current owner info
  * - ownerName: string — current owner display name
+ * - hideInfoStrip: boolean — hide the Current Owner / Stage / SLA footer strip
  */
 export default function WorkflowProgress({
   status,
@@ -63,6 +64,7 @@ export default function WorkflowProgress({
   sla,
   showOwner = false,
   ownerName,
+  hideInfoStrip = false,
 }) {
   const phases = getWorkflowProgress(status, context)
   const info = getStatusInfo(status, context)
@@ -87,7 +89,7 @@ export default function WorkflowProgress({
 
   if (info.flatIndex < 0) {
     return (
-      <div data-testid="workflow-progress" className="bg-white rounded-lg border border-[#E2E8F0] p-4">
+      <div data-testid="workflow-progress" className="bg-white rounded-lg border border-[#CBD5E1] p-4">
         <p className="text-xs text-[#94A3B8]">Workflow stage not found for status “{status}”.</p>
       </div>
     )
@@ -105,10 +107,10 @@ export default function WorkflowProgress({
   }
 
   return (
-    <div data-testid="workflow-progress" className="bg-white rounded-lg border border-[#E2E8F0] p-4">
+    <div data-testid="workflow-progress" className="bg-white rounded-lg border border-[#CBD5E1] p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-bold text-[#1E3A5F] uppercase tracking-wider">Workflow Progress</h3>
-        <span className="text-[10px] font-medium text-[#64748B] capitalize">
+        <h3 className="text-xs font-bold text-[#2563EB] uppercase tracking-wider">Workflow Progress</h3>
+        <span className="text-[10px] font-medium text-[#475569] capitalize">
           {currentPhase ? currentPhase.phaseLabel : '6-Phase Lifecycle'}
         </span>
       </div>
@@ -140,21 +142,8 @@ export default function WorkflowProgress({
       {/* Current phase — prominent tracker with ONLY its stages */}
       {currentPhase && (
         <div className="rounded-lg border border-[#BFDBFE] bg-gradient-to-b from-[#F8FBFF] to-white overflow-hidden" data-testid={`phase-active-${currentPhase.phaseIndex}`}>
-          <div className="flex items-center justify-between flex-wrap gap-2 px-4 pt-3 pb-2 border-b border-[#E2E8F0]">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-[#0EA5E9]">
-                <span className="w-2 h-2 rounded-full bg-white" />
-              </span>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[#1E3A5F]">{currentPhase.phaseLabel}</p>
-                <p className="text-[10px] text-[#64748B]">{PHASES[currentPhase.phaseIndex]?.description}</p>
-              </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-[#0EA5E9] bg-[#E0F2FE]">In Progress</span>
-          </div>
-
-          <div ref={scrollRef} className="w-full overflow-x-auto pb-1 -mb-1 px-2">
-            <div className="flex items-start gap-0.5 min-w-max pt-3 pb-2">
+          <div ref={scrollRef} className="w-full overflow-x-auto pb-2 -mb-1 px-2">
+            <div className="flex items-start justify-between gap-1 w-full pt-3.5 pb-2">
               {currentPhase.stages.map((stage, i) => {
                 const meta = lastPerformed(stage.key)
                 return (
@@ -165,27 +154,27 @@ export default function WorkflowProgress({
                       onClick={() => onStageClick?.(stage.key)}
                       title={meta ? `${stage.label} — ${meta.FromUserName || ''} · ${meta.Remarks || ''}` : stage.label}
                       data-current={stage.current ? 'true' : undefined}
-                      className={`relative flex flex-col items-center flex-none min-w-[96px] px-1 pb-1 ${
+                      className={`relative flex flex-col items-center flex-1 min-w-[96px] px-1 pb-1.5 ${
                         onStageClick ? 'cursor-pointer' : 'cursor-default'
                       }`}
                     >
                       {i > 0 && (
-                        <div className={`absolute top-3 right-1/2 w-full h-0.5 ${
-                          stage.complete ? 'bg-[#1E3A5F]' : 'bg-[#E2E8F0]'
+                        <div className={`absolute top-3.5 right-1/2 w-full h-0.5 ${
+                          stage.complete ? 'bg-[#2563EB]' : 'bg-[#CBD5E1]'
                         }`} style={{ zIndex: 0 }} />
                       )}
-                      <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${
+                      <div className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${
                         stage.current
                           ? 'bg-[#0EA5E9] border-[#0EA5E9] text-white shadow-[0_0_0_3px_rgba(14,165,233,0.15)]'
                           : stage.complete
-                            ? 'bg-[#1E3A5F] border-[#1E3A5F] text-white'
-                            : 'bg-white border-[#E2E8F0] text-[#94A3B8]'
+                            ? 'bg-[#2563EB] border-[#2563EB] text-white'
+                            : 'bg-white border-[#CBD5E1] text-[#94A3B8]'
                       }`}>
                         {stage.complete ? <Check className="w-3 h-3" /> : ''}
                       </div>
-                      <p className={`text-[9px] mt-1 text-center leading-tight max-w-[88px] ${
+                      <p className={`text-[9px] mt-1.5 text-center leading-tight max-w-[96px] ${
                         stage.current ? 'text-[#0EA5E9] font-semibold' :
-                        stage.complete ? 'text-[#1E3A5F] font-medium' : 'text-[#94A3B8]'
+                        stage.complete ? 'text-[#2563EB] font-medium' : 'text-[#94A3B8]'
                       }`}>
                         {stage.label}
                       </p>
@@ -194,7 +183,7 @@ export default function WorkflowProgress({
                         <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wider text-[#0EA5E9]">● Current</span>
                       )}
                       {stage.complete && meta?.DateTime && (
-                        <span className="mt-0.5 text-[7px] font-semibold text-[#1E3A5F]">{fmtDate(meta.DateTime)}</span>
+                        <span className="mt-0.5 text-[7px] font-semibold text-[#2563EB]">{fmtDate(meta.DateTime)}</span>
                       )}
                     </button>
                     {i < currentPhase.stages.length - 1 && (
@@ -206,32 +195,34 @@ export default function WorkflowProgress({
             </div>
           </div>
 
-          <div className={`grid gap-1.5 px-4 py-2.5 ${showOwner ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} border-t border-[#E2E8F0] bg-[#F8FAFC]`}>
-            {showOwner && (
+          {!hideInfoStrip && (
+            <div className={`grid gap-1.5 px-4 py-2.5 ${showOwner ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} border-t border-[#CBD5E1] bg-[#F8FAFC]`}>
+              {showOwner && (
+                <div>
+                  <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Current Owner</span>
+                  <p className="text-sm font-semibold text-[#0F172A]">{ownerName || info.owner || '—'}</p>
+                </div>
+              )}
               <div>
-                <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Current Owner</span>
-                <p className="text-sm font-semibold text-[#0F172A]">{ownerName || info.owner || '—'}</p>
+                <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Current Stage</span>
+                <p className="text-sm font-semibold text-[#0EA5E9]">{info.stageLabel}</p>
               </div>
-            )}
-            <div>
-              <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Current Stage</span>
-              <p className="text-sm font-semibold text-[#0EA5E9]">{info.stageLabel}</p>
+              <div>
+                <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">SLA</span>
+                <p className={`text-sm font-semibold ${
+                  sla?.status === 'Overdue' ? 'text-red-600' :
+                  sla?.status === 'Warning' ? 'text-amber-600' : 'text-green-600'
+                }`}>
+                  {sla ? (sla.status === 'Overdue' ? 'Overdue' : sla.status === 'Warning' ? 'Due Soon' : 'Within SLA') : '—'}
+                </p>
+              </div>
             </div>
-            <div>
-              <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">SLA</span>
-              <p className={`text-sm font-semibold ${
-                sla?.status === 'Overdue' ? 'text-red-600' :
-                sla?.status === 'Warning' ? 'text-amber-600' : 'text-green-600'
-              }`}>
-                {sla ? (sla.status === 'Overdue' ? 'Overdue' : sla.status === 'Warning' ? 'Due Soon' : 'Within SLA') : '—'}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
       <p className="text-[9px] text-[#CBD5E1] mt-3">
-        Legend: <span className="text-[#1E3A5F] font-medium">✓ completed</span> ·{' '}
+        Legend: <span className="text-[#2563EB] font-medium">✓ completed</span> ·{' '}
         <span className="text-[#0EA5E9] font-medium">● current</span> ·{' '}
         <span className="text-[#94A3B8]">○ pending</span>
       </p>

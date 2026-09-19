@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, RouterProvider, Route, Navigate, createRoutesFromElements } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Route, Navigate, createRoutesFromElements, useParams } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { getRouteRoles } from './config/navConfig'
 import Layout from './components/Layout'
@@ -34,8 +34,8 @@ const DeletedEstimates = lazy(() => import('./pages/DeletedEstimates'))
 function PageFallback() {
   return (
     <div className="flex items-center justify-center py-20">
-      <div className="flex items-center gap-2 text-sm text-[#64748B]">
-        <div className="w-4 h-4 border-2 border-[#1E3A5F]/20 border-t-[#1E3A5F] rounded-full animate-spin" />
+      <div className="flex items-center gap-2 text-sm text-[#475569]">
+        <div className="w-4 h-4 border-2 border-[#2563EB]/20 border-t-[#2563EB] rounded-full animate-spin" />
         Loading...
       </div>
     </div>
@@ -55,6 +55,18 @@ function LazyPage({ children }) {
   return <Suspense fallback={<PageFallback />}>{children}</Suspense>
 }
 
+// Distinct keys force React to REMOUNT EstimateForm per route, so a never
+// leak stale create/edit state between the two views:
+//   /estimates/new  -> always a fresh create form
+//   /estimates/:id/edit -> always loads that estimate
+function NewEstimatePage() {
+  return <EstimateForm key="new" />
+}
+function EditEstimatePage() {
+  const { id } = useParams()
+  return <EstimateForm key={`edit-${id || 'none'}`} />
+}
+
 function LoginRoute() {
   const { user } = useAuth()
   return user ? <Navigate to="/dashboard" replace /> : <Login />
@@ -66,8 +78,8 @@ const router = createBrowserRouter(
       <Route path="/login" element={<LoginRoute />} />
       <Route path="/dashboard" element={<ProtectedRoute><LazyPage><Dashboard /></LazyPage></ProtectedRoute>} />
       <Route path="/items" element={<ProtectedRoute roles={getRouteRoles('/items')}><LazyPage><AdminItems /></LazyPage></ProtectedRoute>} />
-      <Route path="/estimates/new" element={<ProtectedRoute><LazyPage><EstimateForm /></LazyPage></ProtectedRoute>} />
-      <Route path="/estimates/:id/edit" element={<ProtectedRoute><LazyPage><EstimateForm /></LazyPage></ProtectedRoute>} />
+      <Route path="/estimates/new" element={<ProtectedRoute><LazyPage><NewEstimatePage /></LazyPage></ProtectedRoute>} />
+      <Route path="/estimates/:id/edit" element={<ProtectedRoute><LazyPage><EditEstimatePage /></LazyPage></ProtectedRoute>} />
       <Route path="/estimates/:id/view" element={<ProtectedRoute><LazyPage><EstimateDetail /></LazyPage></ProtectedRoute>} />
       <Route path="/estimates/:id/preview" element={<ProtectedRoute><LazyPage><EstimatePreview /></LazyPage></ProtectedRoute>} />
       <Route path="/estimates/:id" element={<ProtectedRoute><LazyPage><EstimateDetail /></LazyPage></ProtectedRoute>} />
@@ -104,8 +116,8 @@ export default function App() {
   if (loading) return (
     <div className="flex flex-col h-screen items-center justify-center bg-gradient-to-br from-[#F8FAFC] via-white to-[#F1F5F9] gap-4">
       <Logo size={56} />
-      <div className="flex items-center gap-2 text-sm text-[#64748B]">
-        <div className="w-4 h-4 border-2 border-[#1E3A5F]/20 border-t-[#1E3A5F] rounded-full animate-spin" />
+      <div className="flex items-center gap-2 text-sm text-[#475569]">
+        <div className="w-4 h-4 border-2 border-[#2563EB]/20 border-t-[#2563EB] rounded-full animate-spin" />
         Loading...
       </div>
     </div>

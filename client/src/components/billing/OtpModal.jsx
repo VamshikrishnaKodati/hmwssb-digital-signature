@@ -109,18 +109,18 @@ export default function OtpModal({ open, title, subtitle, requestUrl, verifyUrl,
               <ShieldCheck className="w-6 h-6 text-emerald-600" />
             </div>
             <p className="text-sm font-semibold text-[#0F172A]">OTP Verified</p>
-            <p className="text-xs text-[#64748B] mt-1">Completing action…</p>
+            <p className="text-xs text-[#475569] mt-1">Completing action…</p>
           </div>
         ) : (
           <>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-[#1E3A5F]/5 border border-[#1E3A5F]/10 flex items-center justify-center">
-                  <KeyRound className="w-4 h-4 text-[#1E3A5F]" />
+                <div className="w-10 h-10 rounded-xl bg-[#2563EB]/5 border border-[#2563EB]/10 flex items-center justify-center">
+                  <KeyRound className="w-4 h-4 text-[#2563EB]" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-[#0F172A]">{title}</h3>
-                  {subtitle && <p className="text-[11px] text-[#64748B]">{subtitle}</p>}
+                  {subtitle && <p className="text-[11px] text-[#475569]">{subtitle}</p>}
                 </div>
               </div>
               <button onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A]"><X className="w-4 h-4" /></button>
@@ -129,12 +129,12 @@ export default function OtpModal({ open, title, subtitle, requestUrl, verifyUrl,
             {(amount != null || recipient) && (
               <div className="flex items-center gap-3 mb-4 rounded-xl border border-[#E7ECF3] bg-[#F8FAFC]/60 px-3 py-2">
                 {amount != null && (
-                  <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#1E3A5F]">
+                  <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#2563EB]">
                     <Banknote className="w-3.5 h-3.5" /> {fmtCurrency(amount)}
                   </span>
                 )}
                 {recipient && (
-                  <span className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B] ml-auto">
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-[#475569] ml-auto">
                     <FileText className="w-3.5 h-3.5" /> {recipient}
                   </span>
                 )}
@@ -156,13 +156,13 @@ export default function OtpModal({ open, title, subtitle, requestUrl, verifyUrl,
                     onFocus={e => e.target.select()}
                     onChange={e => setDigit(i, e.target.value)}
                     onKeyDown={e => handleKeyDown(i, e)}
-                    className="w-11 h-12 text-center text-lg font-mono font-bold text-[#0F172A] rounded-lg border border-[#CBD5E1] bg-white outline-none transition-all duration-150 focus:border-[#1E3A5F] focus:ring-[3px] focus:ring-[rgba(30,58,95,0.12)] disabled:bg-[#F8FAFC]"
+                    className="w-11 h-12 text-center text-lg font-mono font-bold text-[#0F172A] rounded-lg border border-[#CBD5E1] bg-white outline-none transition-all duration-150 focus:border-[#2563EB] focus:ring-[3px] focus:ring-[rgba(37,99,235,0.12)] disabled:bg-[#F8FAFC]"
                   />
                 ))}
               </div>
               <div className="flex items-center justify-between mb-2">
                 <button type="button" onClick={requestOtp} disabled={requesting || cooldown > 0}
-                  className="text-xs text-[#1E3A5F] hover:underline inline-flex items-center gap-1 disabled:text-[#94A3B8] disabled:no-underline">
+                  className="text-xs text-[#2563EB] hover:underline inline-flex items-center gap-1 disabled:text-[#94A3B8] disabled:no-underline">
                   <RotateCcw className="w-3 h-3" /> Resend{requesting ? '…' : resendTimer}
                 </button>
                 <span className="text-[10px] text-[#94A3B8] tabular-nums">{expLabel ? `${expLabel} left` : 'Valid 5 min'}</span>

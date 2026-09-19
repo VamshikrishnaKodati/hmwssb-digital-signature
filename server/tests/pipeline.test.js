@@ -126,6 +126,26 @@ async function pipelineCounts() {
   return p;
 }
 
+// DGM's dashboard pipeline: same authoritative stages, division-scoped. The
+// click-through (/estimates?stage=<key>) defaults to assignedOrCreated + the
+// DGM's location scope, so count must equal list length (count == click-through).
+async function dgmPipelineCounts() {
+  const res = await request('GET', '/api/dashboard/stats', null, tokens.dgm);
+  assert.equal(res.status, 200, `dgm dashboard stats: ${JSON.stringify(res.body)}`);
+  const p = res.body.dgmDashboard?.pipeline;
+  assert.ok(p, 'dgmDashboard.pipeline must be present for DGM role');
+  for (const s of PIPELINE_STAGES) {
+    assert.equal(typeof p[s], 'number', `dgm pipeline stage "${s}" must be a number`);
+  }
+  return p;
+}
+
+async function dgmStageListCount(stage) {
+  const res = await request('GET', `/api/estimates/my?stage=${stage}`, null, tokens.dgm);
+  assert.equal(res.status, 200, `dgm list stage=${stage}: ${JSON.stringify(res.body)}`);
+  return Array.isArray(res.body) ? res.body.length : -1;
+}
+
 async function stageListCount(stage) {
   const res = await request('GET', `/api/estimates/my?createdBy=me&stage=${stage}`, null, tokens.manager);
   assert.equal(res.status, 200, `list stage=${stage}: ${JSON.stringify(res.body)}`);
@@ -177,6 +197,32 @@ describe('My Estimate Pipeline: stage definition', () => {
   it('rejects unknown stage filters with 400 instead of silently unfiltering', async () => {
     const res = await request('GET', '/api/estimates/my?createdBy=me&stage=Bogus', null, tokens.manager);
     assert.equal(res.status, 400);
+  });
+});
+
+describe('My Estimate Pipeline: server-side pagination and workType filter', () => {
+  it('returns a paged { rows, total, page, pageSize } shape and applies limit/offset', async () => {
+    const res = await request('GET', '/api/estimates/my?createdBy=me&page=1&pageSize=2', null, tokens.manager);
+    assert.equal(res.status, 200);
+    const body = res.body;
+    assert.ok(Array.isArray(body.rows), 'paged response must carry rows array');
+    assert.equal(typeof body.total, 'number');
+    assert.equal(body.page, 1);
+    assert.equal(body.pageSize, 2);
+    assert.ok(body.rows.length <= 2, 'rows must be limited by pageSize');
+    assert.ok(body.total >= body.rows.length, 'total must count the full row set');
+  });
+
+  it('clamps pageSize to 50 and rejects unknown workType with 400', async () => {
+    const res = await request('GET', '/api/estimates/my?createdBy=me&pageSize=999', null, tokens.manager);
+    assert.equal(res.body.pageSize, 50);
+    const bad = await request('GET', '/api/estimates/my?createdBy=me&workType=Nope', null, tokens.manager);
+    assert.equal(bad.status, 400);
+  });
+
+  it('keeps the legacy flat-array contract when no paging params are sent', async () => {
+    const res = await request('GET', '/api/estimates/my?createdBy=me', null, tokens.manager);
+    assert.ok(Array.isArray(res.body), 'unpaged response must stay a flat array');
   });
 });
 
@@ -264,5 +310,35 @@ describe('My Estimate Pipeline: per-stage counting and click-through parity', ()
     assert.equal(rows.status, 200);
     // DGM has no created estimates in this suite; every returned row would be a scope leak.
     assert.ok(Array.isArray(rows.body), 'scoped stage list must return an array');
+  });
+});
+
+describe('DGM dashboard pipeline: division-scoped count == click-through', () => {
+  it('submitted estimate in DGM scope appears under DGM stage and matches the count', async () => {
+    const est = await createEstimate('Pipeline DGM-division stage');
+    await submitViaOtp(est.EstimateID);
+
+    const getDgmCounts = async () => {
+      const [p, listLen] = await Promise.all([dgmPipelineCounts(), dgmStageListCount('DGM')]);
+      return { p, listLen };
+    };
+    let lastErr;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { p, listLen } = await getDgmCounts();
+      if (p.DGM === listLen) {
+        assert.ok(listLen >= 1, 'a submitted in-scope estimate must land in DGM stage');
+        return;
+      }
+      lastErr = new Error(`dgm dashboard count (${p.DGM}) must equal filtered list length (${listLen}) for stage DGM`);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw lastErr;
+  });
+
+  it('reports every authoritative stage as a number, all 8 visible stages wired', async () => {
+    const p = await dgmPipelineCounts();
+    for (const s of ['Draft', 'DGM', 'GM', 'CGM', 'DOP', 'ED', 'MD', 'Approved']) {
+      assert.equal(typeof p[s], 'number', `dgm pipeline stage "${s}" must be a number`);
+    }
   });
 });

@@ -48,7 +48,7 @@ export default function GeneralAbstractPrint({ estimate, items, abstract }) {
           <tr>
             <th className="col-abs-sl">Sl.No</th>
             <th className="col-abs-desc">Description</th>
-            <th className="col-abs-amount">Amount (Rs.)</th>
+            <th className="col-abs-amount">Amount (₹)</th>
           </tr>
         </thead>
         <tbody>

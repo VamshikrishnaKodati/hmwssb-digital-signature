@@ -12,6 +12,7 @@ build/
 
 # Uploads (generated files)
 uploads/*.pdf
+uploads/estimate-docs/
 
 # PKI key material (NEVER commit)
 keys/

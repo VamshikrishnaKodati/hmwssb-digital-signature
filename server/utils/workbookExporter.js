@@ -413,7 +413,7 @@ function writeAzamabadAbstractSheet(wb, ctx, items) {
       { v: 'Sl.No', bold: true, a: { horizontal: 'center', vertical: 'middle' }, b: B('thin', 'thin', 'thin', 'thin') },
       { v: 'Description', bold: true, a: { horizontal: 'center', vertical: 'middle' }, b: B('thin', 'thin', 'thin', 'thin') },
       { v: '', bold: true, a: { horizontal: 'center', vertical: 'middle' }, b: B('thin', 'thin') },
-      { v: 'Amount Rs.', bold: true, a: { horizontal: 'center', vertical: 'middle' }, b: B('thin', 'thin', null, 'thin') },
+      { v: 'Amount (₹)', bold: true, a: { horizontal: 'center', vertical: 'middle' }, b: B('thin', 'thin', null, 'thin') },
     ]],
     [5, [
       { v: '', bold: true, a: { horizontal: 'center', vertical: 'middle' }, b: B('thin', 'hair', 'thin', 'thin') },
@@ -448,13 +448,13 @@ function writeAzamabadAbstractSheet(wb, ctx, items) {
     [10, [
       { v: 3, a: { horizontal: 'center', vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
       { v: `GST @ ${gstPercent}%`, a: { vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
-      { v: 'Rs.', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'hair') },
+      { v: '₹', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'hair') },
       { v: gst, a: { horizontal: 'right', vertical: 'middle', wrapText: true }, b: B('hair', 'hair', null, 'thin') },
     ]],
     [11, [
       { v: 4, a: { horizontal: 'center', vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
       { v: 'Additional Items', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
-      { v: 'Rs.', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'hair') },
+      { v: '₹', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'hair') },
       { v: additionalItemsTotal, a: { horizontal: 'right', vertical: 'middle', wrapText: true }, b: B('hair', 'hair', null, 'thin') },
     ]],
     [13, [
@@ -466,13 +466,13 @@ function writeAzamabadAbstractSheet(wb, ctx, items) {
     [14, [
       { v: 5, a: { horizontal: 'center', vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
       { v: 'LS unforeseen items and rounding off', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
-      { v: 'Rs.', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'thin', 'thin') },
+      { v: '₹', a: { vertical: 'middle', wrapText: true }, b: B('hair', 'thin', 'thin') },
       { v: lsProvision, a: { horizontal: 'right', vertical: 'middle', wrapText: true }, b: B('hair', 'thin', null, 'thin') },
     ]],
     [16, [
       { v: '', a: { horizontal: 'center', vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
       { v: 'Grand Total (Part I + II + III)', bold: true, a: { horizontal: 'center', vertical: 'middle', wrapText: true }, b: B('hair', 'hair', 'thin', 'thin') },
-      { v: 'Rs.', bold: true, a: { vertical: 'middle', wrapText: true }, b: B(null, 'thin', 'thin') },
+      { v: '₹', bold: true, a: { vertical: 'middle', wrapText: true }, b: B(null, 'thin', 'thin') },
       { v: grandTotal, bold: true, a: { horizontal: 'right', vertical: 'middle', wrapText: true }, b: B('thin', 'thin', null, 'thin') },
     ]],
   ];

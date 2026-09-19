@@ -7,21 +7,21 @@ export default function QueueTable({ title, viewLink, viewLabel = 'View all', em
   return (
     <div data-testid="dashboard-queue">
       <div className="flex items-center justify-between mb-2.5">
-        <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">{title}</h2>
+        <h2 className="text-xs font-semibold text-[#475569] uppercase tracking-wider">{title}</h2>
         {viewLink && (
-          <Link to={viewLink} className="text-xs text-[#1E3A5F] hover:underline inline-flex items-center gap-1">
+          <Link to={viewLink} className="text-xs text-[#2563EB] hover:underline inline-flex items-center gap-1">
             {viewLabel} <ArrowRight className="w-3 h-3" />
           </Link>
         )}
       </div>
-      <div className="bg-white rounded-lg border border-[#E2E8F0]">
+      <div className="bg-white rounded-lg border border-[#CBD5E1]">
         {rows.length === 0 ? (
           <EmptyState message={emptyMessage || 'No items in queue'} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#E2E8F0] text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">
+                <tr className="border-b border-[#CBD5E1] text-[10px] font-semibold text-[#475569] uppercase tracking-wider">
                   {columns.map(col => (
                     <th key={col.key} className={`${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} px-4 py-2.5 ${col.hideOn || ''}`}>{col.label}</th>
                   ))}

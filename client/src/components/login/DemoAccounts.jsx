@@ -83,11 +83,11 @@ export default function DemoAccounts({ onSelect, className = '' }) {
   }
 
   return (
-    <div className={`border border-[#E2E8F0] rounded-lg overflow-hidden ${className}`}>
+    <div className={`border border-[#CBD5E1] rounded-lg overflow-hidden ${className}`}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-[11px] text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 text-[11px] text-[#475569] hover:bg-[#F8FAFC] transition-colors"
       >
         <span className="flex items-center gap-1.5 font-medium">
           <User className="w-3 h-3" />
@@ -108,7 +108,7 @@ export default function DemoAccounts({ onSelect, className = '' }) {
                     key={acc.username}
                     type="button"
                     onClick={() => handleClick(acc)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-[#1E3A5F] bg-[#F1F5F9] hover:bg-[#E2E8F0] transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-[#2563EB] bg-[#F1F5F9] hover:bg-[#CBD5E1] transition-colors"
                   >
                     <User className="w-2.5 h-2.5" />
                     {ROLE_LABELS[acc.role] || acc.role}{acc.name && acc.name !== (ROLE_LABELS[acc.role] || acc.role) ? ` · ${acc.name}` : ''}
@@ -116,7 +116,7 @@ export default function DemoAccounts({ onSelect, className = '' }) {
                 ))}
               </div>
               <p className="text-[10px] text-[#94A3B8]">
-                Password: <span className="font-medium text-[#64748B]">{devPassword}</span>
+                Password: <span className="font-medium text-[#475569]">{devPassword}</span>
                 <span className="text-[#CBD5E1]"> &middot; fills on click</span>
               </p>
             </>

@@ -33,7 +33,7 @@ export default function SlaProgress({ sla, showBar = false, showIcon = true, com
   const frac = t.tone === 'danger' ? 0.08 : t.min < 90 ? 0.5 : 0.85
 
   return (
-    <span className={`inline-flex items-center gap-1.5 ${compact ? '' : 'rounded-full border border-[#E3E8F0] bg-white px-2.5 py-1'}`}>
+    <span className={`inline-flex items-center gap-1.5 ${compact ? '' : 'rounded-full border border-[#CBD5E1] bg-white px-2.5 py-1'}`}>
       {showIcon && (
         t.tone === 'danger'
           ? <CircleAlert className="w-3.5 h-3.5 text-red-500" />

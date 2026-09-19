@@ -8,6 +8,15 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function loginAs(page, username, password = 'password123') {
   await page.goto('/login');
+  if (page.url().includes('/dashboard')) {
+    await page.evaluate(() => localStorage.clear());
+    await page.goto('/login');
+  }
+  const userInput = page.locator('input[name="username"]');
+  if (!(await userInput.isVisible().catch(() => false))) {
+    await page.evaluate(() => localStorage.clear());
+    await page.goto('/login');
+  }
   await page.waitForSelector('input[name="username"]', { timeout: 15000 });
   await page.fill('input[name="username"]', username);
   await page.fill('input[name="password"]', password);

@@ -174,8 +174,8 @@ export default function BillingList() {
               <div className="ec-form-group"><label className="ec-label">Measurements / MB ref</label><input value={form.Measurements} onChange={e => setForm({ ...form, Measurements: e.target.value })} placeholder="MB ref / qty taken" className="ec-input" /></div>
             </div>
 
-            <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">Bill Items</p>
-            <div className="overflow-x-auto border border-[#E2E8F0] rounded-lg mb-3">
+            <p className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-2">Bill Items</p>
+            <div className="overflow-x-auto border border-[#CBD5E1] rounded-lg mb-3">
               {items.length === 0 ? (
                 <p className="text-sm text-[#94A3B8] py-8 text-center">Select an estimate to load its verified-measurement items.</p>
               ) : (
@@ -191,19 +191,19 @@ export default function BillingList() {
                     {items.map((i, idx) => (
                       <tr key={i.DetailID}>
                         <td><p className="text-xs font-medium text-[#0F172A]">{i.ItemName}</p>{i.ItemCode && <p className="text-[10px] text-[#94A3B8]">{i.ItemCode} · Est {i.EstimateQty}</p>}</td>
-                        <td className="text-xs text-[#64748B]">{i.Unit || '—'}</td>
+                        <td className="text-xs text-[#475569]">{i.Unit || '—'}</td>
                         <td className="text-right text-xs">{fmtCurrency(i.Rate)}</td>
-                        <td className="text-right text-xs text-[#64748B]">{i.PreviousQty ?? 0}</td>
+                        <td className="text-right text-xs text-[#475569]">{i.PreviousQty ?? 0}</td>
                         <td className="text-right"><input type="number" step="0.001" min="0" value={i.CurrentQty ?? 0} onChange={e => setQty(idx, e.target.value)} className="ec-input ec-input-sm text-right w-24 ml-auto" data-testid={`qty-${i.DetailID}`} /></td>
-                        <td className="text-right text-xs text-[#64748B]">{i.BalanceQty}</td>
-                        <td className="text-right text-xs font-semibold text-[#1E3A5F]">{fmtCurrency(i.Amount)}</td>
+                        <td className="text-right text-xs text-[#475569]">{i.BalanceQty}</td>
+                        <td className="text-right text-xs font-semibold text-[#2563EB]">{fmtCurrency(i.Amount)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-[#E2E8F0] bg-[#F8FAFC]">
+                    <tr className="border-t border-[#CBD5E1] bg-[#F8FAFC]">
                       <td colSpan={6} className="px-4 py-2 text-right text-xs font-semibold text-[#0F172A] inline-flex items-center gap-1.5"><Calculator className="w-3.5 h-3.5" /> Current Subtotal{Number(form.GST) ? ` + GST ${fmtCurrency(Number(form.GST))}` : ''}</td>
-                      <td className="px-4 py-2 text-right text-xs font-bold text-[#1E3A5F]">{fmtCurrency(subtotal + (Number(form.GST) || 0))}</td>
+                      <td className="px-4 py-2 text-right text-xs font-bold text-[#2563EB]">{fmtCurrency(subtotal + (Number(form.GST) || 0))}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -236,19 +236,19 @@ export default function BillingList() {
                 return (
                   <tr key={b.BillID}>
                     <td className="text-xs font-medium text-[#0F172A]">{b.BillNo || '—'}</td>
-                    <td className="font-mono text-xs text-[#1E3A5F]">{b.EstimateNo || b.WorkID}</td>
-                    <td className="text-xs max-w-[170px] truncate text-[#64748B]">{b.NameOfWork}</td>
+                    <td className="font-mono text-xs text-[#2563EB]">{b.EstimateNo || b.WorkID}</td>
+                    <td className="text-xs max-w-[170px] truncate text-[#475569]">{b.NameOfWork}</td>
                     <td><span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${b.BillType === 'RA' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>{b.BillType}</span></td>
-                    <td className="text-right text-xs font-medium">{fmtCurrency(b.NetAmount || 0)}{b.ApprovedAmount != null && <span className="block text-[10px] text-[#64748B]">approved {fmtCurrency(b.ApprovedAmount)}</span>}</td>
-                    <td className="text-xs text-[#64748B]">{b.CurrentOwnerName || (b.Status === 'Draft' ? 'Draft' : '—')}{iAmOwner && b.CurrentOwner ? ' (you)' : ''}</td>
+                    <td className="text-right text-xs font-medium">{fmtCurrency(b.NetAmount || 0)}{b.ApprovedAmount != null && <span className="block text-[10px] text-[#475569]">approved {fmtCurrency(b.ApprovedAmount)}</span>}</td>
+                    <td className="text-xs text-[#475569]">{b.CurrentOwnerName || (b.Status === 'Draft' ? 'Draft' : '—')}{iAmOwner && b.CurrentOwner ? ' (you)' : ''}</td>
                     <td className="text-right"><SlaPill sla={b.SlaDueAt ? { dueAt: b.SlaDueAt, status: b.SlaStatus, escalationLevel: b.EscalationLevel } : null} /></td>
                     <td><BillStatusBadge status={b.Status} /></td>
                     <td>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Link to={`/billing/${b.BillID}`} className="text-[#1E3A5F] hover:underline text-xs inline-flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Review</Link>
+                        <Link to={`/billing/${b.BillID}`} className="text-[#2563EB] hover:underline text-xs inline-flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Review</Link>
                         {editable && (
                           <>
-                            <button onClick={() => openEdit(b.BillID)} className="text-[#1E3A5F] hover:underline text-xs inline-flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit</button>
+                            <button onClick={() => openEdit(b.BillID)} className="text-[#2563EB] hover:underline text-xs inline-flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit</button>
                             <button onClick={() => setOtpBill(b)} data-testid="bill-submit" className="text-[#059669] hover:underline text-xs inline-flex items-center gap-1"><Send className="w-3 h-3" /> Submit</button>
                             <button onClick={() => deleteBill(b)} className="text-red-400 hover:text-red-600 text-xs inline-flex items-center gap-1"><Trash2 className="w-3 h-3" /></button>
                           </>

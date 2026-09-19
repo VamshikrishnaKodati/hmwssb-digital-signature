@@ -78,10 +78,10 @@ export default function TenderList() {
                 {ready.map(r => (
                   <tr key={r.EstimateID}>
                     <td className="font-medium text-xs">{r.EstimateNo}</td>
-                    <td className="text-xs max-w-[220px] truncate text-[#64748B]">{r.NameOfWork}</td>
+                    <td className="text-xs max-w-[220px] truncate text-[#475569]">{r.NameOfWork}</td>
                     <td className="text-right text-xs font-medium">{fmt(r.EstimatedContractValue)}</td>
-                    <td className="text-[10px] text-[#64748B]">{r.FCNNo} / {r.ASNo} / {r.TSNo}</td>
-                    <td className="text-xs text-[#64748B]">{r.ReadyDate?.slice(0, 10)}</td>
+                    <td className="text-[10px] text-[#475569]">{r.FCNNo} / {r.ASNo} / {r.TSNo}</td>
+                    <td className="text-xs text-[#475569]">{r.ReadyDate?.slice(0, 10)}</td>
                     <td>
                       {r.TenderStatus === 'TenderDraft'
                         ? <span className="ec-badge ec-badge-draft">Draft</span>
@@ -89,7 +89,7 @@ export default function TenderList() {
                     </td>
                     <td>
                       {r.TenderID
-                        ? <Link to={`/tenders/${r.TenderID}/edit`} className="text-[#1E3A5F] hover:underline text-xs inline-flex items-center gap-1"><Edit3 className="w-3 h-3" /> Continue Draft</Link>
+                        ? <Link to={`/tenders/${r.TenderID}/edit`} className="text-[#2563EB] hover:underline text-xs inline-flex items-center gap-1"><Edit3 className="w-3 h-3" /> Continue Draft</Link>
                         : <Link to={`/tenders/new?estimate=${r.EstimateID}`} className="text-cyan-700 hover:underline text-xs inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Create Tender</Link>}
                     </td>
                   </tr>
@@ -108,19 +108,19 @@ export default function TenderList() {
                 {tenders.map(t => (
                   <tr key={t.TenderID}>
                     <td className="font-medium text-xs">{t.TenderNo}</td>
-                    <td className="font-mono text-xs text-[#1E3A5F]">{t.WorkID}</td>
-                    <td className="text-xs max-w-[200px] truncate text-[#64748B]">{t.NameOfWork}</td>
-                    <td className="text-xs text-[#64748B]">{t.TenderDate?.slice(0, 10)}</td>
+                    <td className="font-mono text-xs text-[#2563EB]">{t.WorkID}</td>
+                    <td className="text-xs max-w-[200px] truncate text-[#475569]">{t.NameOfWork}</td>
+                    <td className="text-xs text-[#475569]">{t.TenderDate?.slice(0, 10)}</td>
                     <td className="text-right text-xs font-medium">{fmt(t.EstimatedCost)}</td>
                     <td>
                       <StatusBadge status={t.effectiveStatus || t.Status} />
                     </td>
                     <td><div className="flex items-center gap-3">
                       {t.Status === 'TenderDraft' || t.Status === 'Draft'
-                        ? <Link to={`/tenders/${t.TenderID}/edit`} className="text-[#1E3A5F] hover:underline text-xs flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit Draft</Link>
-                        : <Link to={`/tenders/${t.TenderID}`} className="text-[#1E3A5F] hover:underline text-xs flex items-center gap-1"><Eye className="w-3 h-3" /> View</Link>}
+                        ? <Link to={`/tenders/${t.TenderID}/edit`} className="text-[#2563EB] hover:underline text-xs flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit Draft</Link>
+                        : <Link to={`/tenders/${t.TenderID}`} className="text-[#2563EB] hover:underline text-xs flex items-center gap-1"><Eye className="w-3 h-3" /> View</Link>}
                       {t.Status === 'TenderDraft' && (
-                        <Link to={`/tenders/${t.TenderID}/preview`} className="text-[#1E3A5F] hover:underline text-xs flex items-center gap-1"><Eye className="w-3 h-3" /> Preview</Link>
+                        <Link to={`/tenders/${t.TenderID}/preview`} className="text-[#2563EB] hover:underline text-xs flex items-center gap-1"><Eye className="w-3 h-3" /> Preview</Link>
                       )}
                     </div></td>
                   </tr>

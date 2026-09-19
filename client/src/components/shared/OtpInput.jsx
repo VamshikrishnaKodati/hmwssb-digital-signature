@@ -50,7 +50,7 @@ const OtpInput = forwardRef(function OtpInput({ value, onChange, length = 6 }, r
           onChange={e => handleChange(i, e.target.value)}
           onKeyDown={e => handleKeyDown(i, e)}
           aria-label={`OTP digit ${i + 1}`}
-          className="w-10 h-12 text-center text-lg font-bold border border-[#E2E8F0] rounded-lg focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 outline-none transition-colors"
+          className="w-10 h-12 text-center text-lg font-bold border border-[#CBD5E1] rounded-lg focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-colors"
         />
       ))}
     </div>

@@ -84,7 +84,7 @@ export default function ActionFan({ anchor, actions, isOpen, onClose }) {
         transformOrigin: pos.direction === 'up' ? 'bottom right' : 'top right',
       }}
     >
-      <div className="bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1.5 px-1.5 flex flex-col gap-1">
+      <div className="bg-white border border-[#CBD5E1] rounded-lg shadow-lg py-1.5 px-1.5 flex flex-col gap-1">
         {actions.map((a, i) => (
           <button
             key={a.key}
@@ -93,10 +93,10 @@ export default function ActionFan({ anchor, actions, isOpen, onClose }) {
             title={a.label}
             aria-label={a.label}
             onClick={(e) => { e.stopPropagation(); onClose(); a.onClick() }}
-            className={`inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 ${
+            className={`inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 ${
               a.tone === 'danger'
                 ? 'text-[#DC2626] hover:text-[#B91C1C] hover:bg-red-50'
-                : 'text-[#64748B] hover:text-[#1E3A5F] hover:bg-[#F1F5F9]'
+                : 'text-[#475569] hover:text-[#2563EB] hover:bg-[#F1F5F9]'
             }`}
           >
             <a.icon className="w-4 h-4" />

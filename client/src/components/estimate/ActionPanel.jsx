@@ -33,7 +33,7 @@ export default function ActionPanel({
       <div className="ec-card-body space-y-2">
         {actions.length === 0 && (
           <div className="text-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F1F5F9] text-[#1E3A5F]">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F1F5F9] text-[#2563EB]">
               <Info className="w-3.5 h-3.5" />
               <span className="text-xs font-medium">{emptyMessage}</span>
             </div>

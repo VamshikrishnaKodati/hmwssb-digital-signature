@@ -111,20 +111,33 @@ const PIPELINE_STAGE_EXPR = `
                          'AgreementExecuted', 'AgencySelected',
                          'WorkStarted', 'WorkCompleted', 'Billing', 'Completed')
       THEN 'Approved'
-    ELSE COALESCE(ou."Designation",
-      CASE eh."Status"
-        WHEN 'Submitted' THEN 'DGM'
-        WHEN 'DGM_Approved' THEN 'GM'
-        WHEN 'GM_Recommended' THEN 'CGM'
-        WHEN 'CGM_Submitted' THEN 'DOP'
-        WHEN 'DOP_Approved' THEN 'ED'
-        WHEN 'ED_Approved' THEN 'MD'
-        WHEN 'FinalApproved' THEN 'FCN'
-        WHEN 'FCNGenerated' THEN 'DirectorAdmin'
-        WHEN 'AdminSanctionGenerated' THEN 'GMReview'
-        WHEN 'GMReviewed' THEN 'DGMReview'
-        WHEN 'DGMReviewed' THEN 'DGMReview'
-      END)
+    ELSE CASE ou."Designation"
+      WHEN 'DirectorOfAdministration' THEN
+        -- One entity owns FinalApproved/FCNGenerated/AdminSanctionGenerated; the
+        -- status tells which post-MD stage the estimate is actually sitting in.
+        CASE eh."Status"
+          WHEN 'FinalApproved' THEN 'FCN'
+          WHEN 'FCNGenerated' THEN 'DirectorAdmin'
+          WHEN 'AdminSanctionGenerated' THEN 'GMReview'
+          WHEN 'GMReviewed' THEN 'DGMReview'
+          WHEN 'DGMReviewed' THEN 'DGMReview'
+          ELSE 'DirectorAdmin'
+        END
+      ELSE COALESCE(ou."Designation",
+        CASE eh."Status"
+          WHEN 'Submitted' THEN 'DGM'
+          WHEN 'DGM_Approved' THEN 'GM'
+          WHEN 'GM_Recommended' THEN 'CGM'
+          WHEN 'CGM_Submitted' THEN 'DOP'
+          WHEN 'DOP_Approved' THEN 'ED'
+          WHEN 'ED_Approved' THEN 'MD'
+          WHEN 'FinalApproved' THEN 'FCN'
+          WHEN 'FCNGenerated' THEN 'DirectorAdmin'
+          WHEN 'AdminSanctionGenerated' THEN 'GMReview'
+          WHEN 'GMReviewed' THEN 'DGMReview'
+          WHEN 'DGMReviewed' THEN 'DGMReview'
+        END)
+    END
   END`;
 
 function orderClause(sort) {

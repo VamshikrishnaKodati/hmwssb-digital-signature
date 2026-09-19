@@ -2,6 +2,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 function inr(n) {
   if (n === null || n === undefined || n === '') return '';
+  // ponytail: pdfkit ships only WinAnsi fonts (no U+20B9); keep 'Rs.' in PDF docs, switch to ₹ when a Unicode font is registered
   return 'Rs. ' + Number(n).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

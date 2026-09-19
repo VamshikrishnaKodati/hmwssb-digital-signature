@@ -30,6 +30,7 @@ const DELETE_BY_ESTIMATE = [
   `DELETE FROM "Abstract" WHERE "EstimateID" = ANY($1)`,
   `DELETE FROM "EstimateLSProvision" WHERE "EstimateID" = ANY($1)`,
   `DELETE FROM "EstimateAdditionalItem" WHERE "EstimateID" = ANY($1)`,
+  `DELETE FROM "EstimateDocuments" WHERE "EstimateID" = ANY($1) OR "UploadedBy" IN (SELECT "UserID" FROM "Users" WHERE "UserID" = ANY($1))`,
   `DELETE FROM "EstimateHeader" WHERE "EstimateID" = ANY($1)`,
 ];
 

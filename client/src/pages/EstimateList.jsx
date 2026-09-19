@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   Plus, Search, FileText, Edit3, Send, X, Loader,
@@ -11,19 +11,33 @@ import OtpInput from '../components/shared/OtpInput'
 import EstimateRowActions from '../components/EstimateRowActions'
 import ActionFan from '../components/ActionFan'
 
+const WORK_TYPE_OPTIONS = ['Water Supply', 'Sewerage', 'EAM']
+
+const responsivePageSize = () => {
+  if (typeof window === 'undefined') return 8
+  const h = window.innerHeight
+  if (h < 720) return 5
+  if (h < 800) return 6
+  if (h < 900) return 7
+  return 8
+}
+
 export default function EstimateList() {
   const [estimates, setEstimates] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
   const [highlightId, setHighlightId] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const pageSizeRef = useRef(responsivePageSize())
+  const [pageSize, setPageSize] = useState(pageSizeRef.current)
 
   const [filters, setFilters] = useState({
-    statuses: [], assignedTo: '', createdBy: '', actedBy: '', action: '', sort: '', stage: '', today: '',
+    statuses: [], assignedTo: '', createdBy: '', actedBy: '', action: '', sort: '', stage: '', today: '', workType: '',
   })
 
   const [submitTarget, setSubmitTarget] = useState(null)
@@ -87,7 +101,7 @@ export default function EstimateList() {
       actedBy: qs.get('actedBy') || '', action: qs.get('action') || '',
       sort: qs.get('sort') || '', stage: qs.get('stage') || '',
       today: qs.get('today') === 'true' || qs.get('today') === '1',
-      search: qs.get('search') || '',
+      search: qs.get('search') || '', workType: qs.get('workType') || '',
     }
   }
 
@@ -98,8 +112,8 @@ export default function EstimateList() {
     if (st?.statusFilter && !parsed.statuses.length) parsed.statuses = [st.statusFilter]
     const { search: _ignored, ...filtersOnly } = parsed
     setSearch(initSearch)
-    setStatusFilter(filtersOnly.statuses.length === 1 ? filtersOnly.statuses[0] : '')
     setFilters(filtersOnly)
+    setPage(1)
     if (st?.highlightEstimateId) setHighlightId(st.highlightEstimateId)
     loadEstimates({ search: initSearch, filters: filtersOnly })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,6 +125,7 @@ export default function EstimateList() {
       const params = new URLSearchParams()
       const q = overrides.search !== undefined ? overrides.search : search
       const f = overrides.filters !== undefined ? overrides.filters : filters
+      const pg = overrides.page !== undefined ? overrides.page : page
       if (q) params.append('search', q)
       if (f.statuses && f.statuses.length) params.append('status', f.statuses.join(','))
       if (f.assignedTo) params.append('assignedTo', f.assignedTo)
@@ -119,8 +134,18 @@ export default function EstimateList() {
       if (f.sort) params.append('sort', f.sort)
       if (f.stage) params.append('stage', f.stage)
       if (f.today) params.append('today', 1)
+      if (f.workType) params.append('workType', f.workType)
+      params.append('page', pg)
+      params.append('pageSize', pageSizeRef.current)
       const res = await api.get(`/estimates/my?${params.toString()}`)
-      setEstimates(res.data)
+      if (Array.isArray(res.data)) {
+        setEstimates(res.data)
+        setTotal(res.data.length)
+      } else {
+        setEstimates(res.data.rows || [])
+        setTotal(res.data.total || 0)
+        setPage(res.data.page || pg)
+      }
     } catch (_) { toast.error('Failed to load estimates') }
     setLoading(false)
     setRefreshing(false)
@@ -129,11 +154,12 @@ export default function EstimateList() {
   const setFilter = (patch, reload = true) => {
     const next = { ...filters, ...patch }
     setFilters(next)
-    if (reload) loadEstimates({ filters: next })
+    setPage(1)
+    if (reload) loadEstimates({ filters: next, page: 1 })
   }
 
   const removeStatus = (s) => setFilter({ statuses: filters.statuses.filter(x => x !== s) })
-  const clearAllFilters = () => setFilter({ statuses: [], assignedTo: '', createdBy: '', actedBy: '', action: '', sort: '', stage: '' })
+  const clearAllFilters = () => setFilter({ statuses: [], assignedTo: '', createdBy: '', actedBy: '', action: '', sort: '', stage: '', workType: '' })
 
   const activeChips = []
   if (filters.statuses?.length) {
@@ -146,6 +172,20 @@ export default function EstimateList() {
     activeChips.push({ key: 'actedBy', label: `${ACTION_LABELS[filters.action] || filters.action} by: Me`, remove: () => setFilter({ actedBy: '', action: '' }) })
   }
   if (filters.sort === 'priority') activeChips.push({ key: 'sort', label: 'Sorted by: Priority', remove: () => setFilter({ sort: '' }) })
+  if (filters.workType) activeChips.push({ key: 'workType', label: `Work Type: ${filters.workType}`, remove: () => setFilter({ workType: '' }) })
+  
+  useEffect(() => {
+    const onResize = () => {
+      const next = responsivePageSize()
+      if (next !== pageSizeRef.current) {
+        pageSizeRef.current = next
+        setPageSize(next)
+        loadEstimates({ page: 1 })
+      }
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   useEffect(() => {
     if (!highlightId) return
@@ -307,75 +347,71 @@ export default function EstimateList() {
   }, [user.UserID])
 
   const renderHistoryRow = (w, i) => (
-    <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#E2E8F0] last:border-l-0 last:pb-0">
-      <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#1E3A5F]" />
+    <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#CBD5E1] last:border-l-0 last:pb-0">
+      <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#2563EB]" />
       <p className="text-xs font-semibold text-[#0F172A]">{w.Action}</p>
-      <p className="text-[10px] text-[#64748B]">{w.FromUserName} ({w.FromDesignation}) → {w.ToUserName} ({w.ToDesignation})</p>
-      {w.Remarks && <p className="text-[10px] text-[#64748B] mt-0.5">{w.Remarks}</p>}
+      <p className="text-[10px] text-[#475569]">{w.FromUserName} ({w.FromDesignation}) → {w.ToUserName} ({w.ToDesignation})</p>
+      {w.Remarks && <p className="text-[10px] text-[#475569] mt-0.5">{w.Remarks}</p>}
       <p className="text-[9px] text-[#94A3B8] mt-0.5">{new Date(w.DateTime).toLocaleString('en-IN')}</p>
     </div>
   )
 
   if (loading) return <div className="ec-loader"><div className="ec-spinner" /></div>
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSizeRef.current))
+  const totalPagesList = (() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages = [1]
+    const lo = Math.max(2, page - 1)
+    const hi = Math.min(totalPages - 1, page + 1)
+    if (lo > 2) pages.push('…')
+    for (let i = lo; i <= hi; i++) pages.push(i)
+    if (hi < totalPages - 1) pages.push('…')
+    pages.push(totalPages)
+    return pages
+  })()
+
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h1 className="ec-page-title">My Estimates</h1>
-          <p className="ec-page-subtitle">{estimates.length} estimate{estimates.length !== 1 ? 's' : ''} found</p>
+          <p className="ec-page-subtitle">{total} estimate{total !== 1 ? 's' : ''} found</p>
         </div>
         <Link to="/estimates/new" className="ec-btn-primary ec-btn-sm">
           <Plus className="w-4 h-4" /> New Estimate
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
           <input id="search-estimate" name="search" type="text" placeholder="Search by Estimate No, Name of Work or ID..." value={search}
             onChange={e => setSearch(e.target.value)}
-            className="ec-input pl-9 py-1.5 text-sm" onKeyDown={e => e.key === 'Enter' && loadEstimates()} />
+            className="ec-input pl-9 py-1.5 text-sm w-full" onKeyDown={e => e.key === 'Enter' && loadEstimates({ page: 1 })} />
         </div>
-        <label htmlFor="status-filter" className="sr-only">Filter by status</label>
-        <select id="status-filter" name="statusFilter" value={statusFilter}
-          onChange={e => { const value = e.target.value; setStatusFilter(value); setFilter({ statuses: value ? [value] : [] }) }}
-          className="ec-select py-1.5 text-sm">
-          <option value="">All Status</option>
-          <option value="Draft">Draft</option>
-          <option value="Submitted">With DGM</option>
-          <option value="DGM_Approved">Verified</option>
-          <option value="GM_Recommended">Recommended</option>
-          <option value="CGM_Submitted">With DOP</option>
-          <option value="DOP_Approved">Approved</option>
-          <option value="ED_Approved">Approved</option>
-          <option value="MD_Approved">Final Approved</option>
-          <option value="FinalApproved">Final Approved</option>
-          <option value="Signed">Approved</option>
-          <option value="Reverted">Reverted</option>
-          <option value="TenderPublished">Tender Published</option>
-          <option value="AgencySelected">Agency Selected</option>
-          <option value="WorkStarted">Work Started</option>
-          <option value="WorkCompleted">Work Completed</option>
-          <option value="Billing">Billing</option>
-          <option value="Completed">Completed</option>
-        </select>
-        <button onClick={() => loadEstimates()} className="ec-btn-primary ec-btn-sm py-1.5">
+        <button onClick={() => loadEstimates({ page: 1 })} className="ec-btn-primary ec-btn-sm py-1.5 shrink-0 min-w-[90px] justify-center">
           <Search className="w-3.5 h-3.5" /> Search
         </button>
-        {refreshing && <span className="inline-flex items-center gap-1.5 text-xs text-[#64748B]"><Loader className="w-3.5 h-3.5 animate-spin" /> Updating...</span>}
+        <select id="worktype-filter" name="workType" value={filters.workType}
+          onChange={e => setFilter({ workType: e.target.value })}
+          className="ec-select py-1.5 text-sm w-[160px] shrink-0">
+          <option value="">Work Type: All</option>
+          {WORK_TYPE_OPTIONS.map(w => <option key={w} value={w}>{w}</option>)}
+        </select>
+        {refreshing && <span className="inline-flex items-center gap-1.5 text-xs text-[#475569] shrink-0"><Loader className="w-3.5 h-3.5 animate-spin" /> Updating...</span>}
       </div>
 
       {activeChips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#1E3A5F]"><SlidersHorizontal className="w-3.5 h-3.5" /> Active filters:</span>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#2563EB]"><SlidersHorizontal className="w-3.5 h-3.5" /> Active filters:</span>
           {activeChips.map(chip => (
             <button key={chip.key} type="button" onClick={chip.remove}
-              className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-[#1E3A5F]/5 border border-[#1E3A5F]/20 text-xs text-[#1E3A5F] hover:bg-[#1E3A5F]/10 transition-colors">
-              {chip.label} <X className="w-3 h-3 text-[#64748B] hover:text-[#1E3A5F]" />
+              className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-[#2563EB]/5 border border-[#2563EB]/20 text-xs text-[#2563EB] hover:bg-[#2563EB]/10 transition-colors">
+              {chip.label} <X className="w-3 h-3 text-[#475569] hover:text-[#2563EB]" />
             </button>
           ))}
-          <button type="button" onClick={clearAllFilters} className="text-xs text-[#64748B] hover:text-[#1E3A5F] hover:underline">Clear all</button>
+          <button type="button" onClick={clearAllFilters} className="text-xs text-[#475569] hover:text-[#2563EB] hover:underline">Clear all</button>
         </div>
       )}
 
@@ -384,7 +420,7 @@ export default function EstimateList() {
           <div className="p-10 text-center">
             <CheckCircle className="w-8 h-8 mx-auto mb-2 text-[#CBD5E1]" />
             <p className="text-sm font-medium text-[#475569]">{activeChips.length > 0 ? 'No estimates match this queue.' : 'No estimates found.'}</p>
-            {activeChips.length > 0 && <button type="button" onClick={clearAllFilters} className="mt-3 text-xs text-[#1E3A5F] hover:underline">Clear filters to see all estimates</button>}
+            {activeChips.length > 0 && <button type="button" onClick={clearAllFilters} className="mt-3 text-xs text-[#2563EB] hover:underline">Clear filters to see all estimates</button>}
           </div>
         ) : (
           <>
@@ -392,23 +428,23 @@ export default function EstimateList() {
             <div className="hidden md:block">
               <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '14%' }} />
-                  <col />
-                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '38%' }} />
+                  <col style={{ width: '12%' }} />
                   <col style={{ width: '11%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '48px' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '6%', minWidth: '64px' }} />
                 </colgroup>
                 <thead>
-                  <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Est. ID</th>
-                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Work Name</th>
-                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Work Type</th>
-                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider whitespace-nowrap">Created Date</th>
-                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Status</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Grand Total</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Actions</th>
+                  <tr className="border-b border-[#CBD5E1] bg-[#F8FAFC]">
+                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Est. ID</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Work Name</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Work Type</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap">Created Date</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Status</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Grand Total</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F1F5F9]">
@@ -418,19 +454,19 @@ export default function EstimateList() {
                         className={`group cursor-pointer transition-colors hover:bg-[#F1F5F9] ${e.EstimateID === highlightId ? 'ec-row-highlight' : ''}`}>
                         <td className="px-3 py-3 align-top">
                           <Link to={`/estimates/${e.EstimateID}`}
-                            className="inline font-mono text-[11px] font-semibold text-[#1E3A5F] leading-tight rounded hover:text-[#2563EB] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A5F]/30"
+                            className="inline font-mono text-[11px] font-semibold text-[#2563EB] leading-tight rounded hover:text-[#2563EB] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/30"
                             title={e.EstimateNo}>{e.EstimateNo || e.WorkID}</Link>
                           <div className="text-[10px] text-[#94A3B8] mt-0.5">v{e.Version}</div>
                         </td>
                         <td className="px-3 py-3 align-top">
-                          <div className="text-xs font-medium text-[#0F172A] leading-snug line-clamp-2 group-hover:text-[#1E3A5F] transition-colors" title={e.NameOfWork}>{e.NameOfWork}</div>
+                          <div className="text-xs font-medium text-[#0F172A] leading-snug line-clamp-2 group-hover:text-[#2563EB] transition-colors" title={e.NameOfWork}>{e.NameOfWork}</div>
                         </td>
                         <td className="px-3 py-3 align-top">
                           {e.WorkCategory ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0] leading-tight">{e.WorkCategory}</span>
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#F1F5F9] text-[#475569] border border-[#CBD5E1] leading-tight">{e.WorkCategory}</span>
                           ) : <span className="text-[10px] text-[#CBD5E1]">—</span>}
                         </td>
-                        <td className="px-3 py-3 text-[11px] text-[#64748B] whitespace-nowrap align-top">{fmtDate(e.CreatedDate)}</td>
+                        <td className="px-3 py-3 text-[11px] text-[#475569] whitespace-nowrap align-top">{fmtDate(e.CreatedDate)}</td>
                         <td className="px-3 py-3 align-top"><StatusBadge status={e.Status} /></td>
                         <td className="px-3 py-3 text-right align-top whitespace-nowrap"><span className="text-xs font-semibold text-[#0F172A]">{fmt(e.GrandTotal)}</span></td>
                         <td className="px-3 py-3 align-top">
@@ -457,13 +493,13 @@ export default function EstimateList() {
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div>
                         <Link to={`/estimates/${e.EstimateID}`}
-                          className="inline font-mono text-[11px] font-semibold text-[#1E3A5F] rounded hover:text-[#2563EB] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A5F]/30">{e.EstimateNo || e.WorkID}</Link> <span className="text-[10px] text-[#94A3B8] font-normal">v{e.Version}</span>
+                          className="inline font-mono text-[11px] font-semibold text-[#2563EB] rounded hover:text-[#2563EB] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/30">{e.EstimateNo || e.WorkID}</Link> <span className="text-[10px] text-[#94A3B8] font-normal">v{e.Version}</span>
                         <div className="text-xs font-medium text-[#0F172A] truncate max-w-[220px]" title={e.NameOfWork}>{e.NameOfWork}</div>
                       </div>
                       <StatusBadge status={e.Status} />
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-[#64748B] mb-2">
-                      {e.WorkCategory && <span className="px-1.5 py-0.5 rounded bg-[#F1F5F9] border border-[#E2E8F0]">{e.WorkCategory}</span>}
+                    <div className="flex items-center gap-2 text-[10px] text-[#475569] mb-2">
+                      {e.WorkCategory && <span className="px-1.5 py-0.5 rounded bg-[#F1F5F9] border border-[#CBD5E1]">{e.WorkCategory}</span>}
                       <span>{fmtDate(e.CreatedDate)}</span>
                       <span className="ml-auto font-semibold text-[#0F172A] text-[11px]">{fmt(e.GrandTotal)}</span>
                     </div>
@@ -476,6 +512,41 @@ export default function EstimateList() {
                     </div>
                   </div>
                 ))}
+            </div>
+
+            {/* Pagination footer */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-t border-[#CBD5E1] bg-[#F8FAFC]">
+              <span className="text-xs text-[#475569]">
+                Showing {total === 0 ? 0 : (page - 1) * pageSizeRef.current + 1}–{Math.min(total, page * pageSizeRef.current)} of {total}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => loadEstimates({ page: page - 1 })}
+                  className="px-2 py-1 text-xs font-medium text-[#2563EB] rounded hover:bg-[#2563EB]/10 disabled:text-[#CBD5E1] disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                >← Previous</button>
+                {totalPagesList.map((n, i) => n === '…' ? (
+                  <span key={`e${i}`} className="px-1 text-xs text-[#94A3B8]">…</span>
+                ) : (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => loadEstimates({ page: n })}
+                    className={`w-7 h-7 text-xs rounded ${
+                      n === page
+                        ? 'bg-[#2563EB] text-white font-medium'
+                        : 'text-[#475569] hover:bg-[#2563EB]/10'
+                    }`}
+                  >{n}</button>
+                ))}
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => loadEstimates({ page: page + 1 })}
+                  className="px-2 py-1 text-xs font-medium text-[#2563EB] rounded hover:bg-[#2563EB]/10 disabled:text-[#CBD5E1] disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                >Next →</button>
+              </div>
             </div>
           </>
         )}
@@ -494,13 +565,13 @@ export default function EstimateList() {
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-[#0F172A] flex items-center gap-2">
-                <Send className="w-4 h-4 text-[#1E3A5F]" />
+                <Send className="w-4 h-4 text-[#2563EB]" />
                 {submitTarget.Status === 'Reverted' ? 'Resubmit to DGM' : 'Submit to DGM'}
               </h3>
-              <button onClick={closeSubmit} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#64748B]" /></button>
+              <button onClick={closeSubmit} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#475569]" /></button>
             </div>
             <p className="text-sm text-[#475569] mb-3">
-              Submit <span className="font-mono font-semibold text-[#1E3A5F]">{submitTarget.EstimateNo}</span> for DGM review? The estimate will become read-only for you.
+              Submit <span className="font-mono font-semibold text-[#2563EB]">{submitTarget.EstimateNo}</span> for DGM review? The estimate will become read-only for you.
             </p>
             {submitTarget.Status === 'Reverted' && (
               <div className="mb-3">
@@ -534,17 +605,17 @@ export default function EstimateList() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">Estimate Deleted</p>
-                <p className="text-xs text-[#64748B]">Moved to Deleted Estimates archive.</p>
+                <p className="text-xs text-[#475569]">Moved to Deleted Estimates archive.</p>
               </div>
             ) : deletePhase === 'confirm' ? (
               <>
-                <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 mb-4 space-y-1.5 text-xs">
-                  <div className="flex justify-between"><span className="text-[#64748B]">Estimate</span><span className="font-mono font-medium text-[#0F172A]">{deleteTarget.EstimateNo}</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748B]">Work</span><span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{deleteTarget.NameOfWork}</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748B]">Version</span><span className="font-medium text-[#0F172A]">v{deleteTarget.Version}</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748B]">Grand Total</span><span className="font-semibold text-[#1E3A5F]">{fmt(deleteTarget.GrandTotal)}</span></div>
+                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5 text-xs">
+                  <div className="flex justify-between"><span className="text-[#475569]">Estimate</span><span className="font-mono font-medium text-[#0F172A]">{deleteTarget.EstimateNo}</span></div>
+                  <div className="flex justify-between"><span className="text-[#475569]">Work</span><span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{deleteTarget.NameOfWork}</span></div>
+                  <div className="flex justify-between"><span className="text-[#475569]">Version</span><span className="font-medium text-[#0F172A]">v{deleteTarget.Version}</span></div>
+                  <div className="flex justify-between"><span className="text-[#475569]">Grand Total</span><span className="font-semibold text-[#2563EB]">{fmt(deleteTarget.GrandTotal)}</span></div>
                 </div>
-                <p className="text-xs text-[#64748B] mb-3">
+                <p className="text-xs text-[#475569] mb-3">
                   This estimate will be moved to Deleted Estimates. It can be restored later by an authorized user.
                 </p>
                 <label htmlFor="delete-reason" className="ec-label">Deletion Reason (optional)</label>
@@ -562,14 +633,14 @@ export default function EstimateList() {
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">
+                <p className="text-xs text-[#475569] mb-1">
                   Enter the 6-digit OTP sent to {deleteOtpSentTo ? <span className="font-medium text-[#0F172A]">{deleteOtpSentTo}</span> : 'your registered email'}.
                 </p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
 
                 {deleteReason && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <p className="text-[10px] font-medium text-[#64748B]">Reason</p>
+                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                    <p className="text-[10px] font-medium text-[#475569]">Reason</p>
                     <p className="text-xs text-[#0F172A]">{deleteReason}</p>
                   </div>
                 )}
@@ -582,7 +653,7 @@ export default function EstimateList() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendDeleteOtp} disabled={sendingDeleteOtp || deleteResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingDeleteOtp ? 'Sending...' : deleteResendIn > 0 ? `Resend OTP (${deleteResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>
@@ -605,12 +676,12 @@ export default function EstimateList() {
       {historyTarget && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setHistoryTarget(null)}>
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-[#E2E8F0] px-5 py-3 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-5 py-3 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-[#0F172A]">Movement History</h3>
-                <p className="text-[10px] text-[#64748B] font-mono">{historyTarget.EstimateNo || ''}</p>
+                <p className="text-[10px] text-[#475569] font-mono">{historyTarget.EstimateNo || ''}</p>
               </div>
-              <button onClick={() => setHistoryTarget(null)} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#64748B]" /></button>
+              <button onClick={() => setHistoryTarget(null)} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#475569]" /></button>
             </div>
             <div className="p-5 space-y-3">
               {historyLoading && <div className="ec-loader"><div className="ec-spinner" /></div>}
@@ -626,7 +697,7 @@ export default function EstimateList() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setApproveTarget(null)}>
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3"><CheckCircle className="w-5 h-5 text-[#059669]" /><h3 className="font-semibold text-[#0F172A]">Verify &amp; Forward to GM</h3></div>
-            <p className="text-sm text-[#475569] mb-3">Verify <span className="font-mono font-semibold text-[#1E3A5F]">{approveTarget.EstimateNo}</span>? It will be forwarded to the GM for digital signature &amp; OTP verification.</p>
+            <p className="text-sm text-[#475569] mb-3">Verify <span className="font-mono font-semibold text-[#2563EB]">{approveTarget.EstimateNo}</span>? It will be forwarded to the GM for digital signature &amp; OTP verification.</p>
             <div className="flex items-center gap-2">
               <button onClick={() => setApproveTarget(null)} disabled={approveLoading} className="ec-btn-secondary flex-1">Cancel</button>
               <button onClick={doApprove} disabled={approveLoading} className="ec-btn-primary flex-1">
@@ -643,7 +714,7 @@ export default function EstimateList() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setRevertTarget(null)}>
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3"><RotateCcw className="w-5 h-5 text-[#DC2626]" /><h3 className="font-semibold text-[#0F172A]">Revert with Remarks</h3></div>
-            <p className="text-sm text-[#475569] mb-3">Return <span className="font-mono font-semibold text-[#1E3A5F]">{revertTarget.EstimateNo}</span> to its creator? A reversion requires remarks explaining the change needed.</p>
+            <p className="text-sm text-[#475569] mb-3">Return <span className="font-mono font-semibold text-[#2563EB]">{revertTarget.EstimateNo}</span> to its creator? A reversion requires remarks explaining the change needed.</p>
             <div className="mb-4">
               <label htmlFor="revert-remarks" className="ec-label">Reversion Remarks <span className="text-[#DC2626]">*</span></label>
               <textarea id="revert-remarks" name="revertRemarks" rows={3} value={revertRemarks}
@@ -664,20 +735,20 @@ export default function EstimateList() {
       {remarksTarget && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setRemarksTarget(null)}>
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-[#E2E8F0] px-5 py-3 flex items-center justify-between">
-              <div><h3 className="font-semibold text-[#0F172A]">Reversion Remarks</h3><p className="text-[10px] text-[#64748B] font-mono">{remarksTarget.EstimateNo || ''}</p></div>
-              <button onClick={() => setRemarksTarget(null)} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#64748B]" /></button>
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-5 py-3 flex items-center justify-between">
+              <div><h3 className="font-semibold text-[#0F172A]">Reversion Remarks</h3><p className="text-[10px] text-[#475569] font-mono">{remarksTarget.EstimateNo || ''}</p></div>
+              <button onClick={() => setRemarksTarget(null)} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#475569]" /></button>
             </div>
             <div className="p-5">
               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-[10px] font-medium text-[#64748B] mb-1">Action Taken Report</p>
+                <p className="text-[10px] font-medium text-[#475569] mb-1">Action Taken Report</p>
                 <p className="text-sm text-red-800 whitespace-pre-line">{remarksTarget.ActionTakenReport || 'No Action Taken Report recorded yet'}</p>
               </div>
-              <p className="text-[10px] font-medium text-[#64748B] mb-2">DGM Reversion Remarks</p>
+              <p className="text-[10px] font-medium text-[#475569] mb-2">DGM Reversion Remarks</p>
               {remarksRows.length === 0 && <p className="text-xs text-[#94A3B8]">No reversion remarks recorded</p>}
               <div className="space-y-2">
                 {remarksRows.map((r, i) => (
-                  <div key={r.WorkflowID || i} className="text-xs text-[#475569] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-3">
+                  <div key={r.WorkflowID || i} className="text-xs text-[#475569] bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-3">
                     <p className="whitespace-pre-line">{r.Remarks || '—'}</p>
                     <p className="text-[10px] text-[#94A3B8] mt-1">{r.FromUserName} ({r.FromDesignation}) · {new Date(r.DateTime).toLocaleString('en-IN')}</p>
                   </div>

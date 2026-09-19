@@ -112,7 +112,7 @@ export default function AdminItems() {
                 <label className="flex items-center gap-2 text-sm text-[#475569] cursor-pointer">
                   <input id="item-rate-gst" name="RateIncludesGST" type="checkbox" checked={form.RateIncludesGST}
                     onChange={e => setForm({...form, RateIncludesGST: e.target.checked})}
-                    className="w-4 h-4 rounded border-[#CBD5E1] text-[#1E3A5F]" />
+                    className="w-4 h-4 rounded border-[#CBD5E1] text-[#2563EB]" />
                   Rate includes GST
                 </label>
               </div>
@@ -158,7 +158,7 @@ export default function AdminItems() {
               <tbody>
                 {items.map((item) => (
                   <tr key={item.ItemID}>
-                    <td className="font-medium text-xs text-[#1E3A5F]">{item.ItemCode}</td>
+                    <td className="font-medium text-xs text-[#2563EB]">{item.ItemCode}</td>
                     <td className="max-w-[250px] truncate text-xs">{item.Description}</td>
                     <td className="text-xs">{item.Unit}</td>
                     <td>
@@ -172,11 +172,11 @@ export default function AdminItems() {
                     <td>
                       <div className="flex items-center gap-2">
                         <button onClick={() => editItem(item)}
-                          className="text-[#1E3A5F] hover:underline text-xs flex items-center gap-1">
+                          className="text-[#2563EB] hover:underline text-xs flex items-center gap-1">
                           <Edit3 className="w-3 h-3" /> Edit
                         </button>
                         <button onClick={() => viewRateHistory(item.ItemID)}
-                          className="text-[#64748B] hover:underline text-xs flex items-center gap-1">
+                          className="text-[#475569] hover:underline text-xs flex items-center gap-1">
                           <History className="w-3 h-3" /> Rates
                         </button>
                       </div>

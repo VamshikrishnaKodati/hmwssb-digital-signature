@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 
 export const BILL_STAGES = [
-  { key: 'prepared', label: 'Bill Prepared', sub: 'Billing Officer', dot: 'bg-[#1E3A5F]' },
+  { key: 'prepared', label: 'Bill Prepared', sub: 'Billing Officer', dot: 'bg-[#2563EB]' },
   { key: 'manager', label: 'With Manager', sub: 'Manager' },
   { key: 'dgm', label: 'With DGM', sub: 'DGM' },
   { key: 'gm', label: 'With GM', sub: 'GM' },

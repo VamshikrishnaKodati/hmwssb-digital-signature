@@ -42,7 +42,7 @@ export default function ProgressList() {
   const pctColor = (p) => {
     if (p >= 100) return 'text-[#059669]'
     if (p >= 50) return 'text-[#D97706]'
-    return 'text-[#64748B]'
+    return 'text-[#475569]'
   }
 
   return (
@@ -104,24 +104,24 @@ export default function ProgressList() {
             <tbody>
               {progress.map(p => (
                 <tr key={p.ProgressID}>
-                  <td className="font-mono text-xs text-[#1E3A5F]">{p.WorkID}</td>
-                  <td className="text-xs max-w-[150px] truncate text-[#64748B]">{p.NameOfWork}</td>
+                  <td className="font-mono text-xs text-[#2563EB]">{p.WorkID}</td>
+                  <td className="text-xs max-w-[150px] truncate text-[#475569]">{p.NameOfWork}</td>
                   <td className="text-xs">{p.Stage}</td>
                   <td className={`text-right text-xs font-bold ${pctColor(p.Percentage)}`}>{p.Percentage}%</td>
-                  <td className="text-xs text-[#64748B]">{p.Date?.slice(0, 10)}</td>
-                  <td className="text-xs max-w-[160px] truncate text-[#64748B]">{p.Remarks}</td>
-                  <td className="text-xs max-w-[200px] text-[#64748B]">
+                  <td className="text-xs text-[#475569]">{p.Date?.slice(0, 10)}</td>
+                  <td className="text-xs max-w-[160px] truncate text-[#475569]">{p.Remarks}</td>
+                  <td className="text-xs max-w-[200px] text-[#475569]">
                     {p.InspectionNotes && <p className="truncate">Inspection: {p.InspectionNotes}</p>}
                     {p.EngineerRemarks && <p className="truncate">Eng: {p.EngineerRemarks}</p>}
                     {!p.InspectionNotes && !p.EngineerRemarks && '-'}
                   </td>
-                  <td className="text-xs max-w-[120px] truncate text-[#64748B]">{p.DelayReason || '-'}</td>
+                  <td className="text-xs max-w-[120px] truncate text-[#475569]">{p.DelayReason || '-'}</td>
                   <td className="text-xs">
                     {p.Photos ? (
-                      <a href={p.Photos.split(',')[0].trim()} target="_blank" rel="noreferrer" className="text-[#1E3A5F] underline">View</a>
+                      <a href={p.Photos.split(',')[0].trim()} target="_blank" rel="noreferrer" className="text-[#2563EB] underline">View</a>
                     ) : '-'}
                   </td>
-                  <td><button onClick={() => { setEditId(p.ProgressID); setForm(p); setShowForm(true) }} className="text-[#1E3A5F] hover:underline text-xs flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit</button></td>
+                  <td><button onClick={() => { setEditId(p.ProgressID); setForm(p); setShowForm(true) }} className="text-[#2563EB] hover:underline text-xs flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit</button></td>
                 </tr>
               ))}
               {progress.length === 0 && <tr><td colSpan={10} className="text-center py-12 text-sm text-[#94A3B8]">No progress entries</td></tr>}

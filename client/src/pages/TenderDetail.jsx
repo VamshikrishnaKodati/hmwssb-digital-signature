@@ -282,7 +282,7 @@ export default function TenderDetail() {
     <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded text-[#64748B] hover:bg-[#F1F5F9]"><ArrowLeft className="w-4 h-4" /></button>
+          <button onClick={() => navigate(-1)} className="p-1.5 rounded text-[#475569] hover:bg-[#F1F5F9]"><ArrowLeft className="w-4 h-4" /></button>
           <div>
             <h1 className="ec-page-title">{tender.TenderNo}</h1>
             <p className="ec-page-subtitle">{tender.NameOfWork}</p>
@@ -466,7 +466,7 @@ export default function TenderDetail() {
                 <tr key={b.BidID}>
                   <td className="text-xs font-medium">{b.ContractorName}</td>
                   <td className="font-mono text-xs">{b.RegistrationNo || '—'}</td>
-                  <td className="font-mono text-xs text-[#1E3A5F]">{b.SubmissionReference || '—'}</td>
+                  <td className="font-mono text-xs text-[#2563EB]">{b.SubmissionReference || '—'}</td>
                   <td className="text-xs text-slate-500">{fmtDateTime(b.SubmittedAt || b.CreatedDate)}</td>
                   <td>
                     {b.OpeningStatus === 'Opened'

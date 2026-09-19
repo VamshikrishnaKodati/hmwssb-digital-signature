@@ -66,7 +66,7 @@ export default function AuditLogs() {
                       {l.UserDesignation && <span className="text-[10px] text-[#94A3B8]"> · {l.UserDesignation}</span>}
                     </td>
                     <td><span className="ec-badge ec-badge-info">{l.Action}</span></td>
-                    <td className="text-xs text-[#64748B] max-w-[280px]">{l.Remarks || '—'}</td>
+                    <td className="text-xs text-[#475569] max-w-[280px]">{l.Remarks || '—'}</td>
                   </tr>
                 ))}
                 {logs.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-xs text-slate-400">No audit entries</td></tr>}

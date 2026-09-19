@@ -38,10 +38,10 @@ export default function BillQuantityReconciliation({ items }) {
                       <p className="text-[12px] font-medium text-[#0F172A]">{i.ItemName || i.ItemCode}</p>
                       {i.ItemCode && <p className="text-[10px] text-[#94A3B8]">{i.ItemCode}</p>}
                     </td>
-                    <td className="text-center text-[#64748B]">{i.Unit || '—'}</td>
+                    <td className="text-center text-[#475569]">{i.Unit || '—'}</td>
                     <td className="text-right tabular-nums text-[#0F172A]">{i.EstimateQty ?? 0}</td>
-                    <td className="text-right tabular-nums text-[#64748B]">{i.CurrentQty ?? 0}</td>
-                    <td className="text-right tabular-nums text-[#64748B]">{i.PreviousQty ?? 0}</td>
+                    <td className="text-right tabular-nums text-[#475569]">{i.CurrentQty ?? 0}</td>
+                    <td className="text-right tabular-nums text-[#475569]">{i.PreviousQty ?? 0}</td>
                     <td className="text-right tabular-nums font-semibold text-[#0F172A]">{i.CurrentQty ?? 0}</td>
                     <td className="text-right tabular-nums">
                       <span className={`inline-flex items-center gap-1 ${warn ? 'text-amber-600 font-bold' : ''}`}>
@@ -49,9 +49,9 @@ export default function BillQuantityReconciliation({ items }) {
                         {i.CumulativeQty}
                       </span>
                     </td>
-                    <td className={`text-right tabular-nums ${Number(i.BalanceQty) < 0 ? 'text-red-600 font-semibold' : 'text-[#64748B]'}`}>{i.BalanceQty}</td>
-                    <td className="text-right tabular-nums text-[#64748B]">{fmtCurrency(i.Rate)}</td>
-                    <td className="text-right tabular-nums font-bold text-[#1E3A5F]">{fmtCurrency(i.Amount)}</td>
+                    <td className={`text-right tabular-nums ${Number(i.BalanceQty) < 0 ? 'text-red-600 font-semibold' : 'text-[#475569]'}`}>{i.BalanceQty}</td>
+                    <td className="text-right tabular-nums text-[#475569]">{fmtCurrency(i.Rate)}</td>
+                    <td className="text-right tabular-nums font-bold text-[#2563EB]">{fmtCurrency(i.Amount)}</td>
                   </tr>
                 )
               })}

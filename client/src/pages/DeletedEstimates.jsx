@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import StatusBadge from '../components/shared/StatusBadge'
 import OtpInput from '../components/shared/OtpInput'
 
-const ICON_BTN = 'inline-flex items-center justify-center w-7 h-7 rounded-md text-[#64748B] hover:text-[#1E3A5F] hover:bg-[#F1F5F9] transition-colors focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 shrink-0'
+const ICON_BTN = 'inline-flex items-center justify-center w-7 h-7 rounded-md text-[#475569] hover:text-[#2563EB] hover:bg-[#F1F5F9] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 shrink-0'
 
 export default function DeletedEstimates() {
   const [items, setItems] = useState([])
@@ -143,7 +143,7 @@ export default function DeletedEstimates() {
         <button onClick={doSearch} className="ec-btn-primary ec-btn-sm py-1.5">
           <Search className="w-3.5 h-3.5" /> Search
         </button>
-        {refreshing && <span className="inline-flex items-center gap-1.5 text-xs text-[#64748B]"><Loader className="w-3.5 h-3.5 animate-spin" /> Updating...</span>}
+        {refreshing && <span className="inline-flex items-center gap-1.5 text-xs text-[#475569]"><Loader className="w-3.5 h-3.5 animate-spin" /> Updating...</span>}
       </div>
 
       <div className="ec-card overflow-hidden">
@@ -164,21 +164,21 @@ export default function DeletedEstimates() {
                 <col style={{ width: '11%' }} />
               </colgroup>
               <thead>
-                <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Est. ID</th>
-                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Work Name</th>
-                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Type</th>
-                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Deleted</th>
-                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Status</th>
-                  <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Total</th>
-                  <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Actions</th>
+                <tr className="border-b border-[#CBD5E1] bg-[#F8FAFC]">
+                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Est. ID</th>
+                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Work Name</th>
+                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Type</th>
+                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Deleted</th>
+                  <th className="text-left px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Status</th>
+                  <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Total</th>
+                  <th className="text-right px-3 py-2 text-[10px] font-semibold text-[#475569] uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1F5F9]">
                 {items.map((e) => (
                   <tr key={e.DeletedEstimateID} className="transition-colors hover:bg-[#F8FAFC]">
                     <td className="px-3 py-2">
-                      <div className="font-mono text-[11px] font-semibold text-[#1E3A5F] truncate" title={e.EstimateNo}>{e.EstimateNo}</div>
+                      <div className="font-mono text-[11px] font-semibold text-[#2563EB] truncate" title={e.EstimateNo}>{e.EstimateNo}</div>
                       <div className="text-[10px] text-[#94A3B8]">v{e.Version}</div>
                     </td>
                     <td className="px-3 py-2">
@@ -187,12 +187,12 @@ export default function DeletedEstimates() {
                     </td>
                     <td className="px-3 py-2">
                       {e.WorkCategory ? (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0]">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#F1F5F9] text-[#475569] border border-[#CBD5E1]">
                           {e.WorkCategory}
                         </span>
                       ) : <span className="text-[10px] text-[#CBD5E1]">—</span>}
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-[#64748B] whitespace-nowrap">{fmtDateTime(e.DeletedAt)}</td>
+                    <td className="px-3 py-2 text-[11px] text-[#475569] whitespace-nowrap">{fmtDateTime(e.DeletedAt)}</td>
                     <td className="px-3 py-2">
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${e.RestoreStatus === 'restored' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                         {e.RestoreStatus === 'restored' ? 'Restored' : 'Deleted'}
@@ -220,7 +220,7 @@ export default function DeletedEstimates() {
         )}
 
         {total > limit && (
-          <div className="flex items-center justify-between px-4 py-2 border-t border-[#E2E8F0] bg-[#F8FAFC] text-xs text-[#64748B]">
+          <div className="flex items-center justify-between px-4 py-2 border-t border-[#CBD5E1] bg-[#F8FAFC] text-xs text-[#475569]">
             <span>Page {page} of {totalPages} · {total} total</span>
             <div className="flex gap-1">
               <button onClick={() => goPage(page - 1)} disabled={page <= 1} className="ec-btn-secondary ec-btn-sm py-1 px-2 disabled:opacity-40"><ChevronLeft className="w-3.5 h-3.5" /> Prev</button>
@@ -234,34 +234,34 @@ export default function DeletedEstimates() {
       {selected && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={closeDetail}>
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-[#E2E8F0] px-5 py-3 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-5 py-3 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-[#0F172A]">Deleted Estimate Details</h3>
-                <p className="text-[10px] text-[#64748B] font-mono">{selected.EstimateNo}</p>
+                <p className="text-[10px] text-[#475569] font-mono">{selected.EstimateNo}</p>
               </div>
-              <button onClick={closeDetail} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#64748B]" /></button>
+              <button onClick={closeDetail} className="p-1 rounded hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#475569]" /></button>
             </div>
             <div className="p-5 space-y-4">
               {detailLoading && <div className="ec-loader"><div className="ec-spinner" /></div>}
               {detail && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 space-y-1.5">
-                      <p className="text-[10px] font-medium text-[#64748B] uppercase">Original Details</p>
+                    <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 space-y-1.5">
+                      <p className="text-[10px] font-medium text-[#475569] uppercase">Original Details</p>
                       <div className="text-xs space-y-1">
-                        <div className="flex justify-between"><span className="text-[#64748B]">Work Name</span><span className="font-medium text-[#0F172A] text-right max-w-[160px] truncate">{detail.NameOfWork}</span></div>
-                        <div className="flex justify-between"><span className="text-[#64748B]">Category</span><span className="font-medium text-[#0F172A]">{detail.WorkCategory || '—'}</span></div>
-                        <div className="flex justify-between"><span className="text-[#64748B]">Version</span><span className="font-medium text-[#0F172A]">v{detail.Version}</span></div>
-                        <div className="flex justify-between"><span className="text-[#64748B]">Grand Total</span><span className="font-semibold text-[#1E3A5F]">{fmt(detail.GrandTotal)}</span></div>
-                        <div className="flex justify-between"><span className="text-[#64748B]">Status at Delete</span><StatusBadge status={detail.Status} /></div>
+                        <div className="flex justify-between"><span className="text-[#475569]">Work Name</span><span className="font-medium text-[#0F172A] text-right max-w-[160px] truncate">{detail.NameOfWork}</span></div>
+                        <div className="flex justify-between"><span className="text-[#475569]">Category</span><span className="font-medium text-[#0F172A]">{detail.WorkCategory || '—'}</span></div>
+                        <div className="flex justify-between"><span className="text-[#475569]">Version</span><span className="font-medium text-[#0F172A]">v{detail.Version}</span></div>
+                        <div className="flex justify-between"><span className="text-[#475569]">Grand Total</span><span className="font-semibold text-[#2563EB]">{fmt(detail.GrandTotal)}</span></div>
+                        <div className="flex justify-between"><span className="text-[#475569]">Status at Delete</span><StatusBadge status={detail.Status} /></div>
                       </div>
                     </div>
-                    <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 space-y-1.5">
-                      <p className="text-[10px] font-medium text-[#64748B] uppercase">Deletion Info</p>
+                    <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 space-y-1.5">
+                      <p className="text-[10px] font-medium text-[#475569] uppercase">Deletion Info</p>
                       <div className="text-xs space-y-1">
-                        <div className="flex justify-between"><span className="text-[#64748B]">Deleted By</span><span className="font-medium text-[#0F172A]">{detail.DeletedByName}</span></div>
-                        <div className="flex justify-between"><span className="text-[#64748B]">Deleted At</span><span className="font-medium text-[#0F172A]">{fmtDateTime(detail.DeletedAt)}</span></div>
-                        <div className="flex justify-between"><span className="text-[#64748B]">Restore Status</span>
+                        <div className="flex justify-between"><span className="text-[#475569]">Deleted By</span><span className="font-medium text-[#0F172A]">{detail.DeletedByName}</span></div>
+                        <div className="flex justify-between"><span className="text-[#475569]">Deleted At</span><span className="font-medium text-[#0F172A]">{fmtDateTime(detail.DeletedAt)}</span></div>
+                        <div className="flex justify-between"><span className="text-[#475569]">Restore Status</span>
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${detail.RestoreStatus === 'restored' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                             {detail.RestoreStatus === 'restored' ? 'Restored' : 'Deleted'}
                           </span>
@@ -279,24 +279,24 @@ export default function DeletedEstimates() {
 
                   {detail.Items && detail.Items.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-medium text-[#64748B] uppercase mb-2">Estimate Items ({detail.Items.length})</p>
-                      <div className="rounded-lg border border-[#E2E8F0] overflow-hidden">
+                      <p className="text-[10px] font-medium text-[#475569] uppercase mb-2">Estimate Items ({detail.Items.length})</p>
+                      <div className="rounded-lg border border-[#CBD5E1] overflow-hidden">
                         <table className="w-full text-xs">
-                          <thead><tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                            <th className="text-left px-2 py-1.5 font-medium text-[#64748B]">S.No</th>
-                            <th className="text-left px-2 py-1.5 font-medium text-[#64748B]">Description</th>
-                            <th className="text-right px-2 py-1.5 font-medium text-[#64748B]">Qty</th>
-                            <th className="text-right px-2 py-1.5 font-medium text-[#64748B]">Unit</th>
-                            <th className="text-right px-2 py-1.5 font-medium text-[#64748B]">Total</th>
+                          <thead><tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
+                            <th className="text-left px-2 py-1.5 font-medium text-[#475569]">S.No</th>
+                            <th className="text-left px-2 py-1.5 font-medium text-[#475569]">Description</th>
+                            <th className="text-right px-2 py-1.5 font-medium text-[#475569]">Qty</th>
+                            <th className="text-right px-2 py-1.5 font-medium text-[#475569]">Unit</th>
+                            <th className="text-right px-2 py-1.5 font-medium text-[#475569]">Total</th>
                           </tr></thead>
                           <tbody className="divide-y divide-[#F1F5F9]">
                             {detail.Items.map((item, i) => (
                               <tr key={item.EstimateItemID || i} className="hover:bg-[#F8FAFC]">
-                                <td className="px-2 py-1.5 text-[#64748B]">{i + 1}</td>
+                                <td className="px-2 py-1.5 text-[#475569]">{i + 1}</td>
                                 <td className="px-2 py-1.5 text-[#0F172A] max-w-[200px] truncate">{item.Description}</td>
                                 <td className="px-2 py-1.5 text-right text-[#0F172A]">{item.Quantity}</td>
-                                <td className="px-2 py-1.5 text-right text-[#64748B]">{item.Unit}</td>
-                                <td className="px-2 py-1.5 text-right font-medium text-[#1E3A5F]">{fmt(item.Total)}</td>
+                                <td className="px-2 py-1.5 text-right text-[#475569]">{item.Unit}</td>
+                                <td className="px-2 py-1.5 text-right font-medium text-[#2563EB]">{fmt(item.Total)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -332,12 +332,12 @@ export default function DeletedEstimates() {
 
             {restorePhase === 'confirm' && (
               <>
-                <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 my-4 space-y-1.5">
-                  <div className="flex justify-between text-xs"><span className="text-[#64748B]">Estimate</span><span className="font-mono font-medium text-[#0F172A]">{restoreTarget.EstimateNo}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-[#64748B]">Work</span><span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{restoreTarget.NameOfWork}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-[#64748B]">Version</span><span className="font-medium text-[#0F172A]">v{restoreTarget.Version}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-[#64748B]">Grand Total</span><span className="font-semibold text-[#1E3A5F]">{fmt(restoreTarget.GrandTotal)}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-[#64748B]">Deleted By</span><span className="font-medium text-[#0F172A]">{restoreTarget.DeletedByName}</span></div>
+                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 my-4 space-y-1.5">
+                  <div className="flex justify-between text-xs"><span className="text-[#475569]">Estimate</span><span className="font-mono font-medium text-[#0F172A]">{restoreTarget.EstimateNo}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-[#475569]">Work</span><span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{restoreTarget.NameOfWork}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-[#475569]">Version</span><span className="font-medium text-[#0F172A]">v{restoreTarget.Version}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-[#475569]">Grand Total</span><span className="font-semibold text-[#2563EB]">{fmt(restoreTarget.GrandTotal)}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-[#475569]">Deleted By</span><span className="font-medium text-[#0F172A]">{restoreTarget.DeletedByName}</span></div>
                 </div>
                 <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
                   <p className="text-xs text-emerald-800">This will create a new Draft estimate (next version) with the same data. You can edit it after restoration.</p>
@@ -355,10 +355,10 @@ export default function DeletedEstimates() {
             {restorePhase === 'otp' && !restoreVerifying && (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">
+                <p className="text-xs text-[#475569] mb-1">
                   Enter the 6-digit OTP sent to {restoreOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(restoreOtpSentTo)}</span> : 'your registered email'}.
                 </p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
 
                 <label className="ec-label">Enter OTP</label>
                 <div className="mb-3">
@@ -368,7 +368,7 @@ export default function DeletedEstimates() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendRestoreOtp} disabled={restoreSendingOtp || restoreResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {restoreSendingOtp ? 'Sending...' : restoreResendIn > 0 ? `Resend OTP (${restoreResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>

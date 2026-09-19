@@ -29,13 +29,13 @@ export default function BillingResponsibilityHero({ bill, sla, me }) {
           <div className="bi-hero-role">
             <ShieldCheck className="w-3.5 h-3.5" />
             Current Responsibility
-            {isMe && <span className="bi-hero-tag bg-[#1E3A5F]/10 text-[#1E3A5F]">Your queue</span>}
+            {isMe && <span className="bi-hero-tag bg-[#2563EB]/10 text-[#2563EB]">Your queue</span>}
             {isPaid && <span className="bi-hero-tag bg-emerald-50 text-emerald-700">Settled</span>}
           </div>
           <h2 className="bi-hero-title mt-1.5">
             {isPaid ? 'Bill Settled — Cheque Issued' : `${info.role} · ${info.level}`}
           </h2>
-          <p className="text-[12px] text-[#64748B] mt-1 max-w-2xl">{info.desc}</p>
+          <p className="text-[12px] text-[#475569] mt-1 max-w-2xl">{info.desc}</p>
 
           <div className="flex flex-wrap items-center gap-3 mt-3">
             {isPaid ? (
@@ -46,8 +46,8 @@ export default function BillingResponsibilityHero({ bill, sla, me }) {
                   <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider">SLA</span>
                   <SlaProgress sla={sla} showBar />
                 </span>
-                <span className="inline-flex items-center gap-2 text-[11px] text-[#64748B]">
-                  <span className="h-3 w-px bg-[#E3E8F0]" />
+                <span className="inline-flex items-center gap-2 text-[11px] text-[#475569]">
+                  <span className="h-3 w-px bg-[#CBD5E1]" />
                   <UserRound className="w-3.5 h-3.5" />
                   {bill.CurrentOwnerName || 'Awaiting assignment'}
                 </span>
@@ -56,8 +56,8 @@ export default function BillingResponsibilityHero({ bill, sla, me }) {
 
             {!isPaid && nextIdx <= BILL_STAGES.length - 1 && (
               <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium text-[#475569]">
-                Next: <span className="text-[#1E3A5F] font-semibold">{next.label}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-[#1E3A5F]" />
+                Next: <span className="text-[#2563EB] font-semibold">{next.label}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-[#2563EB]" />
               </span>
             )}
           </div>

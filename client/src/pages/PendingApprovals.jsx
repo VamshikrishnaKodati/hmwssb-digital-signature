@@ -60,33 +60,33 @@ export default function PendingApprovals() {
       {estimates.length === 0 ? (
         <div className="ec-card py-12 text-center">
           <Clock className="w-8 h-8 mx-auto mb-2 text-[#94A3B8]" />
-          <p className="text-sm text-[#64748B]">No pending items in your queue</p>
+          <p className="text-sm text-[#475569]">No pending items in your queue</p>
         </div>
       ) : (
         <div className="space-y-3">
           {estimates.map(e => (
             <Link key={e.EstimateID} to={`/estimates/${e.EstimateID}`}
-              className="block bg-white rounded-lg border border-[#E2E8F0] p-4 hover:border-[#1E3A5F]/30 hover:shadow-sm transition-all">
+              className="block bg-white rounded-lg border border-[#CBD5E1] p-4 hover:border-[#2563EB]/30 hover:shadow-sm transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <StatusBadge status={e.Status} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-[#0F172A] truncate">{e.NameOfWork}</p>
-                    <p className="text-[10px] text-[#64748B]">
+                    <p className="text-[10px] text-[#475569]">
                       {e.EstimateNo} · v{e.Version} · {e.CreatedByName}
                     </p>
                     {nextAction[e.Status] && (
-                      <p className="text-[10px] mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F1F5F9] text-[#1E3A5F] font-medium">
+                      <p className="text-[10px] mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F1F5F9] text-[#2563EB] font-medium">
                         Next: {nextAction[e.Status]}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-xs font-semibold text-[#1E3A5F]">
+                  <span className="text-xs font-semibold text-[#2563EB]">
                     ₹ {parseFloat(e.GrandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
-                  <Eye className="w-4 h-4 text-[#64748B]" />
+                  <Eye className="w-4 h-4 text-[#475569]" />
                 </div>
               </div>
             </Link>

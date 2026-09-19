@@ -127,8 +127,8 @@ export default function FinanceList() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E3A5F]">Finance Workflow</h1>
-          <p className="text-sm text-[#64748B] mt-1">Track bills through finance processing</p>
+          <h1 className="text-2xl font-bold text-[#2563EB]">Finance Workflow</h1>
+          <p className="text-sm text-[#475569] mt-1">Track bills through finance processing</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <button onClick={() => { const sp = new URLSearchParams(params); if (params.get('status') === 'SubmittedToFinance') sp.delete('status'); else sp.set('status', 'SubmittedToFinance'); window.history.pushState({}, '', `${window.location.pathname}?${sp}`); load() }}
@@ -149,39 +149,39 @@ export default function FinanceList() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#CBD5E1] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                <th className="text-left px-4 py-3 font-semibold text-[#64748B]">Inward No.</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#64748B]">Bill No.</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#64748B] hidden sm:table-cell">Estimate</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#64748B] hidden md:table-cell">Work Name</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#64748B]">Amount</th>
-                <th className="text-center px-4 py-3 font-semibold text-[#64748B]">Status</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#64748B] hidden lg:table-cell">Received By</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#64748B]">Action</th>
+              <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
+                <th className="text-left px-4 py-3 font-semibold text-[#475569]">Inward No.</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#475569]">Bill No.</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#475569] hidden sm:table-cell">Estimate</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#475569] hidden md:table-cell">Work Name</th>
+                <th className="text-right px-4 py-3 font-semibold text-[#475569]">Amount</th>
+                <th className="text-center px-4 py-3 font-semibold text-[#475569]">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#475569] hidden lg:table-cell">Received By</th>
+                <th className="text-right px-4 py-3 font-semibold text-[#475569]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
               {items.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-[#64748B]">No finance items found</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-[#475569]">No finance items found</td></tr>
               ) : items.map(item => {
                 const action = item.Status === 'SubmittedToFinance' && role === 'FinanceClerk' ? 'inward' : canAction(item)
                 return (
                   <tr key={item.FinanceID ?? item.BillID} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-[#1E3A5F]">{item.InwardNumber || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#2563EB]">{item.InwardNumber || '—'}</td>
                     <td className="px-4 py-3 font-medium text-[#0F172A]">{item.BillNo || `#${item.BillID || ''}`}</td>
-                    <td className="px-4 py-3 hidden sm:table-cell text-[#64748B]">{item.EstimateNo || '—'}</td>
-                    <td className="px-4 py-3 hidden md:table-cell text-[#64748B] truncate max-w-[200px]">{item.NameOfWork}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-[#1E3A5F]">₹{Number(item.Amount || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-[#475569]">{item.EstimateNo || '—'}</td>
+                    <td className="px-4 py-3 hidden md:table-cell text-[#475569] truncate max-w-[200px]">{item.NameOfWork}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-[#2563EB]">₹{Number(item.Amount || 0).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[item.Status] || 'bg-gray-100 text-gray-500'}`}>
                         {statusIcon(item.Status)} {item.Status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-xs text-[#64748B]">{item.ReceivedByName || '—'}</td>
+                    <td className="px-4 py-3 hidden lg:table-cell text-xs text-[#475569]">{item.ReceivedByName || '—'}</td>
                     <td className="px-4 py-3 text-right">
                       {action === 'inward' && (
                         <button onClick={() => openInward(item)}
@@ -227,7 +227,7 @@ export default function FinanceList() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowInward(false)}>
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-[#1E3A5F]">Record Inward</h3>
+              <h3 className="text-lg font-bold text-[#2563EB]">Record Inward</h3>
               <button onClick={() => setShowInward(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={createInward} className="space-y-4">
@@ -267,7 +267,7 @@ export default function FinanceList() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowCheque(false)}>
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-[#1E3A5F]">Issue Cheque</h3>
+              <h3 className="text-lg font-bold text-[#2563EB]">Issue Cheque</h3>
               <button onClick={() => setShowCheque(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={issueCheque} className="space-y-4">

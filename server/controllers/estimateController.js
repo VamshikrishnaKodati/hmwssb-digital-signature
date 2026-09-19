@@ -677,9 +677,31 @@ exports.listEstimates = async (req, res, next) => {
 exports.getMyEstimates = async (req, res, next) => {
   try {
     const userId = req.user.UserID;
-    const { status, search, assignedTo, createdBy, actedBy, action, sort, today } = req.query;
+    const { status, search, assignedTo, createdBy, actedBy, action, sort, today, workType, sla, dateFrom, dateTo } = req.query;
     const statuses = status ? status.split(',').map(s => s.trim()).filter(Boolean) : null;
     const actions = actedBy === 'me' && action ? action.split(',').map(a => a.trim()).filter(Boolean) : null;
+
+    // Optional SLA filter (Normal/Warning/Overdue) hitting the persisted
+    // SlaStatus column, so dashboard "SLA" chips never hide rows client-side.
+    const slaList = sla ? sla.split(',').map(s => s.trim()).filter(Boolean) : null;
+    if (slaList) {
+      const allowedSla = ['Normal', 'Warning', 'Overdue'];
+      const bad = slaList.find(s => !allowedSla.includes(s));
+      if (bad) {
+        return res.status(400).json({ error: `Invalid SLA filter "${bad}". Valid values: ${allowedSla.join(', ')}` });
+      }
+    }
+
+    // Optional server-side pagination. When page/pageSize are absent the full
+    // row set is returned (legacy contract); the paged shape is
+    // { rows, total, page, pageSize }.
+    const paged = req.query.page !== undefined || req.query.pageSize !== undefined;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(50, Math.max(1, parseInt(req.query.pageSize, 10) || 8));
+
+    if (workType && !WORK_CATEGORIES.includes(workType)) {
+      return res.status(400).json({ error: `WorkType must be one of: ${WORK_CATEGORIES.join(', ')}` });
+    }
 
     // Pipeline stage filter ("My Estimate Pipeline / Estimates Currently With").
     // Case-insensitive so /estimates?stage=dgm or stage=draft both work; unknown
@@ -710,21 +732,58 @@ exports.getMyEstimates = async (req, res, next) => {
     const locScope = await estimateScopeConds(req.user, 'eh', params.length + 1);
     conds.push(...locScope.conds);
     params.push(...locScope.params);
-    if (conds.length === 0) return res.json([]);
+
+    if (workType) {
+      params.push(workType);
+      conds.push(`eh."WorkCategory" = $${params.length}`);
+    }
+
+    if (slaList) {
+      params.push(slaList);
+      conds.push(`eh."SlaStatus" = ANY($${params.length})`);
+    }
+    if (dateFrom) {
+      params.push(dateFrom);
+      conds.push(`eh."SubmissionDate" >= $${params.length}::timestamptz`);
+    }
+    if (dateTo) {
+      params.push(dateTo);
+      conds.push(`eh."SubmissionDate" <= $${params.length}::timestamptz`);
+    }
+
+    if (conds.length === 0) {
+      return res.json(paged ? { rows: [], total: 0, page, pageSize } : []);
+    }
 
     // The stage predicate reads the current-owner designation via the `ou` alias.
     const ownerJoin = stage ? 'LEFT JOIN "Users" ou ON ou."UserID" = eh."CurrentOwner"' : '';
+    const where = conds.join(' AND ');
+    const countSql = `SELECT COUNT(*)::int AS "total"
+      FROM "EstimateHeader" eh
+      ${ownerJoin}
+      WHERE ${where}`;
+    const rowsSql = `SELECT eh.*, u."Name" as "CreatedByName", COALESCE(ab."GrandTotal",0) as "GrandTotal", c."Name" as "CircleName",
+      EXTRACT(EPOCH FROM (NOW() - COALESCE(eh."SubmissionDate", eh."CreatedDate"))) / 86400 as "daysWaiting"
+      FROM "EstimateHeader" eh
+      LEFT JOIN "Users" u ON u."UserID" = eh."CreatedBy"
+      LEFT JOIN "Abstract" ab ON ab."EstimateID" = eh."EstimateID"
+      LEFT JOIN "Circles" c ON c."CircleID" = eh."CircleID"
+      ${ownerJoin}
+      WHERE ${where}
+      ORDER BY ${orderClause(sort)}`;
+
+    if (!paged) {
+      const result = await db.query(rowsSql, params);
+      return res.json(result.rows);
+    }
+
+    const countRes = await db.query(countSql, params);
+    const offset = (page - 1) * pageSize;
     const result = await db.query(
-      `SELECT eh.*, u."Name" as "CreatedByName", COALESCE(ab."GrandTotal",0) as "GrandTotal"
-       FROM "EstimateHeader" eh
-       LEFT JOIN "Users" u ON u."UserID" = eh."CreatedBy"
-       LEFT JOIN "Abstract" ab ON ab."EstimateID" = eh."EstimateID"
-       ${ownerJoin}
-       WHERE ${conds.join(' AND ')}
-       ORDER BY ${orderClause(sort)}`,
-      params
+      `${rowsSql} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, pageSize, offset]
     );
-    res.json(result.rows);
+    res.json({ rows: result.rows, total: countRes.rows[0].total, page, pageSize });
   } catch (err) {
     next(err);
   }

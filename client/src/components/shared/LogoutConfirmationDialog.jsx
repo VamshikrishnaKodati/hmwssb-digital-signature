@@ -58,7 +58,7 @@ export default function LogoutConfirmationDialog({ open, onClose, onLogout }) {
           </div>
           <div>
             <h3 id="logout-dialog-title" className="font-semibold text-[#0F172A]">Confirm Logout</h3>
-            <p id="logout-dialog-desc" className="text-xs text-[#64748B] mt-0.5">
+            <p id="logout-dialog-desc" className="text-xs text-[#475569] mt-0.5">
               Are you sure you want to logout from your account?
             </p>
           </div>

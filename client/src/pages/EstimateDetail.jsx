@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Edit3, Send, RotateCcw, CheckCircle, FileSpreadsheet,
-  X, Download, History, FileDown, PenSquare, ClipboardList, FileText,
+  X, Download, History, FileDown, PenSquare, ClipboardList, FileText, Eye,
   Briefcase, Building2, Hammer, DollarSign, Archive, Plus, Users, Loader, ShieldCheck,
   ArrowRight, Info, FileCheck, Landmark, Stamp, Megaphone, Wallet
 } from 'lucide-react'
@@ -47,6 +47,9 @@ export default function EstimateDetail() {
   const [activeTab, setActiveTab] = useState('civil')
   const [action, setAction] = useState('')
   const [remarks, setRemarks] = useState('')
+  const [docs, setDocs] = useState([])
+  const [docsLoading, setDocsLoading] = useState(false)
+  const [openingDoc, setOpeningDoc] = useState(null)
   const [procurementNo, setProcurementNo] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [tsAuthority, setTsAuthority] = useState('')
@@ -118,6 +121,17 @@ export default function EstimateDetail() {
   const hasMaterial = (estimate?.Items || []).some(i => i.Category === 'Material')
 
   useEffect(() => { load() }, [id])
+
+  useEffect(() => {
+    if (activeTab !== 'documents') return
+    let live = true
+    setDocsLoading(true)
+    api.get('/estimate-documents', { params: { estimateId: id } })
+      .then(res => { if (live) setDocs(res.data || []) })
+      .catch(() => { if (live) setDocs([]) })
+      .finally(() => { if (live) setDocsLoading(false) })
+    return () => { live = false }
+  }, [id, activeTab])
 
   useEffect(() => {
     if (resendIn <= 0) return
@@ -192,6 +206,32 @@ export default function EstimateDetail() {
     setProgressList((prRes.status === 'fulfilled' ? prRes.value.data || [] : []).filter(x => x.EstimateID === Number(id)))
     setBills((biRes.status === 'fulfilled' ? biRes.value.data || [] : []).filter(x => x.EstimateID === Number(id)))
     setLoading(false)
+  }
+
+  const fmtSize = (bytes) => {
+    if (!bytes && bytes !== 0) return ''
+    const units = ['B', 'KB', 'MB', 'GB']
+    let i = 0
+    let v = bytes
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++ }
+    return `${v.toFixed(i ? 1 : 0)} ${units[i]}`
+  }
+
+  const viewDoc = async (d) => {
+    try {
+      setOpeningDoc(d.DocumentID)
+      const res = await api.get(`/estimate-documents/${d.DocumentID}/file`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(res.data)
+      window.open(url, '_blank')
+      setOpeningDoc(null)
+    } catch (_) { toast.error('Could not open document'); setOpeningDoc(null) }
+  }
+
+  const downloadDoc = async (d) => {
+    try {
+      const fallback = d.OriginalName || `document_${d.DocumentID}`
+      await downloadExport(`/estimate-documents/${d.DocumentID}/file`, fallback)
+    } catch (_) { toast.error('Could not download document') }
   }
 
   const exportFile = async (format) => {
@@ -656,10 +696,10 @@ export default function EstimateDetail() {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-4">
         <div className="w-12 h-12 rounded-full bg-[#F1F5F9] flex items-center justify-center mb-3">
-          <Info className="w-6 h-6 text-[#64748B]" />
+          <Info className="w-6 h-6 text-[#475569]" />
         </div>
         <p className="text-sm font-medium text-[#0F172A]">{msg}</p>
-        <button type="button" onClick={load} className="mt-4 px-3.5 py-1.5 text-xs font-medium rounded-md bg-[#1E3A5F] text-white hover:bg-[#16304F] transition-colors">
+        <button type="button" onClick={load} className="mt-4 px-3.5 py-1.5 text-xs font-medium rounded-md bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors">
           Retry
         </button>
       </div>
@@ -749,14 +789,14 @@ export default function EstimateDetail() {
     <div className="min-w-0">
       {/* Header */}
       <div className="flex items-start gap-3 mb-5 flex-wrap">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded text-[#64748B] hover:bg-[#F1F5F9] mt-1">
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded text-[#475569] hover:bg-[#F1F5F9] mt-1">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="ec-page-title">{estimate.EstimateNo}</h1>
             <StatusBadge status={estimate.Status} />
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-[#64748B] bg-[#F1F5F9]">v{estimate.Version}</span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-[#475569] bg-[#F1F5F9]">v{estimate.Version}</span>
           </div>
           <p className="ec-page-subtitle">{estimate.NameOfWork}</p>
           <div className="flex items-center flex-wrap gap-1.5 mt-1">
@@ -778,7 +818,7 @@ export default function EstimateDetail() {
         </div>
         <div className="flex items-center gap-2 mt-1">
           <button onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#1E3A5F] bg-[#F1F5F9] rounded-lg hover:bg-[#E2E8F0] transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#2563EB] bg-[#F1F5F9] rounded-lg hover:bg-[#CBD5E1] transition-colors">
             <History className="w-3.5 h-3.5" />
             Audit Trail
           </button>
@@ -789,43 +829,43 @@ export default function EstimateDetail() {
       {showHistory && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowHistory(false)}>
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-[#E2E8F0] px-5 py-3 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-[#CBD5E1] px-5 py-3 flex items-center justify-between">
               <h3 className="font-semibold text-[#0F172A]">Audit Trail</h3>
               <button onClick={() => setShowHistory(false)} className="p-1 rounded hover:bg-[#F1F5F9]">
-                <X className="w-4 h-4 text-[#64748B]" />
+                <X className="w-4 h-4 text-[#475569]" />
               </button>
             </div>
             <div className="p-5 space-y-3">
               {workflow.length === 0 && <p className="text-sm text-[#94A3B8]">No workflow history</p>}
               {[...workflow].sort((a, b) => new Date(b.DateTime) - new Date(a.DateTime) || (b.WorkflowID || 0) - (a.WorkflowID || 0)).map((w, i) => (
-                <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#E2E8F0] last:border-l-0 last:pb-0">
-                  <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#1E3A5F]" />
+                <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#CBD5E1] last:border-l-0 last:pb-0">
+                  <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#2563EB]" />
                   <p className="text-xs font-semibold text-[#0F172A]">
                     {({ Submit: 'Forwarded to DGM', Approve: 'Verified by DGM', DigitallySign: 'Recommended by GM', SubmitForApproval: 'Forwarded to DOP', ApproveAtDOP: 'Approved by DOP', ApproveAtED: 'Approved by ED', FinalApprove: 'Final Approved by MD', PublishTender: 'Tender Published', SelectAgency: 'Agency Selected', StartWork: 'Work Started', CompleteWork: 'Work Completed', SubmitBill: 'Bill Submitted', Archive: 'Archived & Closed', Revert: 'Reverted to Creator' })[w.Action] || w.Action}
                     {w.OTPVerified && <span className="ml-1.5 text-[9px] font-medium text-emerald-600">· OTP ✓</span>}
                   </p>
-                  <p className="text-[10px] text-[#64748B]">
+                  <p className="text-[10px] text-[#475569]">
                     {w.FromUserName} ({w.FromDesignation}) → {w.ToUserName} ({w.ToDesignation})
                   </p>
-                  {w.Remarks && <p className="text-[10px] text-[#64748B] mt-0.5">{w.Remarks}</p>}
+                  {w.Remarks && <p className="text-[10px] text-[#475569] mt-0.5">{w.Remarks}</p>}
                   <p className="text-[9px] text-[#94A3B8] mt-0.5">{new Date(w.DateTime).toLocaleString('en-IN')}</p>
                 </div>
               ))}
             </div>
             {estimate.IsDigitallySigned && (estimate.CertificateID || estimate.SignatureHash) && (
               <>
-                <div className="border-t border-[#E2E8F0] px-5 py-3">
+                <div className="border-t border-[#CBD5E1] px-5 py-3">
                   <h4 className="font-semibold text-[#0F172A] text-sm">Digital Signature (Technical)</h4>
                 </div>
                 <div className="px-5 pb-5 space-y-1.5">
                   {estimate.CertificateID && (
                     <p className="text-xs text-[#475569]">
-                      <span className="font-medium text-[#1E3A5F]">Certificate ID:</span> {estimate.CertificateID}
+                      <span className="font-medium text-[#2563EB]">Certificate ID:</span> {estimate.CertificateID}
                     </p>
                   )}
                   {estimate.SignatureHash && (
                     <p className="text-[10px] text-[#475569] break-all font-mono">
-                      <span className="font-medium text-[#1E3A5F]">Signature Hash:</span> {estimate.SignatureHash}
+                      <span className="font-medium text-[#2563EB]">Signature Hash:</span> {estimate.SignatureHash}
                     </p>
                   )}
                 </div>
@@ -833,21 +873,21 @@ export default function EstimateDetail() {
             )}
             {versions.length > 0 && (
               <>
-                <div className="border-t border-[#E2E8F0] px-5 py-3">
+                <div className="border-t border-[#CBD5E1] px-5 py-3">
                   <h4 className="font-semibold text-[#0F172A] text-sm">Versions</h4>
                 </div>
                 <div className="px-5 pb-5 space-y-3">
                   {versions.map((v, i) => (
                     <div key={v.VersionID || i} className="text-xs">
-                      <div className="text-[#64748B]">
+                      <div className="text-[#475569]">
                         <span className="font-semibold text-[#0F172A]">v{v.VersionNumber}</span> — {v.CreatedByName} · {new Date(v.CreatedDate).toLocaleString('en-IN')}
                         {v.Remarks && <span className="text-[#94A3B8]">: {v.Remarks}</span>}
                       </div>
                       {Array.isArray(v.Changes) && v.Changes.length > 0 && (
-                        <ul className="mt-1.5 space-y-0.5 pl-3 border-l-2 border-[#E2E8F0]">
+                        <ul className="mt-1.5 space-y-0.5 pl-3 border-l-2 border-[#CBD5E1]">
                           {v.Changes.map((c, ci) => (
                             <li key={ci} className="text-[10px] text-[#475569]">
-                              <span className="font-medium text-[#1E3A5F]">{c.field}:</span>{' '}
+                              <span className="font-medium text-[#2563EB]">{c.field}:</span>{' '}
                               {c.oldValue == null ? '—' : typeof c.oldValue === 'object' ? '(changed)' : String(c.oldValue)}
                               {' → '}
                               {c.newValue == null ? '—' : typeof c.newValue === 'object' ? '(changed)' : String(c.newValue)}
@@ -870,6 +910,7 @@ export default function EstimateDetail() {
           status={estimate.Status}
           workflow={workflow}
           showOwner
+          hideInfoStrip
           ownerName={ownerName || estimate.CurrentOwnerName || '—'}
           sla={estimate.SlaDueAt ? { status: estimate.SlaStatus || 'Normal', dueAt: estimate.SlaDueAt } : undefined}
           onStageClick={(stageKey) => setStepKey(getStatusKeyForStage(stageKey) || stageKey)}
@@ -958,7 +999,7 @@ export default function EstimateDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
         <div className="ec-card">
           <div className="ec-card-header">
-            <FileText className="w-4 h-4 text-[#1E3A5F]" />
+            <FileText className="w-4 h-4 text-[#2563EB]" />
             <span className="ec-card-title">Estimate Information</span>
           </div>
           <div className="ec-card-body">
@@ -976,13 +1017,13 @@ export default function EstimateDetail() {
                 ['Submitted Date', fmtDate(estimate.SubmissionDate)],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-start justify-between gap-2">
-                  <span className="text-[#64748B]">{k}</span>
+                  <span className="text-[#475569]">{k}</span>
                   <span className="font-medium text-[#0F172A] text-right">{v || '—'}</span>
                 </div>
               ))}
               {[estimate.RegionName, estimate.ZoneName, estimate.DivisionName, estimate.CircleName, estimate.WardName].some(Boolean) && (
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-[#64748B]">Location</span>
+                  <span className="text-[#475569]">Location</span>
                   <span className="font-medium text-[#0F172A] text-right">
                     {[estimate.RegionName, estimate.ZoneName, estimate.DivisionName, estimate.CircleName, estimate.WardName].filter(Boolean).join(' → ')}
                   </span>
@@ -994,7 +1035,7 @@ export default function EstimateDetail() {
 
         <div className="ec-card">
           <div className="ec-card-header">
-            <FileSpreadsheet className="w-4 h-4 text-[#1E3A5F]" />
+            <FileSpreadsheet className="w-4 h-4 text-[#2563EB]" />
             <span className="ec-card-title">Financial Summary</span>
           </div>
           <div className="ec-card-body">
@@ -1010,17 +1051,17 @@ export default function EstimateDetail() {
                     ['LS Provision (Part-III)', a.LSProvision],
                   ].map(([k, v]) => (
                     <div key={k} className="flex items-center justify-between gap-2">
-                      <span className="text-[#64748B]">{k}</span>
+                      <span className="text-[#475569]">{k}</span>
                       <span className="font-medium text-[#0F172A]">{fmt(v)}</span>
                     </div>
                   ))}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#E2E8F0]">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#CBD5E1]">
                     <span className="font-bold text-[#0F172A]">Total Estimate Value</span>
-                    <span className="font-bold text-[#1E3A5F]">{fmt(a.GrandTotal)}</span>
+                    <span className="font-bold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
                   </div>
                   {a.GrandTotalInWords && (
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-[#64748B]">Amount in Words</span>
+                      <span className="text-[#475569]">Amount in Words</span>
                       <span className="font-medium text-[#0F172A] text-right">{a.GrandTotalInWords}</span>
                     </div>
                   )}
@@ -1034,60 +1075,60 @@ export default function EstimateDetail() {
 
         <div className="ec-card">
           <div className="ec-card-header">
-            <Users className="w-4 h-4 text-[#1E3A5F]" />
+            <Users className="w-4 h-4 text-[#2563EB]" />
             <span className="ec-card-title">Current Status</span>
           </div>
           <div className="ec-card-body">
             <div className="space-y-2.5 text-xs">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Current Status</span>
+                <span className="text-[#475569]">Current Status</span>
                 <span className="flex items-center gap-1.5">
                   <StatusBadge status={estimate.Status} />
                   <span className="font-medium text-[#0F172A]">{getStatusLabel(estimate.Status)}</span>
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Current Owner</span>
+                <span className="text-[#475569]">Current Owner</span>
                 <span className="font-medium text-[#0F172A] text-right">
                   {currentOwnerLabel}
                   {isCurrentUserOwner && <span className="text-[#94A3B8]"> (You)</span>}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Next Stage</span>
+                <span className="text-[#475569]">Next Stage</span>
                 <span className="font-medium text-[#0EA5E9] text-right">{getNextStage(estimate.Status)?.stageLabel || '—'}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Next Role</span>
+                <span className="text-[#475569]">Next Role</span>
                 <span className="font-medium text-[#0F172A] text-right">{STATUS_INFO[estimate.Status]?.role || getNextStage(estimate.Status)?.owner || '—'}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">SLA</span>
+                <span className="text-[#475569]">SLA</span>
                 <span className={`font-medium text-right ${estSla.tone === 'danger' ? 'text-red-600' : estSla.tone === 'warn' ? 'text-amber-600' : 'text-green-600'}`}>
                   {estSla.label !== '—' ? estSla.label : '—'}
                 </span>
               </div>
               {slaDetail && (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#64748B]">Time Remaining</span>
+                  <span className="text-[#475569]">Time Remaining</span>
                   <span className={`font-medium text-right ${slaDetail.tone === 'danger' ? 'text-red-600' : slaDetail.tone === 'warn' ? 'text-amber-600' : 'text-green-600'}`}>
                     {slaDetail.text}
                   </span>
                 </div>
               )}
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Last Updated</span>
+                <span className="text-[#475569]">Last Updated</span>
                 <span className="font-medium text-[#0F172A] text-right">{fmtDateTime(estimate.LastModifiedDate)}</span>
               </div>
               {(estimate.ActionTakenReport || estimate.ReturnRemarks) && (
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-[#64748B]">Remarks</span>
+                  <span className="text-[#475569]">Remarks</span>
                   <span className="font-medium text-[#0F172A] text-right">{estimate.ActionTakenReport || estimate.ReturnRemarks}</span>
                 </div>
               )}
               {estimate.Agency && (
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-[#64748B]">Agency</span>
+                  <span className="text-[#475569]">Agency</span>
                   <span className="font-medium text-[#0F172A] text-right">{estimate.Agency.AgencyName}</span>
                 </div>
               )}
@@ -1099,7 +1140,7 @@ export default function EstimateDetail() {
       {/* Tabs + Right-side Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2">
-          <div className="flex gap-0.5 border-b border-[#E2E8F0] mb-5 overflow-x-auto" role="tablist">
+          <div className="flex gap-0.5 border-b border-[#CBD5E1] mb-5 overflow-x-auto" role="tablist">
             {visibleTabs.map(t => (
               <button
                 key={t.key}
@@ -1107,7 +1148,7 @@ export default function EstimateDetail() {
                 role="tab"
                 aria-selected={activeShown.key === t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${activeShown.key === t.key ? 'text-[#1E3A5F] border-[#1E3A5F]' : 'text-[#64748B] border-transparent hover:text-[#334155]'}`}
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${activeShown.key === t.key ? 'text-[#2563EB] border-[#2563EB]' : 'text-[#475569] border-transparent hover:text-[#334155]'}`}
               >
                 <t.icon className="w-3.5 h-3.5" /> {t.label}
               </button>
@@ -1117,7 +1158,7 @@ export default function EstimateDetail() {
           {activeShown.key === 'civil' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <ClipboardList className="w-4 h-4 text-[#1E3A5F]" />
+                <ClipboardList className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Civil Items</span>
               </div>
               <div className="overflow-x-auto">
@@ -1150,7 +1191,7 @@ export default function EstimateDetail() {
           {activeShown.key === 'material' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <ClipboardList className="w-4 h-4 text-[#1E3A5F]" />
+                <ClipboardList className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Material Items</span>
               </div>
               <div className="overflow-x-auto">
@@ -1183,47 +1224,47 @@ export default function EstimateDetail() {
           {activeShown.key === 'abstract' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <FileSpreadsheet className="w-4 h-4 text-[#1E3A5F]" />
+                <FileSpreadsheet className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Abstract of Estimate</span>
               </div>
               <div className="ec-card-body">
                 <div className="max-w-md mx-auto space-y-2 text-xs">
-                  <div className="flex justify-between py-1.5 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Civil Work Total</span>
+                  <div className="flex justify-between py-1.5 border-b border-[#CBD5E1]">
+                    <span className="text-[#475569]">Civil Work Total</span>
                     <span className="font-medium">{fmt(a.CivilTotal)}</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Material Total</span>
+                  <div className="flex justify-between py-1.5 border-b border-[#CBD5E1]">
+                    <span className="text-[#475569]">Material Total</span>
                     <span className="font-medium">{fmt(a.MaterialTotal)}</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Cost of Estimate (Part-I)</span>
+                  <div className="flex justify-between py-1.5 border-b border-[#CBD5E1]">
+                    <span className="text-[#475569]">Cost of Estimate (Part-I)</span>
                     <span className="font-medium">{fmt(a.CostOfEstimate)}</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">GST @ {estimate.GSTPercent}% (Part-II)</span>
+                  <div className="flex justify-between py-1.5 border-b border-[#CBD5E1]">
+                    <span className="text-[#475569]">GST @ {estimate.GSTPercent}% (Part-II)</span>
                     <span className="font-medium">{fmt(a.GST)}</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Additional Items (Part-II)</span>
+                  <div className="flex justify-between py-1.5 border-b border-[#CBD5E1]">
+                    <span className="text-[#475569]">Additional Items (Part-II)</span>
                     <span className="font-medium">{fmt(a.AdditionalItemsTotal)}</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">LS Provision (Part-III)</span>
+                  <div className="flex justify-between py-1.5 border-b border-[#CBD5E1]">
+                    <span className="text-[#475569]">LS Provision (Part-III)</span>
                     <span className="font-medium">{fmt(a.LSProvision)}</span>
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="font-bold text-[#0F172A]">Grand Total</span>
-                    <span className="font-bold text-[#1E3A5F]">{fmt(a.GrandTotal)}</span>
+                    <span className="font-bold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
                   </div>
                   {a.GrandTotalInWords && (
-                    <div className="flex justify-between py-1.5 border-t border-[#E2E8F0]">
-                      <span className="text-[#64748B]">Amount in Words</span>
+                    <div className="flex justify-between py-1.5 border-t border-[#CBD5E1]">
+                      <span className="text-[#475569]">Amount in Words</span>
                       <span className="font-medium text-right max-w-[60%]">{a.GrandTotalInWords}</span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#E2E8F0]">
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#CBD5E1]">
                   <Link to={`/abstract/${id}`} className="ec-btn-outline ec-btn-sm">
                     <FileSpreadsheet className="w-3.5 h-3.5" /> Full Abstract
                   </Link>
@@ -1235,7 +1276,7 @@ export default function EstimateDetail() {
           {activeShown.key === 'documents' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <Download className="w-4 h-4 text-[#1E3A5F]" />
+                <Download className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Documents & Exports</span>
               </div>
               <div className="ec-card-body space-y-2">
@@ -1252,16 +1293,46 @@ export default function EstimateDetail() {
                   {exporting === 'excel' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
                   Download Complete Excel
                 </button>
+                {docsLoading ? (
+                  <div className="pt-1 flex items-center justify-center py-1 text-xs text-[#94A3B8]">
+                    <Loader className="w-3.5 h-3.5 animate-spin mr-2" /> Loading documents...
+                  </div>
+                ) : docs.length === 0 ? (
+                  <p className="pt-1 text-xs text-[#94A3B8]">No documents uploaded for this estimate yet.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-medium text-[#475569] flex items-center gap-1.5">
+                      <FileText className="w-3 h-3" /> Uploaded documents ({docs.length})
+                    </p>
+                    {docs.map(d => (
+                      <div key={d.DocumentID} className="flex items-center justify-between gap-2 rounded-md border border-[#CBD5E1] px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-[#0F172A] truncate">{d.OriginalName}</p>
+                          <p className="text-[10px] text-[#94A3B8]">{d.MimeType || 'document'} · {fmtSize(d.SizeBytes)} · {new Date(d.CreatedAt).toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button type="button" onClick={() => viewDoc(d)} disabled={openingDoc === d.DocumentID}
+                            className="px-1.5 py-1 text-[10px] font-medium text-[#2563EB] hover:bg-[#E8EEF7] rounded flex items-center gap-1">
+                            {openingDoc === d.DocumentID ? <Loader className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />} View
+                          </button>
+                          <button type="button" onClick={() => downloadDoc(d)} className="px-1.5 py-1 text-[10px] font-medium text-[#2563EB] hover:bg-[#E8EEF7] rounded flex items-center gap-1">
+                            <Download className="w-3 h-3" /> Download
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {estimate.IsDigitallySigned && (estimate.CertificateID || estimate.SignatureHash) && (
-                  <div className="pt-3 border-t border-[#E2E8F0] space-y-1.5">
+                  <div className="pt-3 border-t border-[#CBD5E1] space-y-1.5">
                     {estimate.CertificateID && (
                       <p className="text-xs text-[#475569]">
-                        <span className="font-medium text-[#1E3A5F]">Certificate ID:</span> {estimate.CertificateID}
+                        <span className="font-medium text-[#2563EB]">Certificate ID:</span> {estimate.CertificateID}
                       </p>
                     )}
                     {estimate.SignatureHash && (
                       <p className="text-[10px] text-[#475569] break-all font-mono">
-                        <span className="font-medium text-[#1E3A5F]">Signature Hash:</span> {estimate.SignatureHash}
+                        <span className="font-medium text-[#2563EB]">Signature Hash:</span> {estimate.SignatureHash}
                       </p>
                     )}
                   </div>
@@ -1273,7 +1344,7 @@ export default function EstimateDetail() {
           {activeShown.key === 'approvals' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <ShieldCheck className="w-4 h-4 text-[#1E3A5F]" />
+                <ShieldCheck className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Approval Information</span>
               </div>
               <div className="ec-card-body">
@@ -1287,7 +1358,7 @@ export default function EstimateDetail() {
                     ['Certificate ID', estimate.CertificateID || '—'],
                   ].map(([k, v]) => (
                     <div key={k}>
-                      <p className="text-[10px] font-medium text-[#64748B]">{k}</p>
+                      <p className="text-[10px] font-medium text-[#475569]">{k}</p>
                       <p className="text-sm font-medium text-[#0F172A]">{v || '-'}</p>
                     </div>
                   ))}
@@ -1299,20 +1370,20 @@ export default function EstimateDetail() {
           {activeShown.key === 'history' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <History className="w-4 h-4 text-[#1E3A5F]" />
+                <History className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Workflow History</span>
               </div>
               <div className="ec-card-body max-h-[480px] overflow-y-auto">
                 {workflow.length === 0 && <p className="text-sm text-[#94A3B8]">No workflow history</p>}
                 {[...workflow].sort((x, y) => new Date(y.DateTime) - new Date(x.DateTime)).map((w, i) => (
-                  <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#E2E8F0] last:border-l-0 last:pb-0">
-                    <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#1E3A5F]" />
+                  <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#CBD5E1] last:border-l-0 last:pb-0">
+                    <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#2563EB]" />
                     <p className="text-xs font-semibold text-[#0F172A]">
                       {({ Submit: 'Forwarded to DGM', Approve: 'Verified by DGM', DigitallySign: 'Recommended by GM', SubmitForApproval: 'Forwarded to DOP', ApproveAtDOP: 'Approved by DOP', ApproveAtED: 'Approved by ED', FinalApprove: 'Final Approved by MD', PublishTender: 'Tender Published', SelectAgency: 'Agency Selected', StartWork: 'Work Started', CompleteWork: 'Work Completed', SubmitBill: 'Bill Submitted', Archive: 'Archived & Closed', Revert: 'Reverted to Creator' })[w.Action] || w.Action}
                       {w.OTPVerified && <span className="ml-1.5 text-[9px] font-medium text-emerald-600">· OTP ✓</span>}
                     </p>
-                    <p className="text-[10px] text-[#64748B]">{w.FromUserName} ({w.FromDesignation}) → {w.ToUserName} ({w.ToDesignation})</p>
-                    {w.Remarks && <p className="text-[10px] text-[#64748B] mt-0.5">{w.Remarks}</p>}
+                    <p className="text-[10px] text-[#475569]">{w.FromUserName} ({w.FromDesignation}) → {w.ToUserName} ({w.ToDesignation})</p>
+                    {w.Remarks && <p className="text-[10px] text-[#475569] mt-0.5">{w.Remarks}</p>}
                     <p className="text-[9px] text-[#94A3B8] mt-0.5">{new Date(w.DateTime).toLocaleString('en-IN')}</p>
                   </div>
                 ))}
@@ -1323,37 +1394,37 @@ export default function EstimateDetail() {
           {activeShown.key === 'audit' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <History className="w-4 h-4 text-[#1E3A5F]" />
+                <History className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Audit Trail</span>
               </div>
               <div className="ec-card-body max-h-[480px] overflow-y-auto">
                 {workflow.length === 0 && <p className="text-sm text-[#94A3B8]">No workflow history</p>}
                 {[...workflow].sort((x, y) => new Date(y.DateTime) - new Date(x.DateTime)).map((w, i) => (
-                  <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#E2E8F0] last:border-l-0 last:pb-0">
-                    <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#1E3A5F]" />
+                  <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#CBD5E1] last:border-l-0 last:pb-0">
+                    <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-[#2563EB]" />
                     <p className="text-xs font-semibold text-[#0F172A]">
                       {({ Submit: 'Forwarded to DGM', Approve: 'Verified by DGM', DigitallySign: 'Recommended by GM', SubmitForApproval: 'Forwarded to DOP', ApproveAtDOP: 'Approved by DOP', ApproveAtED: 'Approved by ED', FinalApprove: 'Final Approved by MD', PublishTender: 'Tender Published', SelectAgency: 'Agency Selected', StartWork: 'Work Started', CompleteWork: 'Work Completed', SubmitBill: 'Bill Submitted', Archive: 'Archived & Closed', Revert: 'Reverted to Creator' })[w.Action] || w.Action}
                       {w.OTPVerified && <span className="ml-1.5 text-[9px] font-medium text-emerald-600">· OTP ✓</span>}
                     </p>
-                    <p className="text-[10px] text-[#64748B]">{w.FromUserName} ({w.FromDesignation}) → {w.ToUserName} ({w.ToDesignation})</p>
-                    {w.Remarks && <p className="text-[10px] text-[#64748B] mt-0.5">{w.Remarks}</p>}
+                    <p className="text-[10px] text-[#475569]">{w.FromUserName} ({w.FromDesignation}) → {w.ToUserName} ({w.ToDesignation})</p>
+                    {w.Remarks && <p className="text-[10px] text-[#475569] mt-0.5">{w.Remarks}</p>}
                     <p className="text-[9px] text-[#94A3B8] mt-0.5">{new Date(w.DateTime).toLocaleString('en-IN')}</p>
                   </div>
                 ))}
                 {versions.length > 0 && (
-                  <div className="mt-5 pt-4 border-t border-[#E2E8F0] space-y-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#1E3A5F]">Versions</p>
+                  <div className="mt-5 pt-4 border-t border-[#CBD5E1] space-y-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#2563EB]">Versions</p>
                     {versions.map((v, i) => (
                       <div key={v.VersionID || i} className="text-xs">
-                        <div className="text-[#64748B]">
+                        <div className="text-[#475569]">
                           <span className="font-semibold text-[#0F172A]">v{v.VersionNumber}</span> — {v.CreatedByName} · {new Date(v.CreatedDate).toLocaleString('en-IN')}
                           {v.Remarks && <span className="text-[#94A3B8]">: {v.Remarks}</span>}
                         </div>
                         {Array.isArray(v.Changes) && v.Changes.length > 0 && (
-                          <ul className="mt-1.5 space-y-0.5 pl-3 border-l-2 border-[#E2E8F0]">
+                          <ul className="mt-1.5 space-y-0.5 pl-3 border-l-2 border-[#CBD5E1]">
                             {v.Changes.map((c, ci) => (
                               <li key={ci} className="text-[10px] text-[#475569]">
-                                <span className="font-medium text-[#1E3A5F]">{c.field}:</span>{' '}
+                                <span className="font-medium text-[#2563EB]">{c.field}:</span>{' '}
                                 {c.oldValue == null ? '—' : typeof c.oldValue === 'object' ? '(changed)' : String(c.oldValue)}
                                 {' → '}
                                 {c.newValue == null ? '—' : typeof c.newValue === 'object' ? '(changed)' : String(c.newValue)}
@@ -1372,7 +1443,7 @@ export default function EstimateDetail() {
           {activeShown.key === 'related' && (
             <div className="ec-card">
               <div className="ec-card-header">
-                <Briefcase className="w-4 h-4 text-[#1E3A5F]" />
+                <Briefcase className="w-4 h-4 text-[#2563EB]" />
                 <span className="ec-card-title">Related Works</span>
               </div>
               <div className="ec-card-body space-y-2">
@@ -1410,7 +1481,7 @@ export default function EstimateDetail() {
         return (
           <div className="fixed inset-0 bg-black/30 z-50" onClick={() => setStepKey(null)}>
             <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="sticky top-0 bg-[#1E3A5F] px-5 py-4 flex items-center justify-between">
+              <div className="sticky top-0 bg-[#2563EB] px-5 py-4 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-[#BFDBFE]">Workflow Stage</p>
                   <h3 className="font-semibold text-white">{STEP_LABELS[stepKey] || getStatusLabel(stepKey)}</h3>
@@ -1421,32 +1492,32 @@ export default function EstimateDetail() {
               </div>
               <div className="p-5 space-y-4">
                 {isActive && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-semibold text-[#1E3A5F]">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-semibold text-[#2563EB]">
                     <Info className="w-3.5 h-3.5" /> Current Stage — {STATUS_INFO[stepKey]?.waiting}
                   </div>
                 )}
 
                 {stepKey === 'Draft' && (
-                  <div className="rounded-lg border border-[#E2E8F0]">
-                    <p className="px-3 py-2 text-xs font-semibold text-[#1E3A5F] border-b border-[#E2E8F0] bg-[#F8FAFC]">Estimate Creation</p>
+                  <div className="rounded-lg border border-[#CBD5E1]">
+                    <p className="px-3 py-2 text-xs font-semibold text-[#2563EB] border-b border-[#CBD5E1] bg-[#F8FAFC]">Estimate Creation</p>
                     <div className="p-3 space-y-1.5 text-xs">
-                      <p><span className="text-[#64748B]">Created by:</span> <span className="font-medium text-[#0F172A]">{estimate.CreatedByName || user.Name}</span></p>
-                      <p><span className="text-[#64748B]">Created on:</span> <span className="font-medium text-[#0F172A]">{fmtDateTime(estimate.CreatedDate)}</span></p>
-                      <p><span className="text-[#64748B]">Estimate no:</span> <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span></p>
+                      <p><span className="text-[#475569]">Created by:</span> <span className="font-medium text-[#0F172A]">{estimate.CreatedByName || user.Name}</span></p>
+                      <p><span className="text-[#475569]">Created on:</span> <span className="font-medium text-[#0F172A]">{fmtDateTime(estimate.CreatedDate)}</span></p>
+                      <p><span className="text-[#475569]">Estimate no:</span> <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span></p>
                     </div>
                   </div>
                 )}
 
                 {entry && (
-                  <div className="rounded-lg border border-[#E2E8F0]">
-                    <p className="px-3 py-2 text-xs font-semibold text-[#1E3A5F] border-b border-[#E2E8F0] bg-[#F8FAFC]">Approval Details</p>
+                  <div className="rounded-lg border border-[#CBD5E1]">
+                    <p className="px-3 py-2 text-xs font-semibold text-[#2563EB] border-b border-[#CBD5E1] bg-[#F8FAFC]">Approval Details</p>
                     <div className="p-3 space-y-1.5 text-xs">
-                      <p><span className="text-[#64748B]">Performed by:</span> <span className="font-medium text-[#0F172A]">{entry.FromUserName} ({entry.FromDesignation})</span></p>
-                      <p><span className="text-[#64748B]">Forwarded to:</span> <span className="font-medium text-[#0F172A]">{entry.ToUserName} ({entry.ToDesignation})</span></p>
-                      <p><span className="text-[#64748B]">Date & time:</span> <span className="font-medium text-[#0F172A]">{fmtDateTime(entry.DateTime)}</span></p>
-                      {entry.Version != null && <p><span className="text-[#64748B]">Version:</span> <span className="font-medium text-[#0F172A]">v{entry.Version}</span></p>}
-                      {entry.OTPVerified && <p><span className="text-[#64748B]">OTP verification:</span> <span className="font-medium text-emerald-700">Verified</span></p>}
-                      {entry.Remarks && <p><span className="text-[#64748B]">Remarks:</span> <span className="font-medium text-[#0F172A]">{entry.Remarks}</span></p>}
+                      <p><span className="text-[#475569]">Performed by:</span> <span className="font-medium text-[#0F172A]">{entry.FromUserName} ({entry.FromDesignation})</span></p>
+                      <p><span className="text-[#475569]">Forwarded to:</span> <span className="font-medium text-[#0F172A]">{entry.ToUserName} ({entry.ToDesignation})</span></p>
+                      <p><span className="text-[#475569]">Date & time:</span> <span className="font-medium text-[#0F172A]">{fmtDateTime(entry.DateTime)}</span></p>
+                      {entry.Version != null && <p><span className="text-[#475569]">Version:</span> <span className="font-medium text-[#0F172A]">v{entry.Version}</span></p>}
+                      {entry.OTPVerified && <p><span className="text-[#475569]">OTP verification:</span> <span className="font-medium text-emerald-700">Verified</span></p>}
+                      {entry.Remarks && <p><span className="text-[#475569]">Remarks:</span> <span className="font-medium text-[#0F172A]">{entry.Remarks}</span></p>}
                     </div>
                   </div>
                 )}
@@ -1462,15 +1533,15 @@ export default function EstimateDetail() {
                 )}
 
                 {stepKey === 'TenderPublished' && tenders.length > 0 && (
-                  <div className="rounded-lg border border-[#E2E8F0]">
-                    <p className="px-3 py-2 text-xs font-semibold text-[#1E3A5F] border-b border-[#E2E8F0] bg-[#F8FAFC]">Tender</p>
+                  <div className="rounded-lg border border-[#CBD5E1]">
+                    <p className="px-3 py-2 text-xs font-semibold text-[#2563EB] border-b border-[#CBD5E1] bg-[#F8FAFC]">Tender</p>
                     <div className="p-3 space-y-2">
                       {tenders.map(t => (
-                        <div key={t.TenderID} className="rounded border border-[#E2E8F0] p-2.5 space-y-1 text-xs">
+                        <div key={t.TenderID} className="rounded border border-[#CBD5E1] p-2.5 space-y-1 text-xs">
                           <p className="font-semibold text-[#0F172A]">{t.TenderNo || `Tender #${t.TenderID}`}</p>
-                          <p><span className="text-[#64748B]">Tender date:</span> {fmtDate(t.TenderDate)}</p>
-                          {t.EstimatedCost != null && <p><span className="text-[#64748B]">Estimated cost:</span> {fmt(t.EstimatedCost)}</p>}
-                          <p><span className="text-[#64748B]">Status:</span> <span className="font-medium">{t.Status}</span></p>
+                          <p><span className="text-[#475569]">Tender date:</span> {fmtDate(t.TenderDate)}</p>
+                          {t.EstimatedCost != null && <p><span className="text-[#475569]">Estimated cost:</span> {fmt(t.EstimatedCost)}</p>}
+                          <p><span className="text-[#475569]">Status:</span> <span className="font-medium">{t.Status}</span></p>
                         </div>
                       ))}
                     </div>
@@ -1478,18 +1549,18 @@ export default function EstimateDetail() {
                 )}
 
                 {stepKey === 'AgencySelected' && agencies.length > 0 && (
-                  <div className="rounded-lg border border-[#E2E8F0]">
-                    <p className="px-3 py-2 text-xs font-semibold text-[#1E3A5F] border-b border-[#E2E8F0] bg-[#F8FAFC]">Agency</p>
+                  <div className="rounded-lg border border-[#CBD5E1]">
+                    <p className="px-3 py-2 text-xs font-semibold text-[#2563EB] border-b border-[#CBD5E1] bg-[#F8FAFC]">Agency</p>
                     <div className="p-3 space-y-2">
                       {agencies.map(a => (
-                        <div key={a.AgencyID} className="rounded border border-[#E2E8F0] p-2.5 space-y-1 text-xs">
+                        <div key={a.AgencyID} className="rounded border border-[#CBD5E1] p-2.5 space-y-1 text-xs">
                           <p className="font-semibold text-[#0F172A]">{a.AgencyName}</p>
-                          {a.AgencyCode && <p><span className="text-[#64748B]">Code:</span> {a.AgencyCode}</p>}
-                          {tenders[0]?.WorkOrderNo && <p><span className="text-[#64748B]">Work order:</span> {tenders[0].WorkOrderNo}</p>}
-                          {tenders[0]?.AgreementNo && <p><span className="text-[#64748B]">Agreement:</span> {tenders[0].AgreementNo}</p>}
-                          {a.ContractorName && <p><span className="text-[#64748B]">Contractor:</span> {a.ContractorName}</p>}
-                          {a.TenderValue != null && <p><span className="text-[#64748B]">Tender value:</span> {fmt(a.TenderValue)}</p>}
-                          {a.AgreementDate && <p><span className="text-[#64748B]">Award date:</span> {fmtDate(a.AgreementDate)}</p>}
+                          {a.AgencyCode && <p><span className="text-[#475569]">Code:</span> {a.AgencyCode}</p>}
+                          {tenders[0]?.WorkOrderNo && <p><span className="text-[#475569]">Work order:</span> {tenders[0].WorkOrderNo}</p>}
+                          {tenders[0]?.AgreementNo && <p><span className="text-[#475569]">Agreement:</span> {tenders[0].AgreementNo}</p>}
+                          {a.ContractorName && <p><span className="text-[#475569]">Contractor:</span> {a.ContractorName}</p>}
+                          {a.TenderValue != null && <p><span className="text-[#475569]">Tender value:</span> {fmt(a.TenderValue)}</p>}
+                          {a.AgreementDate && <p><span className="text-[#475569]">Award date:</span> {fmtDate(a.AgreementDate)}</p>}
                         </div>
                       ))}
                     </div>
@@ -1497,27 +1568,27 @@ export default function EstimateDetail() {
                 )}
 
                 {['WorkStarted', 'WorkCompleted'].includes(stepKey) && (estimate.StartedDate || progressList.length > 0) && (
-                  <div className="rounded-lg border border-[#E2E8F0]">
-                    <p className="px-3 py-2 text-xs font-semibold text-[#1E3A5F] border-b border-[#E2E8F0] bg-[#F8FAFC]">Work Progress</p>
+                  <div className="rounded-lg border border-[#CBD5E1]">
+                    <p className="px-3 py-2 text-xs font-semibold text-[#2563EB] border-b border-[#CBD5E1] bg-[#F8FAFC]">Work Progress</p>
                     <div className="p-3 space-y-2">
                       {estimate.StartedDate && (
-                        <div className="rounded border border-[#E2E8F0] p-2.5 text-xs">
-                          <p><span className="text-[#64748B]">Work started on:</span> <span className="font-medium">{fmtDateTime(estimate.StartedDate)}</span></p>
-                          {estimate.StartedByName && <p><span className="text-[#64748B]">Started by:</span> <span className="font-medium">{estimate.StartedByName}</span></p>}
+                        <div className="rounded border border-[#CBD5E1] p-2.5 text-xs">
+                          <p><span className="text-[#475569]">Work started on:</span> <span className="font-medium">{fmtDateTime(estimate.StartedDate)}</span></p>
+                          {estimate.StartedByName && <p><span className="text-[#475569]">Started by:</span> <span className="font-medium">{estimate.StartedByName}</span></p>}
                         </div>
                       )}
                       {progressList.map(p => (
-                        <div key={p.ProgressID} className="rounded border border-[#E2E8F0] p-2.5 space-y-1 text-xs">
+                        <div key={p.ProgressID} className="rounded border border-[#CBD5E1] p-2.5 space-y-1 text-xs">
                           <div className="flex items-center justify-between">
                             <p className="font-semibold text-[#0F172A]">{p.Stage || `Progress ${p.ProgressID}`}</p>
                             {p.Percentage != null && (
-                              <span className="px-1.5 py-0.5 rounded bg-[#1E3A5F]/10 text-[#1E3A5F] font-semibold text-[10px]">{p.Percentage}%</span>
+                              <span className="px-1.5 py-0.5 rounded bg-[#2563EB]/10 text-[#2563EB] font-semibold text-[10px]">{p.Percentage}%</span>
                             )}
                           </div>
-                          {p.Date && <p><span className="text-[#64748B]">Date:</span> {fmtDate(p.Date)}</p>}
+                          {p.Date && <p><span className="text-[#475569]">Date:</span> {fmtDate(p.Date)}</p>}
                           {p.Remarks && <p className="text-[#475569]">{p.Remarks}</p>}
-                          {p.InspectionNotes && <p><span className="text-[#64748B]">Inspection:</span> {p.InspectionNotes}</p>}
-                          {p.DelayReason && <p><span className="text-[#64748B]">Delay reason:</span> {p.DelayReason}</p>}
+                          {p.InspectionNotes && <p><span className="text-[#475569]">Inspection:</span> {p.InspectionNotes}</p>}
+                          {p.DelayReason && <p><span className="text-[#475569]">Delay reason:</span> {p.DelayReason}</p>}
                         </div>
                       ))}
                     </div>
@@ -1525,18 +1596,18 @@ export default function EstimateDetail() {
                 )}
 
                 {stepKey === 'Billing' && bills.length > 0 && (
-                  <div className="rounded-lg border border-[#E2E8F0]">
-                    <p className="px-3 py-2 text-xs font-semibold text-[#1E3A5F] border-b border-[#E2E8F0] bg-[#F8FAFC]">Bills</p>
+                  <div className="rounded-lg border border-[#CBD5E1]">
+                    <p className="px-3 py-2 text-xs font-semibold text-[#2563EB] border-b border-[#CBD5E1] bg-[#F8FAFC]">Bills</p>
                     <div className="p-3 space-y-2">
                       {bills.map(b => (
-                        <div key={b.BillID} className="rounded border border-[#E2E8F0] p-2.5 space-y-1 text-xs">
+                        <div key={b.BillID} className="rounded border border-[#CBD5E1] p-2.5 space-y-1 text-xs">
                           <div className="flex items-center justify-between">
                             <p className="font-semibold text-[#0F172A]">{b.BillNo || `Bill #${b.BillID}`}</p>
-                            <span className="px-1.5 py-0.5 rounded bg-[#F8FAFC] border border-[#E2E8F0] text-[10px] font-medium">{b.Status}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-[#F8FAFC] border border-[#CBD5E1] text-[10px] font-medium">{b.Status}</span>
                           </div>
-                          {b.BillDate && <p><span className="text-[#64748B]">Bill date:</span> {fmtDate(b.BillDate)}</p>}
-                          {b.NetAmount != null && <p><span className="text-[#64748B]">Net amount:</span> {fmt(b.NetAmount)}</p>}
-                          {b.ApprovedAmount != null && b.ApprovedAmount != 0 && <p><span className="text-[#64748B]">Approved amount:</span> {fmt(b.ApprovedAmount)}</p>}
+                          {b.BillDate && <p><span className="text-[#475569]">Bill date:</span> {fmtDate(b.BillDate)}</p>}
+                          {b.NetAmount != null && <p><span className="text-[#475569]">Net amount:</span> {fmt(b.NetAmount)}</p>}
+                          {b.ApprovedAmount != null && b.ApprovedAmount != 0 && <p><span className="text-[#475569]">Approved amount:</span> {fmt(b.ApprovedAmount)}</p>}
                         </div>
                       ))}
                     </div>
@@ -1568,7 +1639,7 @@ export default function EstimateDetail() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => { setShowConfirm(false); setAction('') }}>
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="font-semibold text-[#0F172A] mb-2">Confirm {action.replace('-', ' ')}</h3>
-            <p className="text-xs text-[#64748B] mb-4">
+            <p className="text-xs text-[#475569] mb-4">
               {action === 'generate-fcn' ? 'The FCN number will be generated automatically from the system sequence. The estimate stays with the Director of Administration for Administrative Sanction.'
                 : action === 'generate-admin-sanction' ? 'Enter the Administrative Sanction number. The estimate is then ready for Technical Sanction assignment.'
                 : action === 'assign-ts-authority' ? 'Choose ONE competent technical authority for this estimate. They alone will approve the Technical Sanction.'
@@ -1628,7 +1699,7 @@ export default function EstimateDetail() {
 
             {!otpSent && !verified ? (
               <>
-                <p className="text-xs text-[#64748B] mb-4">
+                <p className="text-xs text-[#475569] mb-4">
                   This is the final authorization step. Apply your digital signature and an OTP will be
                   sent to your registered email to complete verification.
                 </p>
@@ -1642,17 +1713,17 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#64748B]">Forwarding estimate to the Tender Officer...</p>
+                <p className="text-xs text-[#475569]">Forwarding estimate to the Tender Officer...</p>
               </div>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">Digital Signature Completed</p>
-                <p className="text-xs text-[#64748B] mb-1">
+                <p className="text-xs text-[#475569] mb-1">
                   An OTP has been sent to {otpSentTo ? (
                     <span className="font-medium text-[#0F172A]">{maskEmail(otpSentTo)}</span>
                   ) : 'your email'}.
                 </p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
 
                 <label htmlFor="certificateId" className="ec-label">Certificate ID</label>
                 <input id="certificateId" type="text" value={certificateId}
@@ -1667,7 +1738,7 @@ export default function EstimateDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendOtp} disabled={sendingOtp || resendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingOtp ? 'Sending...' : resendIn > 0 ? `Resend OTP (${resendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>
@@ -1697,7 +1768,7 @@ export default function EstimateDetail() {
 
             {!submitOtpSent && !submitVerified ? (
               <>
-                <p className="text-xs text-[#64748B] mb-4">
+                <p className="text-xs text-[#475569] mb-4">
                   An OTP will be sent to your registered email to verify this submission.
                   The estimate will be forwarded to the DGM for review.
                 </p>
@@ -1716,21 +1787,21 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#64748B]">Submitting estimate to DGM...</p>
+                <p className="text-xs text-[#475569]">Submitting estimate to DGM...</p>
               </div>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">
+                <p className="text-xs text-[#475569] mb-1">
                   An OTP has been sent to {submitOtpSentTo ? (
                     <span className="font-medium text-[#0F172A]">{maskEmail(submitOtpSentTo)}</span>
                   ) : 'your email'}.
                 </p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
 
                 {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <p className="text-[10px] font-medium text-[#64748B]">Remarks</p>
+                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
                     <p className="text-xs text-[#0F172A]">{remarks}</p>
                   </div>
                 )}
@@ -1743,7 +1814,7 @@ export default function EstimateDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendSubmitOtp} disabled={sendingSubmitOtp || submitResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingSubmitOtp ? 'Sending...' : submitResendIn > 0 ? `Resend OTP (${submitResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>
@@ -1773,25 +1844,25 @@ export default function EstimateDetail() {
 
             {!dgmOtpSent && !dgmVerified ? (
               <>
-                <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
+                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Estimate</span>
+                    <span className="text-[#475569]">Estimate</span>
                     <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Work</span>
+                    <span className="text-[#475569]">Work</span>
                     <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Version</span>
+                    <span className="text-[#475569]">Version</span>
                     <span className="font-medium text-[#0F172A]">v{estimate.Version}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Grand Total</span>
-                    <span className="font-semibold text-[#1E3A5F]">{fmt(a.GrandTotal)}</span>
+                    <span className="text-[#475569]">Grand Total</span>
+                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-[#64748B] mb-4">
+                <p className="text-xs text-[#475569] mb-4">
                   You are approving this estimate and recommending it to the General Manager.
                   An OTP will be sent to your registered email for verification.
                 </p>
@@ -1810,21 +1881,21 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#64748B]">Approving estimate and forwarding to GM...</p>
+                <p className="text-xs text-[#475569]">Approving estimate and forwarding to GM...</p>
               </div>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">
+                <p className="text-xs text-[#475569] mb-1">
                   Enter the 6-digit OTP sent to {dgmOtpSentTo ? (
                     <span className="font-medium text-[#0F172A]">{maskEmail(dgmOtpSentTo)}</span>
                   ) : 'your registered email'}.
                 </p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
 
                 {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <p className="text-[10px] font-medium text-[#64748B]">Remarks</p>
+                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
                     <p className="text-xs text-[#0F172A]">{remarks}</p>
                   </div>
                 )}
@@ -1837,7 +1908,7 @@ export default function EstimateDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendDgmOtp} disabled={sendingDgmOtp || dgmResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingDgmOtp ? 'Sending...' : dgmResendIn > 0 ? `Resend OTP (${dgmResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>
@@ -1865,21 +1936,21 @@ export default function EstimateDetail() {
             </div>
             {!cgmOtpSent && !cgmVerified ? (
               <>
-                <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
+                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Estimate</span>
+                    <span className="text-[#475569]">Estimate</span>
                     <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Work</span>
+                    <span className="text-[#475569]">Work</span>
                     <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Grand Total</span>
-                    <span className="font-semibold text-[#1E3A5F]">{fmt(a.GrandTotal)}</span>
+                    <span className="text-[#475569]">Grand Total</span>
+                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-[#64748B] mb-4">You are submitting this estimate for DOP approval. An OTP will be sent to your registered email.</p>
+                <p className="text-xs text-[#475569] mb-4">You are submitting this estimate for DOP approval. An OTP will be sent to your registered email.</p>
                 <label htmlFor="cgmRemarks" className="ec-label">Remarks (optional)</label>
                 <textarea id="cgmRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
                   className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for submission" />
@@ -1893,16 +1964,16 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#64748B]">Forwarding estimate to DOP...</p>
+                <p className="text-xs text-[#475569]">Forwarding estimate to DOP...</p>
               </div>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">Enter the 6-digit OTP sent to {cgmOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(cgmOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {cgmOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(cgmOtpSentTo)}</span> : 'your email'}.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
                 {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <p className="text-[10px] font-medium text-[#64748B]">Remarks</p>
+                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
                     <p className="text-xs text-[#0F172A]">{remarks}</p>
                   </div>
                 )}
@@ -1911,7 +1982,7 @@ export default function EstimateDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendCgmOtp} disabled={sendingCgmOtp || cgmResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingCgmOtp ? 'Sending...' : cgmResendIn > 0 ? `Resend OTP (${cgmResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>
@@ -1939,21 +2010,21 @@ export default function EstimateDetail() {
             </div>
             {!dopOtpSent && !dopVerified ? (
               <>
-                <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
+                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Estimate</span>
+                    <span className="text-[#475569]">Estimate</span>
                     <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Work</span>
+                    <span className="text-[#475569]">Work</span>
                     <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Grand Total</span>
-                    <span className="font-semibold text-[#1E3A5F]">{fmt(a.GrandTotal)}</span>
+                    <span className="text-[#475569]">Grand Total</span>
+                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-[#64748B] mb-4">You are approving this estimate and forwarding it to the ED. An OTP will be sent to your registered email.</p>
+                <p className="text-xs text-[#475569] mb-4">You are approving this estimate and forwarding it to the ED. An OTP will be sent to your registered email.</p>
                 <label htmlFor="dopRemarks" className="ec-label">Remarks (optional)</label>
                 <textarea id="dopRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
                   className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for approval" />
@@ -1967,16 +2038,16 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#64748B]">Approving estimate and forwarding to ED...</p>
+                <p className="text-xs text-[#475569]">Approving estimate and forwarding to ED...</p>
               </div>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">Enter the 6-digit OTP sent to {dopOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(dopOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {dopOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(dopOtpSentTo)}</span> : 'your email'}.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
                 {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <p className="text-[10px] font-medium text-[#64748B]">Remarks</p>
+                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
                     <p className="text-xs text-[#0F172A]">{remarks}</p>
                   </div>
                 )}
@@ -1985,7 +2056,7 @@ export default function EstimateDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendDopOtp} disabled={sendingDopOtp || dopResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingDopOtp ? 'Sending...' : dopResendIn > 0 ? `Resend OTP (${dopResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>
@@ -2013,21 +2084,21 @@ export default function EstimateDetail() {
             </div>
             {!edOtpSent && !edVerified ? (
               <>
-                <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
+                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Estimate</span>
+                    <span className="text-[#475569]">Estimate</span>
                     <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Work</span>
+                    <span className="text-[#475569]">Work</span>
                     <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Grand Total</span>
-                    <span className="font-semibold text-[#1E3A5F]">{fmt(a.GrandTotal)}</span>
+                    <span className="text-[#475569]">Grand Total</span>
+                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-[#64748B] mb-4">You are approving this estimate and forwarding it to the MD for final approval. An OTP will be sent to your registered email.</p>
+                <p className="text-xs text-[#475569] mb-4">You are approving this estimate and forwarding it to the MD for final approval. An OTP will be sent to your registered email.</p>
                 <label htmlFor="edRemarks" className="ec-label">Remarks (optional)</label>
                 <textarea id="edRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
                   className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for approval" />
@@ -2041,16 +2112,16 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#64748B]">Approving estimate and forwarding to MD...</p>
+                <p className="text-xs text-[#475569]">Approving estimate and forwarding to MD...</p>
               </div>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">Enter the 6-digit OTP sent to {edOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(edOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {edOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(edOtpSentTo)}</span> : 'your email'}.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
                 {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <p className="text-[10px] font-medium text-[#64748B]">Remarks</p>
+                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
                     <p className="text-xs text-[#0F172A]">{remarks}</p>
                   </div>
                 )}
@@ -2059,7 +2130,7 @@ export default function EstimateDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendEdOtp} disabled={sendingEdOtp || edResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingEdOtp ? 'Sending...' : edResendIn > 0 ? `Resend OTP (${edResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>
@@ -2087,21 +2158,21 @@ export default function EstimateDetail() {
             </div>
             {!mdOtpSent && !mdVerified ? (
               <>
-                <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
+                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Estimate</span>
+                    <span className="text-[#475569]">Estimate</span>
                     <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Work</span>
+                    <span className="text-[#475569]">Work</span>
                     <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[#64748B]">Grand Total</span>
-                    <span className="font-semibold text-[#1E3A5F]">{fmt(a.GrandTotal)}</span>
+                    <span className="text-[#475569]">Grand Total</span>
+                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-[#64748B] mb-4">This is the final authorization step. The MD will approve the estimate, apply a digital signature, and a tender will be automatically created. An OTP will be sent to your registered email.</p>
+                <p className="text-xs text-[#475569] mb-4">This is the final authorization step. The MD will approve the estimate, apply a digital signature, and a tender will be automatically created. An OTP will be sent to your registered email.</p>
                 <label htmlFor="mdRemarks" className="ec-label">Remarks (optional)</label>
                 <textarea id="mdRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
                   className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for final approval" />
@@ -2115,16 +2186,16 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">Final Approval Complete</p>
-                <p className="text-xs text-[#64748B]">Tender has been automatically created and the Tender Officer has been notified.</p>
+                <p className="text-xs text-[#475569]">Tender has been automatically created and the Tender Officer has been notified.</p>
               </div>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#64748B] mb-1">Enter the 6-digit OTP sent to {mdOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(mdOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#64748B] mb-3">This OTP is valid for 5 minutes.</p>
+                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {mdOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(mdOtpSentTo)}</span> : 'your email'}.</p>
+                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
                 {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <p className="text-[10px] font-medium text-[#64748B]">Remarks</p>
+                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
                     <p className="text-xs text-[#0F172A]">{remarks}</p>
                   </div>
                 )}
@@ -2133,7 +2204,7 @@ export default function EstimateDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
                   <button type="button" onClick={sendMdOtp} disabled={sendingMdOtp || mdResendIn > 0}
-                    className="text-xs text-[#1E3A5F] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
                     {sendingMdOtp ? 'Sending...' : mdResendIn > 0 ? `Resend OTP (${mdResendIn}s)` : 'Resend OTP'}
                   </button>
                 </div>

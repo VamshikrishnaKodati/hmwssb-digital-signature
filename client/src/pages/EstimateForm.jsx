@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useDeferredValue, Fragment } from 'react'
 import { useParams, useNavigate, useBlocker, Link } from 'react-router-dom'
-import {
-  Search, X, Save, RotateCcw, Send,
+import { Search, X, Save, RotateCcw, Send, Eye, Upload,
   Briefcase, Package,
-  Clock, Lock, Printer, History, ClipboardList, Plus, Trash2, Check, Loader2
+  Lock, Printer, History, ClipboardList, Plus, Trash2, Check, Loader2, Pencil, ChevronDown
 } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
@@ -11,6 +10,9 @@ import { calcQtyByFormula, getFormulaFields } from '../utils/estimateUtils'
 import { applyLocationChange, optionsFor } from '../utils/locationUtils'
 import WorkflowStepper from '../components/shared/WorkflowStepper'
 import ItemRow from '../components/estimate/ItemRow'
+import { ItemFormDialog, ConfirmDialog } from '../components/estimate/EstimateItemDialog'
+import EstimateDocuments from '../components/estimate/EstimateDocuments'
+import EstimateDraftPrint from '../components/print/EstimateDraftPrint'
 
 const WORK_CATEGORIES = ['Water Supply', 'Sewerage', 'EAM']
 const FIELD_ORDER = ['N', 'L', 'B', 'D']
@@ -18,12 +20,27 @@ const SNAP_KEY = 'est_form_snapshot'
 const RESTORE_KEY = 'est_form_scroll'
 const EDITABLE_STATUSES = ['Draft', 'Reverted']
 const GST_OPTIONS = [0, 5, 12, 18]
+const DELETE_TITLE = { 'additional-item': 'Delete Additional Item', 'ls-provision': 'Delete LS Provision' }
+
+// Scrolls a focused control into view INSIDE the internal item-list region
+// only — never the whole document. Guarantees the workspace stays put while
+// rows are added/edited.
+function scrollIntoItemPanel(el) {
+  const scroller = el?.closest?.('.ew-item-scroll')
+  if (!scroller) return
+  const r = el.getBoundingClientRect()
+  const s = scroller.getBoundingClientRect()
+  if (r.top < s.top) scroller.scrollBy({ top: r.top - s.top - 8, behavior: 'smooth' })
+  else if (r.bottom > s.bottom) scroller.scrollBy({ top: r.bottom - s.bottom + 8, behavior: 'smooth' })
+}
 
 export default function EstimateForm() {
   const { id } = useParams()
   const navigate = useNavigate()
   const isEdit = !!id
-  const searchRowRef = useRef(null)
+  const [savedId, setSavedId] = useState(isEdit && id ? Number(id) : null)
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const pickWrapRef = useRef(null)
   const fieldRefs = useRef({})
   const draftIdRef = useRef(null)
   const highlightTimerRef = useRef(null)
@@ -31,6 +48,7 @@ export default function EstimateForm() {
   const skipBlockerRef = useRef(false)
   const stateRef = useRef({ header: null, items: [], dirty: false, isEdit, readOnly: false })
   const saveRef = useRef(() => {})
+  const docsRef = useRef(null)
 
   const currentFY = (() => {
     const now = new Date()
@@ -39,7 +57,9 @@ export default function EstimateForm() {
     return m >= 4 ? `${y}-${(y + 1).toString().slice(-2)}` : `${y - 1}-${y.toString().slice(-2)}`
   })()
   const [header, setHeader] = useState({
-    EstimateNo: '', NameOfWork: '', WorkCategory: '',
+    EstimateNo: '',
+    NameOfWork: '',
+    WorkCategory: '',
     RegionID: '', ZoneID: '', DivisionID: '', CircleID: '', WardID: '',
     GSTPercent: 18, FinancialYear: currentFY,
     Status: '', ActionTakenReport: '',
@@ -53,14 +73,20 @@ export default function EstimateForm() {
     }
   }, [])
 
-  // A new estimate opens with exactly one empty (draft) row so the Manager can
-  // select the first item immediately; saved estimates load their own items.
-  const seedRow = isEdit ? null : newDraftRow()
-  const [items, setItems] = useState(() => (seedRow ? [seedRow] : []))
-  const [draftTempId, setDraftTempId] = useState(seedRow ? seedRow._tempId : null)
-  const [showRowSearch, setShowRowSearch] = useState(!!seedRow)
+  const [items, setItems] = useState([])
+  const [draftTempId, setDraftTempId] = useState(null)
+  const [editingRowId, setEditingRowId] = useState(null)
+  const [showRowSearch, setShowRowSearch] = useState(false)
+  const liveItemCount = items.filter(i => !i.isDraft).length
   const [lsProvisions, setLsProvisions] = useState([])
   const [additionalItems, setAdditionalItems] = useState([])
+  // One dialog at a time: null | { kind, edit } — edit is null for Add,
+  // else the row being edited. Delete uses its own alertdialog (ConfirmDialog).
+  const [itemDialog, setItemDialog] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  // Which Part-II/Part-III popup list is open: null | 'additional-item' | 'ls-provision'
+  const [openPartList, setOpenPartList] = useState(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
@@ -68,6 +94,11 @@ export default function EstimateForm() {
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [activeResult, setActiveResult] = useState(0)
+  const [pickTerm, setPickTerm] = useState('')
+  const [pickResults, setPickResults] = useState([])
+  const [pickSearching, setPickSearching] = useState(false)
+  const [pickActive, setPickActive] = useState(0)
+  const [showPick, setShowPick] = useState(false)
   const [highlightedId, setHighlightedId] = useState(null)
   const [flashIds, setFlashIds] = useState(() => new Set())
   const [expandedDescIds, setExpandedDescIds] = useState(() => new Set())
@@ -78,10 +109,6 @@ export default function EstimateForm() {
   const [lookups, setLookups] = useState({
     regions: [], zones: [], divisions: [], circles: [], wards: [],
   })
-  const [wardQuery, setWardQuery] = useState('')
-  const [wardResults, setWardResults] = useState([])
-  const [wardSearching, setWardSearching] = useState(false)
-  const [showWardSearch, setShowWardSearch] = useState(false)
   const [scopeWardIds, setScopeWardIds] = useState(null) // Set of allowed WardIDs, null = unrestricted
   const [scopeCircleIds, setScopeCircleIds] = useState(null)
   const [scopeInfo, setScopeInfo] = useState(null)
@@ -100,10 +127,11 @@ export default function EstimateForm() {
       api.get('/lookups/circles'),
       api.get('/lookups/wards'),
     ]).then(([reg, zon, div, cir, war]) => {
-      setLookups({
+      const lk = {
         regions: reg.data || [], zones: zon.data || [], divisions: div.data || [],
         circles: cir.data || [], wards: war.data || [],
-      })
+      }
+      setLookups(lk)
     }).catch(() => {})
     // Location-scope officers may only create estimates inside their assigned
     // node; /users/me/scope is the intersection the server will enforce.
@@ -119,6 +147,18 @@ export default function EstimateForm() {
           node: node || null,
           assigned: s.assignedLocation || null,
         })
+        // /estimates/new prefills ONLY the assigned location (the manager's
+        // circle chain / DGM's division chain); ward stays unselected.
+        if (!isEdit && s.assignedLocation?.location) {
+          const loc = s.assignedLocation.location
+          setHeader(h => ({
+            ...h,
+            RegionID: loc.RegionID || '',
+            ZoneID: loc.ZoneID || '',
+            DivisionID: loc.DivisionID || '',
+            CircleID: loc.CircleID || '',
+          }))
+        }
       }
     }).catch(() => {})
     if (id) loadEstimate()
@@ -151,6 +191,19 @@ export default function EstimateForm() {
     }
   }, [lookups, header.RegionID, header.ZoneID, header.DivisionID, header.CircleID, header.WardID, scopeWardIds, scopeCircleIds])
 
+  // Full "Corp / Zone / Division / Circle / Ward" path for the Location options.
+  const wardPath = useCallback((w) => {
+    const c = lookups.circles.find(x => Number(x.CircleID) === Number(w.CircleID))
+    const d = c ? lookups.divisions.find(x => Number(x.DivisionID) === Number(c.DivisionID)) : null
+    const z = d ? lookups.zones.find(x => Number(x.ZoneID) === Number(d.ZoneID)) : null
+    const r = z ? lookups.regions.find(x => Number(x.RegionID) === Number(z.RegionID)) : null
+    const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    return [r?.Name, z?.Name, d?.Name, c?.Name, w.Name || w.WardName]
+      .filter(Boolean)
+      .filter((s, i, arr) => i === 0 || norm(s) !== norm(arr[i - 1]))
+      .join(' / ')
+  }, [lookups])
+
   const loadEstimate = async () => {
     try {
       const [res, wfRes] = await Promise.all([
@@ -167,7 +220,6 @@ export default function EstimateForm() {
         Status: e.Status || 'Draft',
         ActionTakenReport: e.ActionTakenReport || '',
       })
-      setWardQuery(e.WardName || '')
       const lsRows = (e.LSProvisions || []).map(r => ({
         _tempId: r.ID || Date.now() + Math.random(),
         Description: r.Description || '',
@@ -196,38 +248,16 @@ export default function EstimateForm() {
     } catch (_) { toast.error('Failed to load estimate') }
   }
 
-  // --- sessionStorage restore (feature: scroll/expansion/focus restoration on reload) ---
+  // /estimates/new must ALWAYS start fresh. Clear any auto-saved draft left
+  // by an earlier session so it can never be restored on refresh or re-entry,
+  // and reset the scroll position so the new form opens at the top.
   useEffect(() => {
     if (isEdit) return
-    try {
-      const snap = sessionStorage.getItem(SNAP_KEY)
-      if (snap) {
-        const s = JSON.parse(snap)
-        if (s?.header && s?.items?.length) {
-          setHeader(h => ({ ...h, ...s.header }))
-          setItems((s.items || []).filter(i => !i.isDraft))
-          setDraftTempId(null)
-          setShowRowSearch(false)
-          setLsProvisions(s.lsProvisions || [])
-          setAdditionalItems(s.additionalItems || [])
-          setExpandedDescIds(new Set(s.expandedIds || []))
-        }
-      }
-    } catch (_) {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    if (!dirty || readOnly) return
-    const t = setTimeout(() => {
-      try {
-        sessionStorage.setItem(SNAP_KEY, JSON.stringify({
-          header, items, lsProvisions, additionalItems, expandedIds: [...expandedDescIds],
-        }))
-      } catch (_) {}
-    }, 600)
-    return () => clearTimeout(t)
-  }, [dirty, header, items, lsProvisions, expandedDescIds, readOnly])
+    sessionStorage.removeItem(SNAP_KEY)
+    sessionStorage.removeItem(RESTORE_KEY)
+    document.getElementById('app-main')?.scrollTo?.({ top: 0 })
+    window.scrollTo(0, 0)
+  }, [isEdit])
 
   useEffect(() => {
     const main = document.getElementById('app-main')
@@ -271,6 +301,16 @@ export default function EstimateForm() {
     }
   }, [blocker])
 
+  // Close the Part-II/Part-III popup when clicking anywhere outside of it.
+  useEffect(() => {
+    if (!openPartList) return
+    const onDown = (e) => {
+      if (!e.target.closest?.('.ew-partlist')) setOpenPartList(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [openPartList])
+
   // --- auto-save every 60s ---
   useEffect(() => {
     stateRef.current = { header, items, lsProvisions, additionalItems, dirty, isEdit, readOnly, id }
@@ -289,43 +329,11 @@ export default function EstimateForm() {
     return () => clearInterval(t)
   }, [])
 
-  const searchWards = useCallback(async (term) => {
-    if (!term.trim()) { setWardResults([]); return }
-    setWardSearching(true)
-    try {
-      const res = await api.get('/lookups/wards/search', { params: { q: term } })
-      const rows = res.data || []
-      setWardResults(scopeWardIds ? rows.filter(w => scopeWardIds.has(Number(w.WardID))) : rows)
-    } catch (_) { setWardResults([]) }
-    setWardSearching(false)
-  }, [scopeWardIds])
-
-  useEffect(() => {
-    const timer = setTimeout(() => { if (wardQuery) searchWards(wardQuery) }, 300)
-    return () => clearTimeout(timer)
-  }, [wardQuery, searchWards])
-
-  const selectWard = (w) => {
-    setHeader(h => ({
-      ...h,
-      RegionID: w.RegionID, ZoneID: w.ZoneID, DivisionID: w.DivisionID,
-      CircleID: w.CircleID, WardID: w.WardID,
-    }))
-    setWardQuery(w.WardName)
-    setWardResults([])
-    setShowWardSearch(false)
-    setDirty(true)
-    clearError('WardID')
-  }
-
   // Selecting any level fills in its parents from the DB and prunes
   // descendants that conflict, so every saved combination stays consistent.
   const handleLocationChange = (field) => (e) => {
     const v = e.target.value
     setHeader(h => applyLocationChange(lookups, h, field, v))
-    setWardQuery(field === 'WardID' && v
-      ? (lookups.wards.find(w => String(w.WardID) === String(v))?.Name || '')
-      : '')
     setDirty(true)
     clearError('WardID')
   }
@@ -353,12 +361,34 @@ export default function EstimateForm() {
     return () => clearTimeout(timer)
   }, [searchTerm, searchItems])
 
-  const focusField = useCallback((tempId, field) => {
-    const el = fieldRefs.current[`${tempId}_${field}`]
+  const expandItem = useCallback((tempId) => {
+    // Single-open: picking an item opens only its dims editor.
+    setExpandedDescIds(new Set([tempId]))
+  }, [])
+
+  // Focus the visible estimate-item search box. Each row renders two copies of
+  // the input (desktop table cell + mobile card) sharing one ref key; the last
+  // mounted — the mobile one, `display:none` on desktop — wins, so a shared
+  // ref would target an invisible element and `.focus()` silently no-ops.
+  // Target the visible copy directly instead.
+  const focusDraftSearch = useCallback(() => {
+    const scroller = document.querySelector('.ew-item-scroll')
+    const el = scroller && [...scroller.querySelectorAll('input.ew-items-search')].find(c => c.offsetParent !== null)
+    if (el) scrollIntoItemPanel(el)
+    el?.focus()
+    return el
+  }, [])
+
+  // Focus a field that may not have mounted yet (e.g. the dims detail row
+  // renders only after the item is expanded). Retries briefly.
+  const focusFieldRt = useCallback((tempId, field, tries = 6) => {
+    const el = [...document.querySelectorAll(`[id="${CSS.escape(`${tempId}_${field}`)}"]`)].find(c => c.offsetParent !== null)
     if (el) {
-      el.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      scrollIntoItemPanel(el)
       el.focus()
+      return
     }
+    if (tries > 0) setTimeout(() => focusFieldRt(tempId, field, tries - 1), 50)
   }, [])
 
   const addDraftRow = useCallback(() => {
@@ -371,12 +401,82 @@ export default function EstimateForm() {
     setSearchResults([])
     setActiveResult(0)
     setDirty(true)
-    setTimeout(() => {
-      const el = fieldRefs.current[`${tempId}_DESC`]
-      el?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
-      el?.focus()
-    }, 50)
-  }, [newDraftRow])
+    setTimeout(() => { focusDraftSearch() }, 50)
+  }, [newDraftRow, focusDraftSearch])
+
+  // Header-level item search: typing shows a compact inline autocomplete
+  // directly beneath the input; selecting one adds it as a new item.
+  const flashHighlight = useCallback((tempId) => {
+    setHighlightedId(tempId)
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
+    highlightTimerRef.current = setTimeout(() => setHighlightedId(null), 1200)
+  }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!pickTerm.trim()) { setPickResults([]); setPickSearching(false); return }
+      setPickSearching(true)
+      api.get(`/items?search=${encodeURIComponent(pickTerm)}&active=true`)
+        .then(res => {
+          const existingIds = new Set(items.map(i => i.ItemID))
+          setPickResults((res.data || []).filter(i => !existingIds.has(i.ItemID)))
+        })
+        .catch(() => setPickResults([]))
+        .finally(() => setPickSearching(false))
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [pickTerm, items])
+
+  useEffect(() => { setPickActive(0) }, [pickResults])
+
+  useEffect(() => {
+    if (!showPick) return
+    const el = pickWrapRef.current?.querySelector(`[data-pick-index="${pickActive}"]`)
+    el?.scrollIntoView?.({ block: 'nearest' })
+  }, [pickActive, showPick, pickResults])
+
+  useEffect(() => {
+    if (!showPick) return
+    const onDocMouseDown = (e) => {
+      if (pickWrapRef.current && !pickWrapRef.current.contains(e.target)) setShowPick(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [showPick])
+
+  const selectPickItem = useCallback((item) => {
+    const row = newDraftRow()
+    const tempId = row._tempId
+    setItems(prev => [...prev, {
+      ...row, ItemID: item.ItemID, ItemCode: item.ItemCode, Description: item.Description,
+      Category: item.Category, FormulaType: item.FormulaType, Unit: item.Unit,
+      Rate: item.Rate || 0, isDraft: false,
+    }])
+    setPickTerm('')
+    setPickResults([])
+    setPickActive(0)
+    setShowPick(false)
+    setDirty(true)
+    expandItem(tempId)
+    flashHighlight(tempId)
+    toast.success('Item added successfully')
+    setTimeout(() => focusFieldRt(tempId, 'N'), 100)
+  }, [newDraftRow, expandItem, flashHighlight, focusFieldRt])
+
+  const handlePickKeyDown = (e) => {
+    if (e.key === 'Escape') { setShowPick(false); return }
+    if (e.key === 'ArrowDown' && pickResults.length) {
+      e.preventDefault()
+      setPickActive(a => (a + 1) % pickResults.length)
+    } else if (e.key === 'ArrowUp' && pickResults.length) {
+      e.preventDefault()
+      setPickActive(a => (a - 1 + pickResults.length) % pickResults.length)
+    } else if (e.key === 'Enter' && pickResults.length) {
+      e.preventDefault()
+      const item = pickResults[pickActive]
+      if (item) selectPickItem(item)
+    }
+  }
 
   const openDraftSearch = useCallback(() => {
     setShowRowSearch(true)
@@ -392,23 +492,23 @@ export default function EstimateForm() {
   const handleFocusSearch = useCallback(() => {
     if (draftTempId) {
       setShowRowSearch(true)
-      setTimeout(() => fieldRefs.current[`${draftTempId}_DESC`]?.focus(), 0)
+      setTimeout(() => { focusDraftSearch() }, 0)
     } else {
       addDraftRow()
     }
-  }, [draftTempId, addDraftRow])
+  }, [draftTempId, addDraftRow, focusDraftSearch])
 
   useEffect(() => {
     if (showRowSearch && draftTempId) {
-      const t = setTimeout(() => fieldRefs.current[`${draftTempId}_DESC`]?.focus(), 0)
+      const t = setTimeout(() => { focusDraftSearch() }, 0)
       return () => clearTimeout(t)
     }
-  }, [showRowSearch, draftTempId])
+  }, [showRowSearch, draftTempId, focusDraftSearch])
 
   useEffect(() => {
     if (!showRowSearch) return
     const onDocMouseDown = (e) => {
-      if (searchRowRef.current && !searchRowRef.current.contains(e.target)) closeRowSearch()
+      if (!e.target.closest?.('.ew-desc-cell, .ew-mobile-item')) closeRowSearch()
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
@@ -416,7 +516,7 @@ export default function EstimateForm() {
 
   useEffect(() => {
     if (!showRowSearch || searchResults.length === 0) return
-    const el = searchRowRef.current?.querySelector(`[data-result-index="${activeResult}"]`)
+    const el = document.querySelector(`.ew-item-scroll [data-result-index="${activeResult}"]`)
     el?.scrollIntoView?.({ block: 'nearest' })
   }, [activeResult, showRowSearch, searchResults])
 
@@ -441,12 +541,6 @@ export default function EstimateForm() {
     }
   }
 
-  const flashHighlight = useCallback((tempId) => {
-    setHighlightedId(tempId)
-    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
-    highlightTimerRef.current = setTimeout(() => setHighlightedId(null), 1200)
-  }, [])
-
   const selectRowItem = useCallback((item) => {
     const tempId = draftTempId
     if (!tempId) return
@@ -457,6 +551,7 @@ export default function EstimateForm() {
       Rate: item.Rate || 0, isDraft: false, N: null, L: null, B: null, D: null, Qty: 0, Amount: 0,
     } : i))
     setDraftTempId(null)
+    setEditingRowId(tempId)
     setShowRowSearch(false)
     setSearchTerm('')
     setSearchResults([])
@@ -464,8 +559,9 @@ export default function EstimateForm() {
     setDirty(true)
     toast.success('Item added successfully')
     flashHighlight(tempId)
-    setTimeout(() => focusField(tempId, 'N'), 60)
-  }, [draftTempId, flashHighlight, focusField])
+    expandItem(tempId)
+    setTimeout(() => focusFieldRt(tempId, 'N'), 100)
+  }, [draftTempId, flashHighlight, expandItem, focusFieldRt])
 
   const removeItem = useCallback((tempId) => {
     setItems(prev => prev.filter(i => i._tempId !== tempId))
@@ -484,12 +580,13 @@ export default function EstimateForm() {
     const copy = { ...item, _tempId: tempId, Qty: 0, Amount: 0 }
     setItems(prev => [...prev, copy])
     setDirty(true)
+    expandItem(tempId)
     flashHighlight(tempId)
-    setTimeout(() => focusField(tempId, 'N'), 50)
-  }, [flashHighlight, focusField])
+    setTimeout(() => focusFieldRt(tempId, 'N'), 100)
+  }, [expandItem, flashHighlight, focusFieldRt])
 
   const updateItem = useCallback((tempId, field, value) => {
-    const recalcFields = ['N', 'L', 'B', 'D', 'Rate', 'FormulaType']
+    const recalcFields = ['N', 'L', 'B', 'D', 'Rate', 'FormulaType', 'Qty']
     if (recalcFields.includes(field)) {
       setFlashIds(prev => new Set(prev).add(tempId))
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
@@ -499,15 +596,24 @@ export default function EstimateForm() {
       if (item._tempId !== tempId) return item
       const updated = { ...item, [field]: value }
       if (recalcFields.includes(field)) {
-        const qty = calcQtyByFormula(
-          field === 'FormulaType' ? value : updated.FormulaType,
-          field === 'N' ? value : updated.N,
-          field === 'L' ? value : updated.L,
-          field === 'B' ? value : updated.B,
-          field === 'D' ? value : updated.D,
-        )
-        updated.Qty = parseFloat(qty.toFixed(3))
-        updated.Amount = parseFloat((qty * parseFloat(field === 'Rate' ? value : updated.Rate || 0)).toFixed(2))
+        if (field === 'Qty') {
+          const qtyVal = parseFloat(value) || 0
+          updated.Qty = qtyVal
+          updated.Amount = parseFloat((qtyVal * parseFloat(updated.Rate || 0)).toFixed(2))
+        } else {
+          let qty = calcQtyByFormula(
+            field === 'FormulaType' ? value : updated.FormulaType,
+            field === 'N' ? value : updated.N,
+            field === 'L' ? value : updated.L,
+            field === 'B' ? value : updated.B,
+            field === 'D' ? value : updated.D,
+          )
+          if (qty === 0 && (updated.N != null && updated.N !== '')) {
+            qty = parseFloat(updated.N) || 0
+          }
+          updated.Qty = parseFloat(qty.toFixed(3))
+          updated.Amount = parseFloat((qty * parseFloat(field === 'Rate' ? value : updated.Rate || 0)).toFixed(2))
+        }
       }
       return updated
     }))
@@ -515,12 +621,8 @@ export default function EstimateForm() {
   }, [])
 
   const toggleDesc = useCallback((tempId) => {
-    setExpandedDescIds(prev => {
-      const next = new Set(prev)
-      if (next.has(tempId)) next.delete(tempId)
-      else next.add(tempId)
-      return next
-    })
+    // Single-open: only the active/edited item shows its dims editor.
+    setExpandedDescIds(prev => (prev.has(tempId) ? new Set() : new Set([tempId])))
   }, [])
 
   const validate = () => {
@@ -528,7 +630,7 @@ export default function EstimateForm() {
     if (!header.NameOfWork?.trim()) errs.NameOfWork = 'Name of Work is required'
     if (!header.WorkCategory) errs.WorkCategory = 'Select a Work Category'
     if (!header.WardID) errs.WardID = 'Select a Ward'
-    if (items.length === 0) errs.items = 'Add at least one item'
+    if (items.filter(i => !i.isDraft).length === 0) errs.items = 'Add at least one item'
     if (!header.GSTPercent || parseFloat(header.GSTPercent) <= 0) errs.GSTPercent = 'GST percentage is required'
     if (isEdit && header.Status === 'Reverted' && !header.ActionTakenReport?.trim())
       errs.ActionTakenReport = 'Please describe the corrections made before resubmitting'
@@ -546,7 +648,10 @@ export default function EstimateForm() {
     if (!item) return
     const fields = getFormulaFields(item.FormulaType)
     const key = FIELD_ORDER.find(x => fields[x])
-    if (key) focusField(item._tempId, key)
+    if (key) {
+      expandItem(item._tempId)
+      setTimeout(() => focusFieldRt(item._tempId, key), 100)
+    }
   }
 
   const clearError = (field) => setErrors(prev => { const { [field]: _, ...rest } = prev; return rest })
@@ -586,18 +691,7 @@ export default function EstimateForm() {
   })
 
   const addLsProvision = () => {
-    const tempId = Date.now() + Math.random()
-    setLsProvisions(prev => [...prev, { _tempId: tempId, Description: '', Amount: 0 }])
-    setDirty(true)
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`ls-desc-${tempId}`)
-      if (el) { el.focus(); el.scrollIntoView({ block: 'nearest' }) }
-    })
-  }
-
-  const updateLsProvision = (tempId, field, value) => {
-    setLsProvisions(prev => prev.map(r => (r._tempId === tempId ? { ...r, [field]: value } : r)))
-    setDirty(true)
+    setItemDialog({ kind: 'ls-provision', edit: null })
   }
 
   const removeLsProvision = (tempId) => {
@@ -606,23 +700,39 @@ export default function EstimateForm() {
   }
 
   const addAdditionalItem = () => {
-    const tempId = Date.now() + Math.random()
-    setAdditionalItems(prev => [...prev, { _tempId: tempId, Description: '', Amount: 0 }])
-    setDirty(true)
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`ai-desc-${tempId}`)
-      if (el) { el.focus(); el.scrollIntoView({ block: 'nearest' }) }
-    })
-  }
-
-  const updateAdditionalItem = (tempId, field, value) => {
-    setAdditionalItems(prev => prev.map(r => (r._tempId === tempId ? { ...r, [field]: value } : r)))
-    setDirty(true)
+    setItemDialog({ kind: 'additional-item', edit: null })
   }
 
   const removeAdditionalItem = (tempId) => {
     setAdditionalItems(prev => prev.filter(r => r._tempId !== tempId))
     setDirty(true)
+  }
+
+  const openEditDialog = (kind, row) => {
+    setItemDialog({ kind, edit: { _tempId: row._tempId, Description: row.Description, Amount: row.Amount } })
+  }
+
+  // Single save path for both dialogs — appends or patches the existing state
+  // arrays, which are what the existing whole-estimate save (+ totals) read.
+  const saveItemFromDialog = (values) => {
+    if (!itemDialog) return
+    const { kind, edit } = itemDialog
+    const apply = (rows) => {
+      if (edit) {
+        return rows.map(r => (r._tempId === edit._tempId ? { ...r, Description: values.Description, Amount: values.Amount } : r))
+      }
+      return [...rows, { _tempId: Date.now() + Math.random(), Description: values.Description, Amount: values.Amount }]
+    }
+    if (kind === 'additional-item') setAdditionalItems(apply)
+    else setLsProvisions(apply)
+    setDirty(true)
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    if (deleteTarget.kind === 'additional-item') removeAdditionalItem(deleteTarget.row._tempId)
+    else removeLsProvision(deleteTarget.row._tempId)
+    setDeleteTarget(null)
   }
 
   const saveEstimate = async ({ silent = false, skipValidate = false } = {}) => {
@@ -656,6 +766,8 @@ export default function EstimateForm() {
 
       setDirty(false)
       setLastSaved(new Date())
+      setSavedId(Number(targetId))
+      sessionStorage.removeItem(SNAP_KEY)
       if (!silent) toast.success('Estimate saved successfully.')
       return targetId
     } catch (err) {
@@ -667,7 +779,12 @@ export default function EstimateForm() {
   }
 
   const handleReset = () => {
-    setHeader(prev => ({ ...prev, NameOfWork: '', Status: header.Status }))
+    setHeader(prev => ({
+      ...prev,
+      NameOfWork: '',
+      WorkCategory: '',
+      Status: header.Status,
+    }))
     setItems([])
     setDraftTempId(null)
     setShowRowSearch(false)
@@ -728,59 +845,121 @@ export default function EstimateForm() {
   const fmt = (v) => parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })
   const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'
 
+  const selWard = header.WardID && locOpts?.wards
+    ? locOpts.wards.find(w => Number(w.WardID) === Number(header.WardID)) : null
+  const locationPreview = (selWard && wardPath(selWard)) || (
+    [assignedLoc?.RegionName, assignedLoc?.ZoneName, assignedLoc?.DivisionName, assignedLoc?.CircleName || nodeName]
+      .filter(Boolean).join(' / ')
+  )
+
+  // Opens a dedicated window holding only the rendered preview document, then
+  // prints it — the Create Estimate page itself is never printed.
+  const handlePreviewPrint = () => {
+    const el = document.getElementById('estimate-preview-doc')
+    if (!el) return
+    const w = window.open('', '_blank', 'width=900,height=1100')
+    if (!w) {
+      toast.error('Popup blocked. Please allow popups for this site to print the preview.')
+      return
+    }
+    const inline = [...document.querySelectorAll('style, link[rel="stylesheet"]')]
+      .map(s => s.outerHTML).join('\n')
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Estimate Preview</title>${inline}</head><body>${el.outerHTML}</body></html>`)
+    w.document.close()
+    w.focus()
+    setTimeout(() => w.print(), 300)
+  }
+
   const renderItemRow = (item, idx, search) => (
     <ItemRow
       key={item._tempId}
       item={item}
       idx={idx}
+      disabled={readOnly}
       highlighted={item._tempId === highlightedId}
       flashed={flashIds.has(item._tempId)}
-      expanded={expandedDescIds.has(item._tempId)}
-      disabled={readOnly}
-      errorN={errors[`item_${idx}_N`]}
-      errorL={errors[`item_${idx}_L`]}
-      errorB={errors[`item_${idx}_B`]}
-      errorD={errors[`item_${idx}_D`]}
+      isEditing={editingRowId === item._tempId}
+      onToggleEdit={(id) => setEditingRowId(prev => prev === id ? null : id)}
       onUpdate={updateItem}
       onRemove={removeItem}
-      onDuplicate={duplicateItem}
-      onToggleDesc={toggleDesc}
-      onFocusField={focusField}
+      onFocusField={focusFieldRt}
       onFocusSearch={handleFocusSearch}
       fieldRefs={fieldRefs}
       search={search}
     />
   )
 
-  const lastSavedLabel = lastSaved
-    ? lastSaved.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-    : null
   const saved = lastSaved !== null && !dirty && !saving
+
+  // Compact count for Part-II / Part-III columns. Clicking it opens a popup
+  // with the full list (edit/delete); the strip itself stays one line.
+  const partCount = (kind, rows) => (
+    <div className="ew-partlist">
+      {readOnly ? (
+        <span className="ec-ai-count">{rows.length} item{rows.length !== 1 ? 's' : ''}</span>
+      ) : (
+        <>
+          <button type="button" onClick={() => setOpenPartList(openPartList === kind ? null : kind)}
+            className="ec-ai-count-btn" aria-expanded={openPartList === kind} aria-haspopup="true">
+            <span>{rows.length} item{rows.length !== 1 ? 's' : ''}</span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${openPartList === kind ? 'rotate-180' : ''}`} />
+          </button>
+          {openPartList === kind && (
+            <div className="ew-partlist-pop">{renderPartRows(kind, rows)}</div>
+          )}
+        </>
+      )}
+    </div>
+  )
+
+  // Compact read-only rows for Part-II / Part-III. Editing happens in the
+  // Add/Edit dialog; this only lists results with edit/delete affordances.
+  const renderPartRows = (kind, rows) => {
+    const label = kind === 'additional-item'
+      ? (rows.length === 1 ? 'additional item' : 'additional items')
+      : (rows.length === 1 ? 'LS provision' : 'LS provisions')
+    if (rows.length === 0) {
+      return (
+        <p className="ec-ai-empty">
+          {kind === 'additional-item' ? 'No additional items added yet' : 'No LS provisions added yet'}
+        </p>
+      )
+    }
+    return (
+      <div className="ec-ai-list">
+        <p className="ec-ai-count">{rows.length} {label}</p>
+        {rows.map(r => (
+          <div key={r._tempId} className="ec-ai-item">
+            <div className="ec-ai-main">
+              <p className="ec-ai-desc">{r.Description || '—'}</p>
+              <span className="ec-ai-amt">₹{fmt(r.Amount)}</span>
+            </div>
+            {!readOnly && (
+              <div className="ec-ai-actions">
+                <button type="button" onClick={() => openEditDialog(kind, r)}
+                  className="ec-ai-btn" aria-label={`Edit ${kind === 'additional-item' ? 'additional item' : 'LS provision'}`}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => setDeleteTarget({ kind, row: r })}
+                  className="ec-ai-btn ec-ai-btn-danger" aria-label={`Delete ${kind === 'additional-item' ? 'additional item' : 'LS provision'}`}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   if (loading) return <div className="ec-loader"><div className="ec-spinner" /></div>
 
   return (
-    <div className="min-w-0">
-      <div className="flex flex-col gap-6">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h1 className="ec-page-title">{isEdit ? `Edit Estimate: ${header.EstimateNo}` : 'Create Estimate'}</h1>
-              <p className="ec-page-subtitle">
-                {isEdit ? `Estimate No: ${header.EstimateNo}` : 'Prepare a new estimate for your assigned works'}
-              </p>
-            </div>
-            {(isEdit || draftIdRef.current) && lastSavedLabel && (
-              <span className="flex items-center gap-1.5 text-[11px] text-[#64748B] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1.5">
-                <Clock className="w-3.5 h-3.5 text-[#94A3B8]" /> Last saved: {lastSavedLabel}
-              </span>
-            )}
-          </div>
-
+    <div className="min-w-0 h-full min-h-0 flex flex-col">
           {isEdit && header.Status === 'Reverted' && (() => {
             const lastRevert = workflow.filter(w => w.Action === 'Revert').pop()
             return (
-              <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg shrink-0">
                 <p className="text-sm font-medium text-red-800">This estimate has been reverted for corrections</p>
                 <p className="text-xs text-red-600 mt-0.5">Update the items as per the reversion remarks and resubmit.</p>
                 {lastRevert && (
@@ -807,7 +986,7 @@ export default function EstimateForm() {
           })()}
 
           {readOnly && (
-            <div className="mb-5 p-4 bg-[#F0FDF4] border border-[#BBF7D0] rounded-lg">
+            <div className="mb-2 p-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded-lg shrink-0">
               <div className="flex items-center gap-2 text-sm font-medium text-[#166534]">
                 <Lock className="w-4 h-4" /> This estimate is {header.Status} and locked for editing
               </div>
@@ -833,467 +1012,52 @@ export default function EstimateForm() {
             </div>
           )}
 
-          {isEdit && <WorkflowStepper currentStatus={header.Status || 'Draft'} />}
+          {isEdit && <div className="shrink-0"><WorkflowStepper currentStatus={header.Status || 'Draft'} /></div>}
 
-          <div id="loc-details" className="mb-5">
-            <h3 className="text-xs font-semibold text-[#475569] mb-2">Location</h3>
+          {/* ── ONE unified Create-Estimate workspace frame ── */}
+          <div className="ew-frame min-h-0" id="estimate-items">
+          <div id="loc-details" className="bg-white/55 border border-white/55 rounded-xl p-1.5 shrink-0 backdrop-blur-[2px]">
             <fieldset disabled={readOnly} className="min-w-0">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                {isManagerScope ? (
-                  <>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-region">Corp</label>
-                      <input id="loc-region" type="text" readOnly tabIndex={-1}
-                        className="ef-loc-input"
-                        value={assignedLoc?.RegionName || '—'} />
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-zone">Zone</label>
-                      <input id="loc-zone" type="text" readOnly tabIndex={-1}
-                        className="ef-loc-input"
-                        value={assignedLoc?.ZoneName || '—'} />
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-division">Division</label>
-                      <input id="loc-division" type="text" readOnly tabIndex={-1}
-                        className="ef-loc-input"
-                        value={assignedLoc?.DivisionName || '—'} />
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-circle">Circle</label>
-                      <input id="loc-circle" type="text" readOnly tabIndex={-1}
-                        className="ef-loc-input"
-                        value={assignedLoc?.CircleName || nodeName || '—'} />
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-ward">Ward <span className="text-[#DC2626]">*</span></label>
-                      <select id="loc-ward" name="WardID" value={header.WardID} onChange={handleLocationChange('WardID')}
-                        className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}>
-                        <option value="">Select Ward</option>
-                        {locOpts.wards.map(w => (
-                          <option key={w.WardID} value={w.WardID}>{w.Name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="ward-search">Search</label>
-                      <div className="relative">
-                        <input id="ward-search" name="wardSearch" type="text"
-                          placeholder={nodeName ? `Search ${nodeName}...` : 'Search ward...'}
-                          value={wardQuery}
-                          onChange={e => { setWardQuery(e.target.value); setShowWardSearch(true) }}
-                          onFocus={() => setShowWardSearch(true)}
-                          className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}
-                        />
-                        {wardSearching && <div className="absolute right-2.5 top-1/2 -translate-y-1/2"><div className="ec-spinner w-3.5 h-3.5" /></div>}
-                        {showWardSearch && wardResults.length > 0 && (
-                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md max-h-56 overflow-y-auto">
-                            {wardResults.map(w => (
-                              <button key={w.WardID} type="button" onClick={() => selectWard(w)}
-                                className="block w-full text-left px-3 py-2 text-xs hover:bg-[#F8FAFC] border-b border-[#F1F5F9] last:border-0">
-                                <span className="font-medium text-[#1E3A5F]">{w.WardName}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {showWardSearch && wardQuery && wardResults.length === 0 && !wardSearching && (
-                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md p-3">
-                            <p className="text-xs text-[#94A3B8] text-center">No wards found</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-region">Corp</label>
-                      <select id="loc-region" name="RegionID" value={header.RegionID} onChange={handleLocationChange('RegionID')}
-                        className="ef-loc-input">
-                        <option value="">Select Corp</option>
-                        {lookups.regions.map(r => (
-                          <option key={r.RegionID} value={r.RegionID}>{r.Name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-zone">Zone</label>
-                      <select id="loc-zone" name="ZoneID" value={header.ZoneID} onChange={handleLocationChange('ZoneID')}
-                        className="ef-loc-input">
-                        <option value="">Select Zone</option>
-                        {locOpts.zones.map(z => (
-                          <option key={z.ZoneID} value={z.ZoneID}>{z.Name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-division">Division</label>
-                      <select id="loc-division" name="DivisionID" value={header.DivisionID} onChange={handleLocationChange('DivisionID')}
-                        className="ef-loc-input">
-                        <option value="">Select Division</option>
-                        {locOpts.divisions.map(d => (
-                          <option key={d.DivisionID} value={d.DivisionID}>{d.Name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-circle">Circle</label>
-                      <select id="loc-circle" name="CircleID" value={header.CircleID} onChange={handleLocationChange('CircleID')}
-                        className="ef-loc-input">
-                        <option value="">Select Circle</option>
-                        {locOpts.circles.map(c => (
-                          <option key={c.CircleID} value={c.CircleID}>{c.Name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="loc-ward">Ward <span className="text-[#DC2626]">*</span></label>
-                      <select id="loc-ward" name="WardID" value={header.WardID} onChange={handleLocationChange('WardID')}
-                        className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}>
-                        <option value="">Select Ward</option>
-                        {locOpts.wards.map(w => (
-                          <option key={w.WardID} value={w.WardID}>{w.Name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="ef-loc-field">
-                      <label className="ef-loc-label" htmlFor="ward-search">Search</label>
-                      <div className="relative">
-                        <input id="ward-search" name="wardSearch" type="text"
-                          placeholder="Search ward name..."
-                          value={wardQuery}
-                          onChange={e => { setWardQuery(e.target.value); setShowWardSearch(true) }}
-                          onFocus={() => setShowWardSearch(true)}
-                          className={`ef-loc-input ${errors.WardID ? 'ec-input-error' : ''}`}
-                        />
-                        {wardSearching && <div className="absolute right-2.5 top-1/2 -translate-y-1/2"><div className="ec-spinner w-3.5 h-3.5" /></div>}
-                        {showWardSearch && wardResults.length > 0 && (
-                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md max-h-56 overflow-y-auto">
-                            {wardResults.map(w => (
-                              <button key={w.WardID} type="button" onClick={() => selectWard(w)}
-                                className="block w-full text-left px-3 py-2 text-xs hover:bg-[#F8FAFC] border-b border-[#F1F5F9] last:border-0">
-                                <span className="font-medium text-[#1E3A5F]">{w.WardName}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {showWardSearch && wardQuery && wardResults.length === 0 && !wardSearching && (
-                          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-md p-3">
-                            <p className="text-xs text-[#94A3B8] text-center">No wards found</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              {errors.WardID && <p className="ec-error-text mt-2">{errors.WardID}</p>}
-            </fieldset>
-          </div>
-
-          <div id="work-details" className="mb-5">
-            <h3 className="text-xs font-semibold text-[#475569] mb-2">Work Details</h3>
-            <fieldset disabled={readOnly} className="min-w-0">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="sm:col-span-1">
-                  <label className="ef-loc-label" htmlFor="work-category">Work Category <span className="text-[#DC2626]">*</span></label>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-1.5 items-start">
+                <div className="md:col-span-3">
+                  <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-700 mb-0.5" htmlFor="loc-ward">Location</label>
+                  <select id="loc-ward" name="WardID" value={header.WardID} onChange={handleLocationChange('WardID')}
+                    className={`w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#2563EB] ${errors.WardID ? 'border-red-500' : ''}`}>
+                    <option value="">Select Location</option>
+                    {locOpts.wards.map(w => (
+                      <option key={w.WardID} value={w.WardID}>{wardPath(w)}</option>
+                    ))}
+                  </select>
+                  <input type="hidden" id="loc-region" value={assignedLoc?.RegionName || '—'} readOnly />
+                  <input type="hidden" id="loc-zone" value={assignedLoc?.ZoneName || '—'} readOnly />
+                  <input type="hidden" id="loc-division" value={assignedLoc?.DivisionName || '—'} readOnly />
+                  <input type="hidden" id="loc-circle" value={assignedLoc?.CircleName || nodeName || '—'} readOnly />
+                  {errors.WardID && <p className="ec-error-text mt-0.5">{errors.WardID}</p>}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-700 mb-0.5" htmlFor="work-category">Work Category <span className="text-[#DC2626]">*</span></label>
                   <select id="work-category" name="WorkCategory" value={header.WorkCategory} onChange={set('WorkCategory')}
-                    className={`ef-loc-input ${errors.WorkCategory ? 'ec-input-error' : ''}`}>
+                    className={`w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-[11px] font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#2563EB] ${errors.WorkCategory ? 'border-red-500' : ''}`}>
                     <option value="">Select</option>
                     {WORK_CATEGORIES.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
-                  {errors.WorkCategory && <p className="ec-error-text">{errors.WorkCategory}</p>}
+                  {errors.WorkCategory && <p className="ec-error-text mt-0.5">{errors.WorkCategory}</p>}
                 </div>
-                <div className="sm:col-span-3">
-                  <label className="ef-loc-label" htmlFor="name-of-work">Work Name <span className="text-[#DC2626]">*</span></label>
+                <div className="md:col-span-7">
+                  <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-700 mb-0.5" htmlFor="name-of-work">Work Name <span className="text-[#DC2626]">*</span></label>
                   <input id="name-of-work" name="NameOfWork" type="text" value={header.NameOfWork} onChange={set('NameOfWork')}
-                    className={`ef-loc-input ${errors.NameOfWork ? 'ec-input-error' : ''}`}
+                    className={`w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#2563EB] ${errors.NameOfWork ? 'border-red-500' : ''}`}
                     placeholder="Enter work name" onFocus={() => clearError('NameOfWork')} />
-                  {errors.NameOfWork && <p className="ec-error-text">{errors.NameOfWork}</p>}
+                  {errors.NameOfWork && <p className="ec-error-text mt-0.5">{errors.NameOfWork}</p>}
                 </div>
               </div>
             </fieldset>
           </div>
 
-          <div className="ec-card mb-5" id="estimate-items">
-            <div className="ec-card-header">
-              <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-[#1E3A5F]" />
-                <span className="ec-card-title">Estimate Items</span>
-              </div>
-              <span className="text-xs text-[#64748B]">{items.length} item{items.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="ec-card-body">
-              {errors.items && <p className="ec-error-text mb-3">{errors.items}</p>}
-
-              {items.length === 0 ? (
-                <p className="text-xs text-[#94A3B8] text-center py-3 border border-dashed border-[#E2E8F0] rounded-lg">
-                  No items added yet. Click '+ Add New Estimate Item' below to add one.
-                </p>
-              ) : (
-                <div className={`ec-grid-scroll ${showRowSearch ? 'ec-grid-scroll-adding' : ''}`}>
-                  <div className="ec-item-grid">
-                    <div className="ec-grid-row ec-grid-head">
-                      <div className="ec-grid-cell ec-th justify-center">S.No</div>
-                      <div className="ec-grid-cell ec-th justify-start">Item Description</div>
-                      <div className="ec-grid-cell ec-th justify-center">Is Material</div>
-                      <div className="ec-grid-cell ec-th justify-center">N</div>
-                      <div className="ec-grid-cell ec-th justify-center">L</div>
-                      <div className="ec-grid-cell ec-th justify-center">B</div>
-                      <div className="ec-grid-cell ec-th justify-center">D</div>
-                      <div className="ec-grid-cell ec-th justify-center">Qty</div>
-                      <div className="ec-grid-cell ec-th justify-center">Unit</div>
-                      <div className="ec-grid-cell ec-th justify-end">Rate (₹)</div>
-                      <div className="ec-grid-cell ec-th justify-end">Amount (₹)</div>
-                      <div className="ec-grid-cell ec-th justify-center">Actions</div>
-                    </div>
-                    {items.map((item, i) => (
-                      <Fragment key={item._tempId}>
-                        {renderItemRow(item, i, item._tempId === draftTempId ? {
-                          open: showRowSearch,
-                          term: searchTerm,
-                          searching,
-                          results: searchResults,
-                          activeResult,
-                          onTermChange: setSearchTerm,
-                          onKeyDown: handleSearchKeyDown,
-                          onFocus: openDraftSearch,
-                          onSelect: selectRowItem,
-                          onMouseEnter: setActiveResult,
-                          cellRef: searchRowRef,
-                        } : null)}
-                      </Fragment>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!readOnly && (
-                <button type="button"
-                  onClick={() => (draftTempId ? handleFocusSearch() : addDraftRow())}
-                  className="mt-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white transition-colors">
-                  <Plus className="w-3.5 h-3.5" />
-                  Add New Estimate Item
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="ec-card mb-5" id="cost-summary">
-            <div className="ec-card-header">
-              <span className="ec-card-title">Estimate Summary</span>
-              <span className="text-[11px] text-[#94A3B8]">All amounts are in Indian Rupees (₹)</span>
-            </div>
-            <div className="ec-card-body">
-              <div className="ec-sum2-grid">
-
-                <div className="ec-sum2-card" aria-label="Part-I and Part-II summary">
-                  <section className="ec-sum2-section ec-sum2-part-i" aria-label="Part-I Working Items">
-                    <h4 className="ec-sum2-title">PART-I</h4>
-                    <p className="ec-sum2-subtitle">Working Items</p>
-                    <div className="ec-ga-row">
-                      <span className="ec-ga-label">Cost of Material</span>
-                      <span className="ec-ga-value">₹{fmt(totals.material)}</span>
-                    </div>
-                    <div className="ec-ga-row">
-                      <span className="ec-ga-label">Cost of Civil Work</span>
-                      <span className="ec-ga-value">₹{fmt(totals.civil)}</span>
-                    </div>
-                    <div className="ec-ga-dotted" />
-                    <div className="ec-ga-row ec-ga-row-total">
-                      <span className="ec-ga-label ec-ga-label-total">Cost of Estimate : Part-I</span>
-                      <span className="ec-ga-value ec-ga-value-total">₹{fmt(totals.costOfEst)}</span>
-                    </div>
-                  </section>
-
-                  <div className="ec-sum2-divider" />
-
-                  <section className="ec-sum2-section ec-sum2-part-ii" aria-label="Part-II Additional Items">
-                    <h4 className="ec-sum2-title">PART-II</h4>
-                    <p className="ec-sum2-subtitle">Additional Items</p>
-                    <p className="ec-sum2-note">Add non-schedule items, contingencies etc.</p>
-                    <fieldset disabled={readOnly} className="min-w-0">
-                      <div className="ec-sum2-gst-row">
-                        <label htmlFor="gst" className="ec-ga-label">GST (%)</label>
-                        <select id="gst" name="GSTPercent" value={header.GSTPercent} onChange={set('GSTPercent')}
-                          className={`ec-ga-select ${errors.GSTPercent ? 'ec-input-error' : ''}`}>
-                          {gstOptions.map(g => <option key={g} value={g}>{g}%</option>)}
-                        </select>
-                      </div>
-                      {errors.GSTPercent && <p className="ec-error-text">{errors.GSTPercent}</p>}
-                      <div className="ec-ga-ls-table-wrap ec-sum2-ls-scroll mt-2">
-                        <table className="ec-ga-ls-table">
-                          <colgroup>
-                            <col className="ec-ga-ls-col-desc" />
-                            <col className="ec-ga-ls-col-amt" />
-                            <col className="ec-ga-ls-col-act" />
-                          </colgroup>
-                          <thead>
-                            <tr>
-                              <th className="ec-ga-ls-th">Description</th>
-                              <th className="ec-ga-ls-th ec-ga-ls-th-amt">Amount (₹)</th>
-                              <th className="ec-ga-ls-th ec-ga-ls-th-act">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {additionalItems.length === 0 && (
-                              <tr>
-                                <td colSpan="3" className="ec-ga-ls-empty-cell">No additional items added yet</td>
-                              </tr>
-                            )}
-                            {additionalItems.map(r => (
-                              <tr key={r._tempId}>
-                                <td className="ec-ga-ls-td">
-                                  <textarea id={`ai-desc-${r._tempId}`} rows={2} value={r.Description}
-                                    placeholder="Enter Description..."
-                                    onChange={e => updateAdditionalItem(r._tempId, 'Description', e.target.value)}
-                                    onKeyDown={e => {
-                                      if (e.key === 'Enter') {
-                                        e.preventDefault()
-                                        document.getElementById(`ai-amt-${r._tempId}`)?.focus()
-                                      }
-                                    }}
-                                    className="ec-sum2-desc-textarea" />
-                                </td>
-                                <td className="ec-ga-ls-td">
-                                  <input id={`ai-amt-${r._tempId}`} type="number" step="0.01" min="0" value={r.Amount}
-                                    placeholder="0.00"
-                                    onChange={e => updateAdditionalItem(r._tempId, 'Amount', e.target.value)}
-                                    className="ec-ga-ls-input ec-ga-ls-input-amt" />
-                                </td>
-                                <td className="ec-ga-ls-td ec-ga-ls-td-act">
-                                  <button type="button" onClick={() => removeAdditionalItem(r._tempId)}
-                                    className="ec-ga-ls-remove" aria-label="Remove additional item">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="ec-ga-ls-actions">
-                        <button type="button" onClick={addAdditionalItem} className="ec-ga-ls-add">
-                          <Plus className="w-3.5 h-3.5" /> Add Item
-                        </button>
-                      </div>
-                      <div className="ec-sum2-total">
-                        <span className="ec-sum2-total-label">Additional Items Total</span>
-                        <span className="ec-sum2-total-value">₹{fmt(totals.additional)}</span>
-                      </div>
-                    </fieldset>
-                  </section>
-                </div>
-
-                <div className="ec-sum2-card" aria-label="Part-III and Grand Total summary">
-                  <section className="ec-sum2-section ec-sum2-part-iii" aria-label="Part-III LS Provisions">
-                    <h4 className="ec-sum2-title">PART-III</h4>
-                    <p className="ec-sum2-subtitle">LS Provisions</p>
-                    <p className="ec-sum2-note">LS Unforeseen Items &amp; Rounding Off</p>
-                    <fieldset disabled={readOnly} className="min-w-0">
-                      <div className="ec-ga-ls-table-wrap ec-sum2-ls-scroll">
-                        <table className="ec-ga-ls-table">
-                          <colgroup>
-                            <col className="ec-ga-ls-col-desc" />
-                            <col className="ec-ga-ls-col-amt" />
-                            <col className="ec-ga-ls-col-act" />
-                          </colgroup>
-                          <thead>
-                            <tr>
-                              <th className="ec-ga-ls-th">Description</th>
-                              <th className="ec-ga-ls-th ec-ga-ls-th-amt">Amount (₹)</th>
-                              <th className="ec-ga-ls-th ec-ga-ls-th-act">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {lsProvisions.length === 0 && (
-                              <tr>
-                                <td colSpan="3" className="ec-ga-ls-empty-cell">No LS provisions added yet</td>
-                              </tr>
-                            )}
-                            {lsProvisions.map(r => (
-                              <tr key={r._tempId}>
-                                <td className="ec-ga-ls-td">
-                                  <textarea id={`ls-desc-${r._tempId}`} rows={2} value={r.Description}
-                                    placeholder="LS unforeseen items and rounding off..."
-                                    onChange={e => updateLsProvision(r._tempId, 'Description', e.target.value)}
-                                    onKeyDown={e => {
-                                      if (e.key === 'Enter') {
-                                        e.preventDefault()
-                                        document.getElementById(`ls-amt-${r._tempId}`)?.focus()
-                                      }
-                                    }}
-                                    className="ec-sum2-desc-textarea" />
-                                </td>
-                                <td className="ec-ga-ls-td">
-                                  <input id={`ls-amt-${r._tempId}`} type="number" step="0.01" min="0" value={r.Amount}
-                                    placeholder="0.00"
-                                    onChange={e => updateLsProvision(r._tempId, 'Amount', e.target.value)}
-                                    className="ec-ga-ls-input ec-ga-ls-input-amt" />
-                                </td>
-                                <td className="ec-ga-ls-td ec-ga-ls-td-act">
-                                  <button type="button" onClick={() => removeLsProvision(r._tempId)}
-                                    className="ec-ga-ls-remove" aria-label="Remove LS provision">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="ec-ga-ls-actions">
-                        <button type="button" onClick={addLsProvision} className="ec-ga-ls-add">
-                          <Plus className="w-3.5 h-3.5" /> Add Item
-                        </button>
-                      </div>
-                      <div className="ec-sum2-total">
-                        <span className="ec-sum2-total-label">LS Provision Total</span>
-                        <span className="ec-sum2-total-value">₹{fmt(totals.lsProv)}</span>
-                      </div>
-                    </fieldset>
-                  </section>
-
-                  <div className="ec-sum2-divider" />
-
-                  <section className="ec-sum2-section ec-sum2-grand" aria-label="Grand Total">
-                    <h4 className="ec-sum2-title">GRAND TOTAL</h4>
-                    <p className="ec-sum2-subtitle">Part-I + Part-II + Part-III</p>
-                    <div className="ec-sum2-breakdown">
-                      <div className="ec-sum2-bd-row">
-                        <span className="ec-sum2-bd-label">Part-I (Working Items)</span>
-                        <span className="ec-sum2-bd-value">₹{fmt(totals.costOfEst)}</span>
-                      </div>
-                      <div className="ec-sum2-bd-row">
-                        <span className="ec-sum2-bd-label">Part-II (Additional Items)</span>
-                        <span className="ec-sum2-bd-value">₹{fmt(totals.additional)}</span>
-                      </div>
-                      <div className="ec-sum2-bd-row">
-                        <span className="ec-sum2-bd-label">GST @ {Number(header.GSTPercent) || 0}%</span>
-                        <span className="ec-sum2-bd-value">₹{fmt(totals.gst)}</span>
-                      </div>
-                      <div className="ec-sum2-bd-row">
-                        <span className="ec-sum2-bd-label">Part-III (LS Provisions)</span>
-                        <span className="ec-sum2-bd-value">₹{fmt(totals.lsProv)}</span>
-                      </div>
-                    </div>
-                    <div className="ec-sum2-grand-total">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="ec-sum2-grand-total-label">Grand Total</span>
-                        <span className="ec-sum2-grand-total-value">₹{fmt(totals.grandTotal)}</span>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
           {isEdit && header.Status === 'Reverted' && !readOnly && (
-            <div className="ec-card mb-5">
+            <div className="ec-card ew-atr-card">
               <div className="ec-card-header">
                 <span className="ec-card-title">Action Taken Report <span className="text-[#DC2626]">*</span></span>
               </div>
@@ -1308,9 +1072,206 @@ export default function EstimateForm() {
             </div>
           )}
 
+          {/* ── Estimate Editing Workspace: items | summary ── */}
+          <div className="ew-workspace min-h-0">
+
+            <div className="ew-items-panel bg-white/70 border border-white/60 rounded-xl shadow-xs flex flex-col">
+              <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/70 bg-white/50 shrink-0">
+                <div className="flex items-center">
+                  <h3 className="text-sm font-bold text-slate-900">Estimate Items</h3>
+                  <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 font-medium">
+                    {liveItemCount} items
+                  </span>
+                </div>
+                {!readOnly && (
+                  <button type="button"
+                    onClick={() => (draftTempId ? handleFocusSearch() : addDraftRow())}
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/5 bg-white/80 transition-colors">
+                    <Plus className="w-3.5 h-3.5" />
+                    Add New Estimate Item
+                  </button>
+                )}
+              </div>
+
+              {errors.items && <p className="ec-error-text px-5 pt-2">{errors.items}</p>}
+
+              <div className="ew-item-scroll">
+                {items.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-5 mx-3 my-1 border border-dashed border-slate-200 rounded-lg">
+                    No items added yet. Click '+ Add New Estimate Item' above to get started.
+                  </p>
+                ) : (
+                  <div className="ew-item-table">
+                    <div className="ew-grid-row ew-grid-head">
+                      <div className="ew-grid-cell ew-th ew-cell-sno">S.NO</div>
+                      <div className="ew-grid-cell ew-th justify-start">ITEM DESCRIPTION</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">TYPE</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">N</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">L</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">B</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">D</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">QTY</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">UNIT</div>
+                      <div className="ew-grid-cell ew-th ew-cell-right">RATE (₹)</div>
+                      <div className="ew-grid-cell ew-th ew-cell-right">AMOUNT (₹)</div>
+                      <div className="ew-grid-cell ew-th ew-cell-center">ACTIONS</div>
+                    </div>
+                    {items.map((item, i) => (
+                      <Fragment key={item._tempId}>
+                        {renderItemRow(item, i, item._tempId === draftTempId ? {
+                          open: showRowSearch,
+                          term: searchTerm,
+                          searching,
+                          results: searchResults,
+                          activeResult,
+                          onTermChange: setSearchTerm,
+                          onKeyDown: handleSearchKeyDown,
+                          onFocus: openDraftSearch,
+                          onSelect: selectRowItem,
+                          onMouseEnter: setActiveResult,
+                        } : null)}
+                      </Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <EstimateDocuments ref={docsRef} estimateId={savedId} canEdit={!readOnly && user?.Designation === 'Manager'} />
+            </div>
+
+            <div className="ew-summary-panel" id="cost-summary">
+                {/* PART-I : WORKING ITEMS */}
+                <div className="ew-sum-card bg-[#F0F7FF] border border-[#DBEAFE] rounded-xl p-2 shadow-xs flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1D4ED8] uppercase tracking-wide">
+                      PART-I : WORKING ITEMS
+                    </h4>
+                    <div className="space-y-1.5 mt-2 text-xs">
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Cost of Material</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">₹ {fmt(totals.material)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Cost of Civil Work</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">₹ {fmt(totals.civil)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-[#DBEAFE] pt-1.5 mt-2 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">Part-I Total</span>
+                    <span className="text-sm font-bold text-slate-900 tabular-nums">₹ {fmt(totals.costOfEst)}</span>
+                  </div>
+                </div>
+
+                {/* PART-II : REIMBURSEMENTS */}
+                <div className="ew-sum-card bg-[#EDFAF3] border border-[#A7F3D0] rounded-xl p-2 shadow-xs flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-[#059669] uppercase tracking-wide">
+                      PART-II : REIMBURSEMENTS
+                    </h4>
+                    <div className="space-y-1.5 mt-2 text-xs">
+                      <div className="flex items-center justify-between text-slate-600">
+                        <label htmlFor="gst" className="text-slate-600">GST (%)</label>
+                        <select
+                          id="gst"
+                          name="GSTPercent"
+                          value={header.GSTPercent}
+                          onChange={set('GSTPercent')}
+                          disabled={readOnly}
+                          className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        >
+                          {gstOptions.map(g => <option key={g} value={g}>{g}%</option>)}
+                        </select>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Items</span>
+                        <span className="font-medium text-slate-900">{additionalItems.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Total</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">₹ {fmt(totals.additional)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={addAdditionalItem}
+                        className="w-full py-1 px-3 bg-white border border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Reimbursement
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* PART-III : LS PROVISIONS */}
+                <div className="ew-sum-card bg-[#F5F0FF] border border-[#E9D5FF] rounded-xl p-2 shadow-xs flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-[#7C3AED] uppercase tracking-wide">
+                      PART-III : LS PROVISIONS
+                    </h4>
+                    <div className="space-y-1.5 mt-2 text-xs">
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Items</span>
+                        <span className="font-medium text-slate-900">{lsProvisions.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Total</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">₹ {fmt(totals.lsProv)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={addLsProvision}
+                        className="w-full py-1 px-3 bg-white border border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add LS Provision
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* GRAND TOTAL */}
+                <div className="ew-sum-card ew-sum-grand bg-[#FFFBEA] border border-[#FEF08A] rounded-xl p-2 shadow-xs flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide">
+                      GRAND TOTAL
+                    </h4>
+                    <div className="space-y-1 mt-1.5 text-xs">
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Part-I Total</span>
+                        <span className="font-medium text-slate-900 tabular-nums">₹ {fmt(totals.costOfEst)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Part-II Total</span>
+                        <span className="font-medium text-slate-900 tabular-nums">₹ {fmt(totals.additional)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>Part-III Total</span>
+                        <span className="font-medium text-slate-900 tabular-nums">₹ {fmt(totals.lsProv)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span>GST Amount ({Number(header.GSTPercent) || 0}%)</span>
+                        <span className="font-medium text-slate-900 tabular-nums">₹ {fmt(totals.gst)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-[#FEF08A] pt-1.5 mt-2 flex items-baseline justify-between">
+                    <span className="text-xs font-bold text-[#0F172A] uppercase tracking-wide">GRAND TOTAL</span>
+                    <span className="text-base font-extrabold text-[#0F172A] tabular-nums">₹ {fmt(totals.grandTotal)}</span>
+                  </div>
+                </div>
+            </div>
+          </div>
+
           {!readOnly && (
-            <div className="ef-action-bar flex-wrap gap-3" id="preview-submit">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="ew-action-wrap">
+              <div className="flex flex-wrap items-center gap-3 w-full" id="preview-submit">
                 {isEdit && header.Status === 'Reverted' ? (
                   <>
                     <button type="button" onClick={() => saveEstimate({})} disabled={saving || saved}
@@ -1344,33 +1305,84 @@ export default function EstimateForm() {
                 ) : (
                   <>
                     <button type="button" onClick={() => saveEstimate({})} disabled={saving || saved}
-                      className={saved ? 'ec-btn ec-btn-success ec-btn-saved' : 'ec-btn ec-btn-primary'}>
+                      className="px-3.5 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-sm font-semibold flex items-center gap-2 shadow-xs transition-colors">
                       {saving ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
                       ) : saved ? (
-                        <><Check className="w-4 h-4 ec-btn-saved-icon" /> Saved</>
+                        <><Check className="w-4 h-4" /> Saved</>
                       ) : (
                         <><Save className="w-4 h-4" /> Save</>
                       )}
                     </button>
-                    <button type="button" onClick={goToMyEstimates} className="ec-btn-ghost">
-                      <ClipboardList className="w-4 h-4" /> My Estimates
+                    <button type="button" onClick={() => setPreviewOpen(true)} className="px-2.5 py-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+                      <Eye className="w-4 h-4 text-slate-500" /> Preview
+                    </button>
+                    <button type="button" onClick={() => docsRef.current?.openPicker()} className="px-2.5 py-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+                      <Upload className="w-4 h-4 text-slate-500" /> Upload
+                    </button>
+                    <button type="button" onClick={goToMyEstimates} className="px-2.5 py-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+                      <ClipboardList className="w-4 h-4 text-slate-500" /> My Estimates
                     </button>
                     {!isEdit && (
-                      <button type="button" onClick={handleReset} className="ec-btn-ghost">
-                        <RotateCcw className="w-4 h-4" /> Reset
+                      <button type="button" onClick={handleReset} className="px-2.5 py-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+                        <RotateCcw className="w-4 h-4 text-slate-500" /> Reset
                       </button>
                     )}
                   </>
                 )}
-                <button type="button" onClick={handleCancel} className="ec-btn-ghost">
-                  <X className="w-4 h-4" /> Cancel
+                <button type="button" onClick={handleCancel} className="px-2.5 py-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+                  <X className="w-4 h-4 text-slate-500" /> Cancel
                 </button>
               </div>
             </div>
           )}
+          </div>
+
+          <ItemFormDialog
+            open={!!itemDialog}
+            data={itemDialog}
+            gstPercent={header.GSTPercent}
+            onClose={() => setItemDialog(null)}
+            onSave={saveItemFromDialog}
+          />
+          <ConfirmDialog
+            open={!!deleteTarget}
+            title={deleteTarget ? DELETE_TITLE[deleteTarget.kind] : ''}
+            message="This will remove the item from this estimate."
+            confirmLabel="Delete"
+            onConfirm={confirmDelete}
+            onClose={() => setDeleteTarget(null)}
+          />
+
+          {previewOpen && (
+            <div className="fixed inset-0 z-50 flex flex-col bg-black/50" role="dialog" aria-modal="true" aria-label="Estimate preview">
+              <div className="no-print sticky top-0 z-10 flex items-center justify-between gap-3 px-4 py-3 bg-white/95 backdrop-blur border-b border-slate-300">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Estimate Preview</h3>
+                  <p className="text-xs text-slate-600">Current estimate in A4 print format</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button type="button" onClick={handlePreviewPrint} className="px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors">
+                    <Printer className="w-4 h-4" /> Print
+                  </button>
+                  <button type="button" onClick={() => setPreviewOpen(false)} className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors">
+                    <X className="w-4 h-4" /> Close
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 py-6">
+                <EstimateDraftPrint
+                  nameOfWork={header.NameOfWork}
+                  workCategory={header.WorkCategory}
+                  locationLine={locationPreview}
+                  items={items}
+                  additionalItems={additionalItems}
+                  lsProvisions={lsProvisions}
+                  gstPercent={header.GSTPercent}
+                />
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
   )
 }

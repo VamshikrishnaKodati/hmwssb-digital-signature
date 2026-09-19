@@ -165,16 +165,16 @@ async function setLabelControl(ctx, labelText, value, { isSelect = false } = {})
 }
 
 async function selectLocation(ctx) {
-  const pick = async (id) => {
-    const s = ctx.page.locator(`#${id}`)
-    await s.waitFor({ timeout: 10000 })
-    await s.selectOption({ index: 1 })
-  }
-  await pick('loc-region')
-  await pick('loc-zone')
-  await pick('loc-division')
-  await pick('loc-circle')
-  await pick('loc-ward')
+  // The Create Estimate UI uses a single visible Location (Ward) select;
+  // picking it cascades Region/Zone/Division/Circle into hidden inputs.
+  const s = ctx.page.locator('#loc-ward')
+  await s.waitFor({ timeout: 10000 })
+  await s.selectOption({ index: 1 })
+  await ctx.page.waitForFunction(() => {
+    const v = id => document.getElementById(id)?.value
+    return v('loc-region') && v('loc-region') !== '—' &&
+      v('loc-zone') && v('loc-division') && v('loc-circle') && v('loc-circle') !== '—'
+  }, null, { timeout: 10000 })
 }
 
 // add one item row by searching the item master (works on the empty first row)

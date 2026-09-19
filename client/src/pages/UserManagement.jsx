@@ -169,7 +169,7 @@ export default function UserManagement() {
       {showForm && (
         <form onSubmit={handleSubmit} className="ec-card mb-5">
           <div className="ec-card-header">
-            <ShieldCheck className="w-4 h-4 text-[#1E3A5F]" />
+            <ShieldCheck className="w-4 h-4 text-[#2563EB]" />
             <span className="ec-card-title">{editId ? `Edit — ${form.Name}` : 'New User'}</span>
           </div>
           <div className="ec-card-body">
@@ -332,9 +332,9 @@ function FragmentRow({ u, expandedAudit, auditRows, scopeOf, onEdit, onToggleSta
         <td className="font-mono text-xs">{u.Username}</td>
         <td>
           <span className="ec-badge ec-badge-info">{roleLabel(u.Designation)}</span>
-          {u.DesignationTitle && <span className="block text-[10px] text-[#64748B] mt-0.5">{u.DesignationTitle}</span>}
+          {u.DesignationTitle && <span className="block text-[10px] text-[#475569] mt-0.5">{u.DesignationTitle}</span>}
         </td>
-        <td className="text-xs text-[#64748B]">{scopeOf(u)}</td>
+        <td className="text-xs text-[#475569]">{scopeOf(u)}</td>
         <td className="text-xs">{u.Email || '—'}</td>
         <td className="text-xs">{u.MobileNumber || '—'}</td>
         <td>
@@ -344,14 +344,14 @@ function FragmentRow({ u, expandedAudit, auditRows, scopeOf, onEdit, onToggleSta
         </td>
         <td>
           <div className="flex items-center gap-2">
-            <button onClick={onEdit} className="text-[#1E3A5F] hover:opacity-70" title="Edit user">
+            <button onClick={onEdit} className="text-[#2563EB] hover:opacity-70" title="Edit user">
               <Edit3 className="w-4 h-4" />
             </button>
             <button onClick={onToggleStatus} className={u.IsActive === false ? 'text-[#16A34A] hover:opacity-70' : 'text-[#DC2626] hover:opacity-70'}
               title={u.IsActive === false ? 'Activate user' : 'Deactivate user'}>
               <Power className="w-4 h-4" />
             </button>
-            <button onClick={onAudit} className={`hover:opacity-70 ${expandedAudit ? 'text-[#1E3A5F]' : 'text-[#94A3B8]'}`} title="Scope audit trail">
+            <button onClick={onAudit} className={`hover:opacity-70 ${expandedAudit ? 'text-[#2563EB]' : 'text-[#94A3B8]'}`} title="Scope audit trail">
               <History className="w-4 h-4" />
             </button>
           </div>
@@ -368,15 +368,15 @@ function FragmentRow({ u, expandedAudit, auditRows, scopeOf, onEdit, onToggleSta
                 {auditRows.map(a => (
                   <li key={a.AssignmentAuditID || a.ChangedAt} className="text-xs flex flex-wrap items-center gap-x-3 gap-y-0.5">
                     <span className="ec-badge ec-badge-info">{a.Role}</span>
-                    <span className={`font-medium ${a.Action === 'Deactivate' ? 'text-[#DC2626]' : 'text-[#1E3A5F]'}`}>{a.Action}</span>
-                    <span className="text-[#64748B]">
+                    <span className={`font-medium ${a.Action === 'Deactivate' ? 'text-[#DC2626]' : 'text-[#2563EB]'}`}>{a.Action}</span>
+                    <span className="text-[#475569]">
                       {fmtAuditScope(a.OldScope)} {a.NewScope ? `→ ${fmtAuditScope(a.NewScope)}` : ''}
                     </span>
                     <span className="text-[#94A3B8]">
                       {new Date(a.ChangedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       {' '}(by {a.ChangedByName || 'unknown'})
                     </span>
-                    {a.Notes && <span className="text-[#64748B] italic">“{a.Notes}”</span>}
+                    {a.Notes && <span className="text-[#475569] italic">“{a.Notes}”</span>}
                   </li>
                 ))}
               </ul>

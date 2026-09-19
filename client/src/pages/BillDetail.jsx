@@ -117,16 +117,16 @@ export default function BillDetail() {
 
   return (
     <div className="min-w-0 space-y-4">
-      <Link to="/billing" className="text-xs text-[#1E3A5F] hover:underline inline-flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> Back to Billing</Link>
+      <Link to="/billing" className="text-xs text-[#2563EB] hover:underline inline-flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> Back to Billing</Link>
 
       {/* HEADER */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="ec-page-title flex flex-wrap items-center gap-2.5">
-            <Receipt className="w-6 h-6 text-[#1E3A5F]" />
+            <Receipt className="w-6 h-6 text-[#2563EB]" />
             Bill {bill.BillNo || `#${bill.BillID}`}
             <BillStatusBadge status={bill.Status} />
-            <span className="text-xs font-normal text-[#64748B]">{bill.EstimateNo}</span>
+            <span className="text-xs font-normal text-[#475569]">{bill.EstimateNo}</span>
           </h1>
           <p className="ec-page-subtitle flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1"><Building2 className="w-3.5 h-3.5 text-[#94A3B8]" /> {bill.NameOfWork} · {bill.WorkID}</span>
@@ -189,7 +189,7 @@ export default function BillDetail() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="xl:col-span-2 bi-panel overflow-hidden">
           <div className="px-4 py-3 border-b border-[#E7ECF3]">
-            <p className="bi-title inline-flex items-center gap-2"><Receipt className="w-4 h-4 text-[#1E3A5F]" /> Bill Items — Qty comparison</p>
+            <p className="bi-title inline-flex items-center gap-2"><Receipt className="w-4 h-4 text-[#2563EB]" /> Bill Items — Qty comparison</p>
           </div>
           <div className="overflow-x-auto">
             {items.length === 0 ? (
@@ -210,20 +210,20 @@ export default function BillDetail() {
                         <p className="text-[12px] font-medium text-[#0F172A]">{i.ItemName || i.ItemCode}</p>
                         {i.ItemCode && <p className="text-[10px] text-[#94A3B8]">{i.ItemCode} · Est qty {i.EstimateQty}</p>}
                       </td>
-                      <td className="text-center text-[#64748B]">{i.Unit || '—'}</td>
+                      <td className="text-center text-[#475569]">{i.Unit || '—'}</td>
                       <td className="text-right tabular-nums">{fmtCurrency(i.Rate)}</td>
-                      <td className="text-right tabular-nums text-[#64748B]">{i.PreviousQty ?? 0}</td>
+                      <td className="text-right tabular-nums text-[#475569]">{i.PreviousQty ?? 0}</td>
                       <td className="text-right tabular-nums font-semibold text-[#0F172A]">{i.CurrentQty ?? 0}</td>
                       <td className="text-right tabular-nums">{i.CumulativeQty}</td>
-                      <td className="text-right tabular-nums text-[#64748B]">{i.BalanceQty}</td>
-                      <td className="text-right tabular-nums font-bold text-[#1E3A5F]">{fmtCurrency(i.Amount)}</td>
+                      <td className="text-right tabular-nums text-[#475569]">{i.BalanceQty}</td>
+                      <td className="text-right tabular-nums font-bold text-[#2563EB]">{fmtCurrency(i.Amount)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-[#E7ECF3] bg-[#F8FAFC]">
                     <td colSpan={7} className="px-3 py-2 text-right text-xs font-semibold text-[#0F172A]">Subtotal</td>
-                    <td className="px-3 py-2 text-right text-xs font-bold text-[#1E3A5F]">{fmtCurrency(subAmount)}</td>
+                    <td className="px-3 py-2 text-right text-xs font-bold text-[#2563EB]">{fmtCurrency(subAmount)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -233,31 +233,31 @@ export default function BillDetail() {
 
         <div className="bi-panel overflow-hidden">
           <div className="px-4 py-3 border-b border-[#E7ECF3] -mx-4 mb-0">
-            <p className="bi-title inline-flex items-center gap-2"><Building2 className="w-4 h-4 text-[#1E3A5F]" /> Bill Summary</p>
+            <p className="bi-title inline-flex items-center gap-2"><Building2 className="w-4 h-4 text-[#2563EB]" /> Bill Summary</p>
           </div>
           <div className="p-4">
             <dl className="space-y-2">
               {summaryRows.map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3">
-                  <dt className="text-xs text-[#64748B]">{k}</dt>
+                  <dt className="text-xs text-[#475569]">{k}</dt>
                   <dd className="text-xs font-medium text-right text-[#0F172A]">{v}</dd>
                 </div>
               ))}
             </dl>
           </div>
           <div className="px-4 py-3 border-t border-[#E7ECF3]">
-            <p className="bi-title inline-flex items-center gap-2"><Ruler className="w-4 h-4 text-[#1E3A5F]" /> Work / Estimate</p>
+            <p className="bi-title inline-flex items-center gap-2"><Ruler className="w-4 h-4 text-[#2563EB]" /> Work / Estimate</p>
           </div>
           <div className="p-4">
             <dl className="space-y-2">
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">Estimate</dt><dd className="text-xs font-medium text-right">{bill.EstimateNo}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">Estimate Status</dt><dd className="text-xs font-medium text-right">{bill.EstimateStatus}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">Approved Estimate</dt><dd className="text-xs font-medium text-right">{fmtCurrency(bill.ApprovedEstimateAmount)}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">Agency</dt><dd className="text-xs font-medium text-right">{bill.AgencyName || '—'}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">Contractor</dt><dd className="text-xs font-medium text-right">{bill.ContractorName || '—'}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">Financial Year</dt><dd className="text-xs font-medium text-right">{bill.FinancialYear || '—'}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">Current Owner</dt><dd className="text-xs font-medium text-right">{bill.CurrentOwnerName || '—'}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-xs text-[#64748B]">SLA Due</dt><dd className="text-xs font-medium text-right">{sla?.dueAt ? new Date(sla.dueAt).toLocaleString('en-IN') : '—'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">Estimate</dt><dd className="text-xs font-medium text-right">{bill.EstimateNo}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">Estimate Status</dt><dd className="text-xs font-medium text-right">{bill.EstimateStatus}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">Approved Estimate</dt><dd className="text-xs font-medium text-right">{fmtCurrency(bill.ApprovedEstimateAmount)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">Agency</dt><dd className="text-xs font-medium text-right">{bill.AgencyName || '—'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">Contractor</dt><dd className="text-xs font-medium text-right">{bill.ContractorName || '—'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">Financial Year</dt><dd className="text-xs font-medium text-right">{bill.FinancialYear || '—'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">Current Owner</dt><dd className="text-xs font-medium text-right">{bill.CurrentOwnerName || '—'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-xs text-[#475569]">SLA Due</dt><dd className="text-xs font-medium text-right">{sla?.dueAt ? new Date(sla.dueAt).toLocaleString('en-IN') : '—'}</dd></div>
             </dl>
           </div>
         </div>
@@ -265,8 +265,8 @@ export default function BillDetail() {
 
       {/* MEASUREMENT */}
       <div className="bi-panel p-4">
-        <p className="bi-title inline-flex items-center gap-2 mb-2"><Ruler className="w-4 h-4 text-[#1E3A5F]" /> Measurement Book</p>
-        <p className="text-[12px] text-[#64748B]">
+        <p className="bi-title inline-flex items-center gap-2 mb-2"><Ruler className="w-4 h-4 text-[#2563EB]" /> Measurement Book</p>
+        <p className="text-[12px] text-[#475569]">
           {bill.Measurements ? <>Linked measurement reference: <strong className="text-[#0F172A]">{bill.Measurements}</strong></> : 'No measurement reference recorded on this bill.'}
           <span className="text-[#94A3B8]"> Quantities above reconcile approved, measured, previously billed, current and balance figures.</span>
         </p>
@@ -277,13 +277,13 @@ export default function BillDetail() {
 
       {/* DOCUMENTS */}
       <div className="bi-panel p-4" id="documents">
-        <p className="bi-title inline-flex items-center gap-2 mb-3"><Paperclip className="w-4 h-4 text-[#1E3A5F]" /> Documents ({documents.length})</p>
+        <p className="bi-title inline-flex items-center gap-2 mb-3"><Paperclip className="w-4 h-4 text-[#2563EB]" /> Documents ({documents.length})</p>
         {documents.length === 0 ? (
           <p className="text-xs text-[#94A3B8] py-2 text-center">No documents yet.</p>
         ) : (
           <ul className="space-y-2 mb-4">
             {documents.map(d => (
-              <li key={d.DocumentID} className="flex items-center justify-between gap-2 rounded-lg border border-[#E3E8F0] bg-white px-3 py-2 hover:border-[#1E3A5F]/30 transition-colors">
+              <li key={d.DocumentID} className="flex items-center justify-between gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 hover:border-[#2563EB]/30 transition-colors">
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-[#0F172A] truncate">{d.DocName}</p>
                   <p className="text-[10px] text-[#94A3B8]">{d.DocType}{d.FilePath ? ` · ${d.FilePath}` : ''} · {d.UploadedByName} · {new Date(d.UploadedAt).toLocaleString('en-IN')}</p>
@@ -310,18 +310,18 @@ export default function BillDetail() {
       {/* APPROVAL HISTORY + AUDIT */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="bi-panel p-4" id="history">
-          <p className="bi-title inline-flex items-center gap-2 mb-3"><History className="w-4 h-4 text-[#1E3A5F]" /> Approval History</p>
+          <p className="bi-title inline-flex items-center gap-2 mb-3"><History className="w-4 h-4 text-[#2563EB]" /> Approval History</p>
           {history.length === 0 ? (
             <p className="text-xs text-[#94A3B8] py-2 text-center">Bill has not been submitted yet.</p>
           ) : (
             <ol className="bi-timeline">
               {history.map(h => (
                 <li key={h.WorkflowID} className="bi-tl-item">
-                  <span className={`bi-tl-dot ${h.Action?.includes('RETURNED') ? 'border-amber-400' : 'border-[#1E3A5F]'}`} style={{ left: -18 }}>
-                    <span className={`w-[9px] h-[9px] rounded-full ${h.Action?.includes('RETURNED') ? 'bg-amber-400' : 'bg-[#1E3A5F]'}`} />
+                  <span className={`bi-tl-dot ${h.Action?.includes('RETURNED') ? 'border-amber-400' : 'border-[#2563EB]'}`} style={{ left: -18 }}>
+                    <span className={`w-[9px] h-[9px] rounded-full ${h.Action?.includes('RETURNED') ? 'bg-amber-400' : 'bg-[#2563EB]'}`} />
                   </span>
                   <p className="text-xs font-semibold text-[#0F172A]">{workflowActionLabel(h.Action)}</p>
-                  <p className="text-[11px] text-[#64748B]">{h.FromUserName || '—'} → {h.ToUserName || '—'} · {new Date(h.DateTime).toLocaleString('en-IN')}</p>
+                  <p className="text-[11px] text-[#475569]">{h.FromUserName || '—'} → {h.ToUserName || '—'} · {new Date(h.DateTime).toLocaleString('en-IN')}</p>
                   {h.Remarks && <p className="text-[11px] text-[#475569] bg-slate-50 rounded px-2 py-1 mt-1">{h.Remarks}</p>}
                 </li>
               ))}
@@ -330,7 +330,7 @@ export default function BillDetail() {
         </div>
 
         <div className="bi-panel p-4">
-          <p className="bi-title inline-flex items-center gap-2 mb-3"><ScrollText className="w-4 h-4 text-[#1E3A5F]" /> Audit Trail (billing events)</p>
+          <p className="bi-title inline-flex items-center gap-2 mb-3"><ScrollText className="w-4 h-4 text-[#2563EB]" /> Audit Trail (billing events)</p>
           {billAudit.length === 0 ? (
             <p className="text-xs text-[#94A3B8] py-2 text-center">No billing audit events.</p>
           ) : (
@@ -339,7 +339,7 @@ export default function BillDetail() {
                 <li key={a.AuditID} className="py-2 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-[#0F172A]">{a.Action}</p>
-                    {a.Remarks && <p className="text-[11px] text-[#64748B]">{a.Remarks}</p>}
+                    {a.Remarks && <p className="text-[11px] text-[#475569]">{a.Remarks}</p>}
                   </div>
                   <span className="text-[10px] text-[#94A3B8] whitespace-nowrap">{new Date(a.CreatedDate).toLocaleString('en-IN')}</span>
                 </li>
@@ -359,23 +359,23 @@ export default function BillDetail() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-[#0F172A]">Return Bill</h3>
-                <p className="text-[11px] text-[#64748B]">Returns to the previous stage — reason is mandatory.</p>
+                <p className="text-[11px] text-[#475569]">Returns to the previous stage — reason is mandatory.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="rounded-lg border border-[#E3E8F0] bg-[#F8FAFC]/60 px-3 py-2">
+              <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC]/60 px-3 py-2">
                 <p className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Current Stage</p>
                 <p className="text-xs font-semibold text-[#0F172A] mt-0.5">{bill.CurrentStep || bill.Status}</p>
               </div>
-              <div className="rounded-lg border border-[#E3E8F0] bg-[#F8FAFC]/60 px-3 py-2">
+              <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC]/60 px-3 py-2">
                 <p className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Current User</p>
                 <p className="text-xs font-semibold text-[#0F172A] mt-0.5 inline-flex items-center gap-1"><User2 className="w-3 h-3 text-[#94A3B8]" /> {bill.CurrentOwnerName || '—'}</p>
               </div>
             </div>
-            <div className="mb-4 rounded-lg border border-[#1E3A5F]/10 bg-[#1E3A5F]/5 px-3 py-2">
+            <div className="mb-4 rounded-lg border border-[#2563EB]/10 bg-[#2563EB]/5 px-3 py-2">
               <p className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Target Stage</p>
-              <p className="text-xs font-semibold text-[#1E3A5F] mt-0.5">{returnTarget}</p>
+              <p className="text-xs font-semibold text-[#2563EB] mt-0.5">{returnTarget}</p>
             </div>
 
             <form onSubmit={doReturn}>

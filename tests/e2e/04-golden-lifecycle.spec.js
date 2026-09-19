@@ -6,22 +6,37 @@ const { loginAs, readOtp, clearOtps, configureTender } = require('./helpers');
 
 const API_LOG = path.join(os.tmpdir(), 'opencode', 'api-out.log');
 
-// Billing OTPs are console-only ([OTP][DEV] Bill ... line in api-out.log), so
-// tail that file for the latest matching code instead of dev-otp.json.
-async function readConsoleOtp(billIdent, timeoutMs = 12000) {
-  const bytesBefore = (() => { try { return fs.statSync(API_LOG).size; } catch { return 0; } })();
+const STATE_FILE = path.join(os.tmpdir(), 'hmwssb-e2e', 'golden-state.json');
+function saveState(patch) {
+  try {
+    const dir = path.dirname(STATE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    let cur = {};
+    try { cur = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch {}
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ ...cur, ...patch }));
+  } catch {}
+}
+function loadState() {
+  try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; }
+}
+
+// Billing OTPs are logged to dev-otp.json and console
+async function readConsoleOtp(billIdent, purpose, timeoutMs = 12000) {
   const deadline = Date.now() + timeoutMs;
-  let lastOffset = bytesBefore;
+  const devOtpPath = path.join(os.tmpdir(), 'hmwssb-e2e', 'dev-otp.json');
   while (Date.now() < deadline) {
     try {
-      const size = fs.statSync(API_LOG).size;
-      if (size > lastOffset) {
-        const fd = fs.openSync(API_LOG, 'r');
-        const buf = Buffer.alloc(size - lastOffset);
-        fs.readSync(fd, buf, 0, buf.length, lastOffset);
-        fs.closeSync(fd);
-        lastOffset = size;
-        const data = buf.toString('utf8');
+      if (fs.existsSync(devOtpPath)) {
+        const data = JSON.parse(fs.readFileSync(devOtpPath, 'utf8'));
+        const matches = Object.entries(data)
+          .filter(([k]) => k.includes(String(billIdent)) && (!purpose || k.includes(purpose)))
+          .sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+        if (matches.length && matches[0][1]?.code) return matches[0][1].code;
+      }
+    } catch {}
+    try {
+      if (fs.existsSync(API_LOG)) {
+        const data = fs.readFileSync(API_LOG, 'utf8');
         const lines = data.split('\n').filter(l => l.includes('[OTP][DEV] Bill') && l.includes(billIdent));
         if (lines.length) {
           const m = lines[lines.length - 1].match(/:\s*(\d{4,8})\s*$/);
@@ -35,12 +50,18 @@ async function readConsoleOtp(billIdent, timeoutMs = 12000) {
 }
 
 // Bill OTP modal step: open modal via testid, request OTP, fill digits, verify.
-async function billOtpAction(page, billIdent, { openTestId }) {
+async function billOtpAction(page, billIdent, { openTestId, purpose }) {
   await page.locator(`[data-testid="${openTestId}"]`).first().click();
   await page.waitForTimeout(700);
-  await page.locator('button:has-text("Send OTP")').first().click();
-  await page.waitForTimeout(1500);
-  const code = await readConsoleOtp(billIdent);
+  const sendBtn = page.locator('button:has-text("Send OTP")');
+  if (await sendBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+    await sendBtn.click();
+    await page.waitForTimeout(1500);
+  } else {
+    // OtpModal automatically requests OTP on open
+    await page.waitForTimeout(1200);
+  }
+  const code = await readConsoleOtp(billIdent, purpose);
   if (!code) throw new Error('Bill OTP not captured for ' + billIdent);
   const digits = String(code);
   const inputs = page.locator('input[inputmode="numeric"]');
@@ -129,6 +150,12 @@ async function confirmModal(page, actionBtn, { sanctionNo } = {}, extra) {
 
 test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', () => {
   test.beforeEach(async ({ page }) => {
+    const st = loadState();
+    if (!EID && st.EID) EID = st.EID;
+    if (!EST_NO && st.EST_NO) EST_NO = st.EST_NO;
+    if (!TID && st.TID) TID = st.TID;
+    if (!AID && st.AID) AID = st.AID;
+    if (!BILL_ID && st.BILL_ID) BILL_ID = st.BILL_ID;
     page.on('console', m => { if (m.type() === 'error' && !m.text().includes('favicon') && !m.text().includes('401')) console.log('CONSOLE_ERR:', m.text()); });
   });
 
@@ -187,6 +214,7 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
     EST_NO = res.EstimateNo;
     expect(res.EstimateID).toBeTruthy();
     EID = res.EstimateID;
+    saveState({ EID, EST_NO });
     console.log('GOLDEN Estimate', EST_NO, 'id', EID);
   });
 
@@ -295,6 +323,7 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
     }, { token, eid: EID });
     expect(tr).toBeTruthy();
     TID = tr;
+    saveState({ TID });
     console.log('GOLDEN Tender id', TID);
 
     // Complete the auto-created draft via the real TenderForm (fills all mandatory
@@ -413,6 +442,7 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
     console.log('GOLDEN createAgency', ar.status, 'AID', ar.AID);
     expect(ar.status === 201 || ar.status === 409).toBe(true);
     AID = ar.AID || null;
+    saveState({ AID });
     expect(AID).toBeTruthy();
   });
 
@@ -420,8 +450,8 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
     await loginAs(page, 'site_engineer');
     await page.goto(`/estimates/${EID}`);
     await page.waitForTimeout(2000);
-    const startBtn = page.locator('button:has-text("Start Work")');
-    if (await startBtn.isVisible().catch(() => false)) { await startBtn.click(); await page.waitForTimeout(3000); }
+    await confirmModal(page, 'Start Work');
+    await waitForStatus(page, `estimates/${EID}`, ['WorkStarted']);
 
     // Progress
     await page.goto(`/progress`);
@@ -449,8 +479,7 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
     // Complete work
     await page.goto(`/estimates/${EID}`);
     await page.waitForTimeout(1500);
-    const completeBtn = page.locator('button:has-text("Complete Work")');
-    if (await completeBtn.isVisible().catch(() => false)) { await completeBtn.click(); await page.waitForTimeout(3000); }
+    await confirmModal(page, 'Complete Work');
     await waitForStatus(page, `estimates/${EID}`, ['WorkCompleted'], 25);
   });
 
@@ -477,13 +506,14 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
       return bill ? bill.BillID || bill.id : null;
     }, { token, eid: EID });
     BILL_ID = br;
+    saveState({ BILL_ID });
     console.log('GOLDEN Bill id', BILL_ID);
     expect(BILL_ID).toBeTruthy();
 
     // Submit the bill (biller OTP — console-only)
     await page.goto(`/billing/${BILL_ID}`);
     await page.waitForTimeout(2000);
-    await billOtpAction(page, String(BILL_ID), { openTestId: 'bill-submit' });
+    await billOtpAction(page, String(BILL_ID), { openTestId: 'bill-submit', purpose: 'bill_submit' });
   });
 
   test('STEP 16: Manager -> DGM -> GM check bill to finance', async ({ page }) => {
@@ -498,7 +528,8 @@ test.describe('GOLDEN LIFECYCLE: full canonical officer chain (browser E2E)', ()
       await page.waitForTimeout(1500);
       const checkBtn = page.locator('[data-testid="bill-check"]');
       if (await checkBtn.isVisible().catch(() => false)) {
-        await billOtpAction(page, String(BILL_ID), { openTestId: 'bill-check' });
+        await billOtpAction(page, String(BILL_ID), { openTestId: 'bill-check', purpose: 'bill_check' });
+        await page.waitForTimeout(2000);
       }
       await page.waitForTimeout(1500);
     }

@@ -32,7 +32,7 @@ export default function TenderPreview() {
   const { tender: t, estimate: e, documents = [], readiness = {} } = data
 
   const Row = ({ label, value, mono }) => (
-    <div className="py-2 border-b border-dashed border-[#E2E8F0] last:border-0">
+    <div className="py-2 border-b border-dashed border-[#CBD5E1] last:border-0">
       <p className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">{label}</p>
       <p className={`text-sm text-[#0F172A] ${mono ? 'font-mono' : ''}`}>{value || '—'}</p>
     </div>
@@ -42,7 +42,7 @@ export default function TenderPreview() {
     <div className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link to={`/tenders/${id}/edit`} className="inline-flex items-center gap-1 text-xs text-[#1E3A5F] hover:underline mb-1">
+          <Link to={`/tenders/${id}/edit`} className="inline-flex items-center gap-1 text-xs text-[#2563EB] hover:underline mb-1">
             <ArrowLeft className="w-3 h-3" /> Back to Draft
           </Link>
           <h1 className="ec-page-title">Tender Preview</h1>
@@ -56,10 +56,10 @@ export default function TenderPreview() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Notice header */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-6">
+          <div className="bg-white rounded-xl border border-[#CBD5E1] p-6">
             <div className="text-center mb-6">
-              <p className="text-xs text-[#64748B]">HMWSSB · NOTICE INVITING TENDER</p>
-              <p className="text-lg font-bold text-[#1E3A5F] mt-1">Tender No. {t.TenderNo}</p>
+              <p className="text-xs text-[#475569]">HMWSSB · NOTICE INVITING TENDER</p>
+              <p className="text-lg font-bold text-[#2563EB] mt-1">Tender No. {t.TenderNo}</p>
               <p className="text-sm text-[#475569] mt-1">{e?.NameOfWork}</p>
               <p className="text-[10px] text-[#94A3B8]">{e?.WorkID}</p>
             </div>

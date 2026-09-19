@@ -112,9 +112,9 @@ export default function AgencyList() {
                   <td className="text-xs">{a.AgreementNo}</td>
                   <td className="font-mono text-xs">{a.WorkID}</td>
                   <td className="text-right text-xs font-medium">{fmt(a.TenderValue)}</td>
-                  <td className="text-xs text-[#64748B]">{a.StartDate?.slice(0, 10) || '-'}</td>
-                  <td className="text-xs text-[#64748B]">{a.CompletionDate?.slice(0, 10) || '-'}</td>
-                  <td><button onClick={() => { setEditId(a.AgencyID); setForm(a); setShowForm(true) }} className="text-[#1E3A5F] hover:underline text-xs flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit</button></td>
+                  <td className="text-xs text-[#475569]">{a.StartDate?.slice(0, 10) || '-'}</td>
+                  <td className="text-xs text-[#475569]">{a.CompletionDate?.slice(0, 10) || '-'}</td>
+                  <td><button onClick={() => { setEditId(a.AgencyID); setForm(a); setShowForm(true) }} className="text-[#2563EB] hover:underline text-xs flex items-center gap-1"><Edit3 className="w-3 h-3" /> Edit</button></td>
                 </tr>
               ))}
               {agencies.length === 0 && <tr><td colSpan={8} className="text-center py-12 text-sm text-[#94A3B8]">No agencies</td></tr>}

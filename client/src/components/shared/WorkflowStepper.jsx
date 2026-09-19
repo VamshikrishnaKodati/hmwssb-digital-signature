@@ -67,7 +67,7 @@ export default function WorkflowStepper({ currentStatus, compact, workflow = [],
 
   if (compact) {
     return (
-      <div className="flex items-center gap-1 text-[10px] text-[#64748B]">
+      <div className="flex items-center gap-1 text-[10px] text-[#475569]">
         {STEPS.map((s, i) => {
           const done = i <= activeIdx
           const isCurrent = i === activeIdx
@@ -78,8 +78,8 @@ export default function WorkflowStepper({ currentStatus, compact, workflow = [],
               onClick={() => onStepClick?.(s.key)}
               className="flex items-center gap-1"
             >
-              {i > 0 && <span className={`h-px w-2 ${done ? 'bg-[#1E3A5F]' : 'bg-[#E2E8F0]'}`} />}
-              <span className={`px-1.5 py-0.5 rounded ${isCurrent ? 'bg-[#1E3A5F] text-white font-medium' : done ? 'bg-[#1E3A5F]/10 text-[#1E3A5F] font-medium' : 'text-[#94A3B8]'}`}>
+              {i > 0 && <span className={`h-px w-2 ${done ? 'bg-[#2563EB]' : 'bg-[#CBD5E1]'}`} />}
+              <span className={`px-1.5 py-0.5 rounded ${isCurrent ? 'bg-[#2563EB] text-white font-medium' : done ? 'bg-[#2563EB]/10 text-[#2563EB] font-medium' : 'text-[#94A3B8]'}`}>
                 {s.label}
               </span>
             </button>
@@ -116,31 +116,31 @@ export default function WorkflowStepper({ currentStatus, compact, workflow = [],
               {/* Connector line to previous step */}
               {i > 0 && (
                 <div
-                  className={`absolute top-4 right-1/2 w-full h-0.5 ${done ? 'bg-[#1E3A5F]' : 'bg-[#E2E8F0]'}`}
+                  className={`absolute top-4 right-1/2 w-full h-0.5 ${done ? 'bg-[#2563EB]' : 'bg-[#CBD5E1]'}`}
                   style={{ zIndex: 0 }}
                 />
               )}
               {/* Circle */}
               <div
                 className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-                  done ? 'bg-[#1E3A5F] border-[#1E3A5F] text-white' : 'bg-white border-[#E2E8F0] text-[#94A3B8]'
+                  done ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#CBD5E1] text-[#94A3B8]'
                 } ${isCurrent ? 'ring-2 ring-[#0EA5E9]/40 text-white bg-[#0EA5E9] border-[#0EA5E9] animate-[ecStepGlow_2s_ease-in-out_infinite]' : ''} ${
-                  onStepClick && !isCurrent ? 'group-hover:scale-105 group-hover:border-[#1E3A5F]' : ''
+                  onStepClick && !isCurrent ? 'group-hover:scale-105 group-hover:border-[#2563EB]' : ''
                 }`}
                 style={isCurrent ? { animation: 'ecStepGlow 2s ease-in-out infinite' } : undefined}
               >
                 {done ? <Check className="w-4 h-4" /> : i + 1}
               </div>
               {/* Label */}
-              <p className={`text-[10px] mt-1.5 text-center leading-tight ${done ? 'text-[#1E3A5F] font-semibold' : 'text-[#94A3B8]'}`}>
+              <p className={`text-[10px] mt-1.5 text-center leading-tight ${done ? 'text-[#2563EB] font-semibold' : 'text-[#94A3B8]'}`}>
                 {s.label}
               </p>
               <p className="text-[8px] text-[#94A3B8] -mt-0.5">{s.owner}</p>
               {/* Timestamp for completed steps */}
               {done && meta?.DateTime && (
                 <div className="mt-1 text-center leading-tight bg-[#F1F5F9] rounded px-1.5 py-0.5">
-                  <p className="text-[8px] font-semibold text-[#1E3A5F]">{fmtDate(meta.DateTime)}</p>
-                  <p className="text-[8px] text-[#64748B]">{fmtTime(meta.DateTime)}</p>
+                  <p className="text-[8px] font-semibold text-[#2563EB]">{fmtDate(meta.DateTime)}</p>
+                  <p className="text-[8px] text-[#475569]">{fmtTime(meta.DateTime)}</p>
                 </div>
               )}
               {/* Current stage label */}

@@ -42,7 +42,7 @@ export default function EstimatePreview() {
   }
 
   if (loading) return <div className="ec-loader"><div className="ec-spinner" /></div>
-  if (!estimate) return <div className="text-center py-12 text-sm text-[#64748B]">Estimate not found</div>
+  if (!estimate) return <div className="text-center py-12 text-sm text-[#475569]">Estimate not found</div>
 
   const items = estimate.Items || []
   const civilItems = items.filter(i => i.Category === 'Civil')
@@ -59,7 +59,7 @@ export default function EstimatePreview() {
     <div className="min-w-0">
       <div className="no-print flex flex-wrap items-center justify-between gap-3 mb-5">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded text-[#64748B] hover:bg-[#F1F5F9]">
+          <button onClick={() => navigate(-1)} className="p-1.5 rounded text-[#475569] hover:bg-[#F1F5F9]">
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
@@ -83,7 +83,7 @@ export default function EstimatePreview() {
 
       <div className="no-print ec-card mb-5">
         <div className="ec-card-header">
-          <FileText className="w-4 h-4 text-[#1E3A5F]" />
+          <FileText className="w-4 h-4 text-[#2563EB]" />
           <span className="ec-card-title">Work Details</span>
           <StatusBadge status={estimate.Status} />
         </div>
@@ -100,7 +100,7 @@ export default function EstimatePreview() {
               ['Total Items', items.length],
             ].filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => (
               <div key={k}>
-                <p className="text-[10px] font-medium text-[#64748B]">{k}</p>
+                <p className="text-[10px] font-medium text-[#475569]">{k}</p>
                 <p className="text-sm font-medium text-[#0F172A]">{v}</p>
               </div>
             ))}
@@ -176,8 +176,8 @@ export default function EstimatePreview() {
           <FileText className="w-3.5 h-3.5" /> Full Abstract &amp; Export
         </Link>
         <div className="text-right">
-          <p className="text-[10px] text-[#64748B]">Grand Total</p>
-          <p className="text-xl font-bold text-[#1E3A5F]">{fmt(estimate.Abstract?.GrandTotal)}</p>
+          <p className="text-[10px] text-[#475569]">Grand Total</p>
+          <p className="text-xl font-bold text-[#2563EB]">{fmt(estimate.Abstract?.GrandTotal)}</p>
         </div>
       </div>
     </div>

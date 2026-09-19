@@ -47,18 +47,18 @@ export default function WorkStagePipeline({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-[#64748B]">
+      <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-[#475569]">
         {stages.map((s, i) => {
           const done = isDone(s)
           const current = i === idx
           return (
             <button key={s.key} type="button" disabled={!onStageClick} onClick={() => onStageClick?.(s.key)}
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded transition-colors ${
-                current ? 'bg-[#1E3A5F] text-white font-semibold'
-                : done ? 'bg-[#1E3A5F]/10 text-[#1E3A5F] font-medium'
+                current ? 'bg-[#2563EB] text-white font-semibold'
+                : done ? 'bg-[#2563EB]/10 text-[#2563EB] font-medium'
                 : 'text-[#94A3B8]'
               }`}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: current ? '#fff' : done ? '#1E3A5F' : '#CBD5E1' }} />
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: current ? '#fff' : done ? '#2563EB' : '#CBD5E1' }} />
               {s.label}
             </button>
           )
@@ -68,11 +68,11 @@ export default function WorkStagePipeline({
   }
 
   return (
-    <div data-testid="workstage-pipeline" className="bg-white rounded-lg border border-[#E2E8F0] p-4">
+    <div data-testid="workstage-pipeline" className="bg-white rounded-lg border border-[#CBD5E1] p-4">
       {title && (
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-bold text-[#1E3A5F] uppercase tracking-wider">{title}</h3>
-          <span className="text-[10px] font-medium text-[#64748B] capitalize">{workflowType} Workflow</span>
+          <h3 className="text-xs font-bold text-[#2563EB] uppercase tracking-wider">{title}</h3>
+          <span className="text-[10px] font-medium text-[#475569] capitalize">{workflowType} Workflow</span>
         </div>
       )}
 
@@ -90,20 +90,20 @@ export default function WorkStagePipeline({
                 className={`relative flex flex-col items-center flex-none min-w-[110px] px-1 pb-1 ${onStageClick ? 'cursor-pointer' : 'cursor-default'}`}
               >
                 {i > 0 && (
-                  <div className={`absolute top-4 right-1/2 w-full h-0.5 ${done ? 'bg-[#1E3A5F]' : 'bg-[#E2E8F0]'}`} style={{ zIndex: 0 }} />
+                  <div className={`absolute top-4 right-1/2 w-full h-0.5 ${done ? 'bg-[#2563EB]' : 'bg-[#CBD5E1]'}`} style={{ zIndex: 0 }} />
                 )}
                 <div
                   className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
                     current
                       ? 'bg-[#0EA5E9] border-[#0EA5E9] text-white shadow-[0_0_0_4px_rgba(14,165,233,0.15)]'
                       : done
-                        ? 'bg-[#1E3A5F] border-[#1E3A5F] text-white'
-                        : 'bg-white border-[#E2E8F0] text-[#94A3B8]'
+                        ? 'bg-[#2563EB] border-[#2563EB] text-white'
+                        : 'bg-white border-[#CBD5E1] text-[#94A3B8]'
                   }`}
                 >
                   {circles(s, i, done, current)}
                 </div>
-                <p className={`text-[10px] mt-1.5 text-center leading-tight ${done ? 'text-[#1E3A5F] font-semibold' : current ? 'text-[#0EA5E9] font-semibold' : 'text-[#94A3B8]'}`}>
+                <p className={`text-[10px] mt-1.5 text-center leading-tight ${done ? 'text-[#2563EB] font-semibold' : current ? 'text-[#0EA5E9] font-semibold' : 'text-[#94A3B8]'}`}>
                   {s.label}
                 </p>
                 {s.helper && <p className="text-[8px] text-[#CBD5E1] -mt-0.5">{s.helper}</p>}
@@ -135,7 +135,7 @@ export default function WorkStagePipeline({
               <p className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Available Actions</p>
               <div className="flex flex-wrap gap-1 mt-0.5">
                 {responsibility.actions.map(a => (
-                  <span key={a} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#1E3A5F]/5 text-[#1E3A5F] border border-[#1E3A5F]/15">{a}</span>
+                  <span key={a} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#2563EB]/5 text-[#2563EB] border border-[#2563EB]/15">{a}</span>
                 ))}
               </div>
             </div>
@@ -143,7 +143,7 @@ export default function WorkStagePipeline({
         </div>
       )}
 
-      <p className="text-[9px] text-[#CBD5E1] mt-3">Legend: <span className="text-[#1E3A5F] font-medium">✓ completed</span> · <span className="text-[#0EA5E9] font-medium">● current</span> · <span className="text-[#94A3B8]">○ pending</span></p>
+      <p className="text-[9px] text-[#CBD5E1] mt-3">Legend: <span className="text-[#2563EB] font-medium">✓ completed</span> · <span className="text-[#0EA5E9] font-medium">● current</span> · <span className="text-[#94A3B8]">○ pending</span></p>
     </div>
   )
 }

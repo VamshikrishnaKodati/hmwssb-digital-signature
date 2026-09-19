@@ -184,7 +184,8 @@
 
 .col-sl { width: 4%; }
 .col-code { width: 8%; }
-.col-desc { width: 42%; }
+.col-desc { width: 36%; }
+.col-type { width: 6%; }
 .col-num { width: 4%; }
 .col-l { width: 4%; }
 .col-b { width: 4%; }
@@ -309,6 +310,10 @@
     background: #fff !important;
   }
 
+  .app-shell::before {
+    display: none !important;
+  }
+
   .app-header,
   .app-breadcrumb,
   #app-navigation,
@@ -370,7 +375,7 @@
     margin: 0 auto;
     padding: 12mm 10mm;
     background: #fff;
-    border: 1px solid #E2E8F0;
+    border: 1px solid #CBD5E1;
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     font-family: Calibri, 'Times New Roman', serif;

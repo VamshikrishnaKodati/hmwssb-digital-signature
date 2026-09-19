@@ -208,6 +208,12 @@ async function issueOtp(bill, userId, purpose, label, userName) {
   );
   if (process.env.NODE_ENV !== 'production') {
     console.log(`[OTP][DEV] Bill ${label} OTP for bill ${bill.BillNo || bill.BillID} (user ${userName}): ${code}`);
+    try {
+      const { logOtp } = require('../utils/devOtpLog');
+      logOtp(`BILL_${bill.BillID}`, purpose, code);
+      if (bill.BillNo) logOtp(`BILL_${bill.BillNo}`, purpose, code);
+      logOtp(String(bill.BillID), purpose, code);
+    } catch {}
   }
   return { ok: true };
 }

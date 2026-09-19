@@ -84,7 +84,7 @@ function DrawerItem({ item, collapsed, active, onClick, onFavToggle, favorite, s
     <>
       <Icon
         className={`w-[18px] h-[18px] shrink-0 transition-colors ${
-          active ? 'text-[#1E3A5F]' : 'text-[#64748B] group-hover:text-[#1E293B]'
+          active ? 'text-[#2563EB]' : 'text-[#475569] group-hover:text-[#1E293B]'
         }`}
       />
       {!collapsed && <span className="truncate">{item.label}</span>}
@@ -200,13 +200,13 @@ export default function NavigationDrawer({
   const handleNavigate = (item) => () => onNavigate(item.path)
 
   const header = (
-    <div className={`flex items-center shrink-0 border-b border-[#E2E8F0] ${collapsed ? 'justify-center py-2.5 flex-col gap-2' : 'justify-between px-4 py-3'}`}>
+    <div className={`flex items-center shrink-0 border-b border-[#CBD5E1] ${collapsed ? 'justify-center py-2.5 flex-col gap-2' : 'justify-between px-4 py-3'}`}>
       <div className={`flex items-center min-w-0 ${collapsed ? '' : 'gap-3'}`}>
         <Logo size={collapsed ? 28 : 34} />
         {!collapsed && (
           <div className="min-w-0 leading-tight">
             <p className="text-sm font-bold text-[#0F172A] truncate">HMWS&SB</p>
-            <p className="text-[10px] text-[#64748B] truncate">Works Management System</p>
+            <p className="text-[10px] text-[#475569] truncate">Works Management System</p>
           </div>
         )}
       </div>
@@ -241,7 +241,7 @@ export default function NavigationDrawer({
             aria-pressed={pinned}
             className={`p-1.5 rounded-md transition-colors ${
               pinned
-                ? 'text-[#1E3A5F] bg-[#1E3A5F]/10'
+                ? 'text-[#2563EB] bg-[#2563EB]/10'
                 : 'text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569]'
             }`}
           >
@@ -273,7 +273,7 @@ export default function NavigationDrawer({
           onChange={e => setQuery(e.target.value)}
           placeholder="Search menu..."
           aria-label="Search menu"
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-[rgba(30,58,95,0.12)] focus:border-[#1E3A5F] outline-none transition-all placeholder:text-[#94A3B8]"
+          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] focus:bg-white focus:ring-2 focus:ring-[rgba(37,99,235,0.12)] focus:border-[#2563EB] outline-none transition-all placeholder:text-[#94A3B8]"
         />
       </div>
     </div>
@@ -348,7 +348,7 @@ export default function NavigationDrawer({
   )
 
   const footer = (
-    <div className="shrink-0 border-t border-[#E2E8F0] p-2">
+    <div className="shrink-0 border-t border-[#CBD5E1] p-2">
       <DrawerItem
         item={{ label: 'Logout', icon: LogOut, isLogout: true }}
         collapsed={collapsed}
@@ -390,7 +390,7 @@ export default function NavigationDrawer({
             animate={{ x: 0 }}
             exit={{ x: -DRAWER_WIDTH }}
             transition={{ type: 'tween', duration: DRAWER_TRANSITION / 1000, ease }}
-            className="fixed left-0 top-0 bottom-0 z-50 flex w-[260px] flex-col shadow-[4px_0_24px_rgba(15,23,42,0.12)] border-r border-[#E2E8F0]"
+            className="fixed left-0 top-0 bottom-0 z-50 flex w-[260px] flex-col shadow-[4px_0_24px_rgba(15,23,42,0.12)] border-r border-[#CBD5E1]"
           >
             {inner}
           </motion.aside>
@@ -407,7 +407,7 @@ export default function NavigationDrawer({
           initial={false}
           animate={{ width: collapsed ? DRAWER_RAIL_WIDTH : DRAWER_WIDTH }}
           transition={{ type: 'tween', duration: DRAWER_TRANSITION / 1000, ease }}
-          className="fixed left-0 top-0 bottom-0 z-30 hidden lg:flex flex-col border-r border-[#E2E8F0] shadow-[2px_0_12px_rgba(15,23,42,0.04)]"
+          className="fixed left-0 top-0 bottom-0 z-30 hidden lg:flex flex-col border-r border-[#CBD5E1] shadow-[2px_0_12px_rgba(15,23,42,0.04)]"
         >
           {inner}
         </motion.aside>

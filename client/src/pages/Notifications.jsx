@@ -58,17 +58,17 @@ export default function Notifications() {
         <div className="space-y-2">
           {notifications.map((n) => (
             <div key={n.NotificationID}
-              className={`ec-card transition-colors ${n.IsRead ? '' : 'border-[#1E3A5F]/20 bg-[#F8FAFC]'}`}>
+              className={`ec-card transition-colors ${n.IsRead ? '' : 'border-[#2563EB]/20 bg-[#F8FAFC]'}`}>
               <div className="ec-card-body flex items-start gap-3">
-                <div className={`p-1.5 rounded-full shrink-0 ${n.IsRead ? 'bg-[#F1F5F9] text-[#94A3B8]' : 'bg-[#EFF6FF] text-[#1E3A5F]'}`}>
+                <div className={`p-1.5 rounded-full shrink-0 ${n.IsRead ? 'bg-[#F1F5F9] text-[#94A3B8]' : 'bg-[#EFF6FF] text-[#2563EB]'}`}>
                   {n.IsRead ? <MailOpen className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm ${n.IsRead ? 'text-[#64748B]' : 'text-[#1E293B] font-medium'}`}>{n.Message}</p>
+                  <p className={`text-sm ${n.IsRead ? 'text-[#475569]' : 'text-[#1E293B] font-medium'}`}>{n.Message}</p>
                   <div className="flex items-center gap-2 mt-1">
                     {n.WorkID && (
                       <Link to={`/estimates/${n.EstimateID}`}
-                        className="text-xs text-[#1E3A5F] hover:underline font-medium">
+                        className="text-xs text-[#2563EB] hover:underline font-medium">
                         {n.WorkID}
                       </Link>
                     )}
@@ -79,7 +79,7 @@ export default function Notifications() {
                 </div>
                 {!n.IsRead && (
                   <button onClick={() => markRead(n.NotificationID)}
-                    className="text-xs text-[#64748B] hover:text-[#1E3A5F] shrink-0 font-medium">
+                    className="text-xs text-[#475569] hover:text-[#2563EB] shrink-0 font-medium">
                     Mark read
                   </button>
                 )}

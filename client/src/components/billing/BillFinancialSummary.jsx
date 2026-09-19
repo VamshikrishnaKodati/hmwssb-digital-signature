@@ -6,8 +6,8 @@ import { fmtCurrency } from '../../components/dashboard/utils'
 export default function BillFinancialSummary({ fs }) {
   if (!fs) return null
   const rows = [
-    { icon: Landmark, color: 'bg-[#1E3A5F]', bg: 'bg-[#1E3A5F]/10', label: 'Approved Estimate', value: fmtCurrency(fs.approvedEstimate || 0) },
-    { icon: Repeat, color: 'bg-[#64748B]', bg: 'bg-[#64748B]/10', label: 'Previously Billed', value: fmtCurrency(fs.previousBilled || 0) },
+    { icon: Landmark, color: 'bg-[#2563EB]', bg: 'bg-[#2563EB]/10', label: 'Approved Estimate', value: fmtCurrency(fs.approvedEstimate || 0) },
+    { icon: Repeat, color: 'bg-[#475569]', bg: 'bg-[#475569]/10', label: 'Previously Billed', value: fmtCurrency(fs.previousBilled || 0) },
     { icon: Receipt, color: 'bg-[#1D4ED8]', bg: 'bg-blue-50', label: 'Current Bill', value: fmtCurrency(fs.currentBill || 0) },
     { icon: Layers, color: 'bg-[#7C3AED]', bg: 'bg-violet-50', label: 'Cumulative Billed', value: fmtCurrency(fs.cumulativeBilled || 0) },
     {

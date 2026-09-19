@@ -15,7 +15,7 @@ const PasswordField = forwardRef(function PasswordField(
         {label}{required && <span className="text-[#DC2626] ml-0.5">*</span>}
       </label>
       <div className="relative">
-        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" />
+        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#475569]" />
         <input
           ref={ref}
           id={name}
@@ -36,7 +36,7 @@ const PasswordField = forwardRef(function PasswordField(
         <button
           type="button"
           onClick={() => setVisible(v => !v)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B] transition-colors p-1"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569] transition-colors p-1"
           aria-label={visible ? 'Hide password' : 'Show password'}
           tabIndex={-1}
         >

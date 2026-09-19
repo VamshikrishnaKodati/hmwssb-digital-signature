@@ -25,10 +25,10 @@ export default function Dashboard() {
 
   if (loading) return <div className="ec-loader"><div className="ec-spinner" /></div>
   if (!data) return (
-    <div className="ec-loader flex flex-col items-center gap-3 text-sm text-[#64748B]">
+    <div className="ec-loader flex flex-col items-center gap-3 text-sm text-[#475569]">
       <span>{error || 'Failed to load dashboard'}</span>
       <button type="button" onClick={load}
-        className="px-4 py-2 rounded-lg bg-[#1E3A5F] text-white text-sm font-medium hover:opacity-90 transition-opacity">
+        className="px-4 py-2 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:opacity-90 transition-opacity">
         Retry
       </button>
     </div>

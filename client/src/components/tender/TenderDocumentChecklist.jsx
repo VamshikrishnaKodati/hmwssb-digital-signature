@@ -48,12 +48,12 @@ export default function TenderDocumentChecklist({ tenderId, documents = [], onCh
 
   return (
     <div>
-      <h3 className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-3">Tender Documents Checklist</h3>
+      <h3 className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-3">Tender Documents Checklist</h3>
       <div className="space-y-2">
         {DOC_TYPES.map(type => {
           const doc = byType[type]
           return (
-            <div key={type} className="flex items-center justify-between py-2 px-3 rounded-lg border border-[#E2E8F0] bg-[#FAFBFC] hover:bg-white transition-colors">
+            <div key={type} className="flex items-center justify-between py-2 px-3 rounded-lg border border-[#CBD5E1] bg-[#FAFBFC] hover:bg-white transition-colors">
               <div className="flex items-center gap-2.5">
                 {doc
                   ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -71,7 +71,7 @@ export default function TenderDocumentChecklist({ tenderId, documents = [], onCh
                 )
                 : !readonly && (
                   <button type="button" disabled={busyId === type || !tenderId} onClick={() => add(type)}
-                    className="text-xs text-[#1E3A5F] hover:text-[#0F172A] font-medium flex items-center gap-1 disabled:opacity-50">
+                    className="text-xs text-[#2563EB] hover:text-[#0F172A] font-medium flex items-center gap-1 disabled:opacity-50">
                     <Upload className="w-3 h-3" /> Mark Uploaded
                   </button>
                 )

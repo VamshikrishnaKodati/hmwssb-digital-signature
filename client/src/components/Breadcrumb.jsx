@@ -14,7 +14,7 @@ export default function Breadcrumb({ items }) {
               {i === 0 && <Home className="w-3.5 h-3.5 shrink-0 text-[#94A3B8]" />}
               {i > 0 && <ChevronRight className="ec-breadcrumb-sep w-3 h-3 shrink-0" />}
               {item.to && !isLast ? (
-                <Link to={item.to} className="hover:text-[#1E3A5F] transition-colors whitespace-nowrap">
+                <Link to={item.to} className="hover:text-[#2563EB] transition-colors whitespace-nowrap">
                   {item.label}
                 </Link>
               ) : (

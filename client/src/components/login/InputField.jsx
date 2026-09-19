@@ -13,7 +13,7 @@ const InputField = forwardRef(function InputField(
         {label}{required && <span className="text-[#DC2626] ml-0.5">*</span>}
       </label>
       <div className="relative">
-        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" />}
+        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#475569]" />}
         <input
           ref={ref}
           id={name}

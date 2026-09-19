@@ -1,7 +1,7 @@
 const db = require('../config/db');
-const { countScope, PIPELINE_STAGES, PIPELINE_STAGE_EXPR } = require('../utils/estimateScope');
+const { buildEstimateScope, countScope, PIPELINE_STAGES, PIPELINE_STAGE_EXPR } = require('../utils/estimateScope');
 const { getSlaSummary } = require('../utils/sla');
-const { isLocationRole, accessibleCirclesSql } = require('../services/locationScope');
+const { isLocationRole, accessibleCirclesSql, estimateScopeConds } = require('../services/locationScope');
 
 // Bills sitting on a role's desk (by CurrentOwner + stage), oldest-SLA first.
 async function billQueueFor(userId, statuses) {
@@ -32,6 +32,50 @@ async function billMetricsFor(userId, statuses, checkAction, returnAction) {
      LIMIT 1`,
     [userId, statuses, checkAction, returnAction]
   )).rows[0];
+}
+
+// 8-stage approval workflow counts for the GM/CGM/DOP/ED/MD dashboards. Mirrors
+// the Manager/DGM pipeline (same authoritative PIPELINE_STAGES + stage expr) so
+// every stage card equals the /estimates?stage=<stage> click-through rows.
+// `baseScope` is 'assignedOrCreated' for location roles (GM/CGM) and null for
+// board-wide roles (DOP/ED/MD) whose desk spans every circle.
+async function rolePipelineFor(user, baseScope) {
+  const scope = baseScope
+    ? buildEstimateScope({ userId: user.UserID, scope: baseScope })
+    : { conds: [], params: [] };
+  const locScope = await estimateScopeConds(user, 'eh', scope.params.length + 1);
+  const pipelineRows = await db.query(
+    `SELECT ${PIPELINE_STAGE_EXPR} AS "Stage", COUNT(*)::int AS "count"
+     FROM "EstimateHeader" eh
+     LEFT JOIN "Users" ou ON ou."UserID" = eh."CurrentOwner"
+     WHERE ${[...scope.conds, ...locScope.conds].join(' AND ') || 'TRUE'}
+     GROUP BY 1`,
+    [...scope.params, ...locScope.params]
+  );
+  const pipeline = Object.fromEntries(PIPELINE_STAGES.map(s => [s, 0]));
+  pipelineRows.rows.forEach(r => { if (r.Stage in pipeline) pipeline[r.Stage] = r.count; });
+  return pipeline;
+}
+
+// Rows for the shared "Attention Required — Escalated" panel. Count matches the
+// role's `escalated` metric above (same >3-day predicate), so the panel badge
+// always equals what the list rows show.
+async function escalatedQueueFor(userId, statuses) {
+  const statusCond = statuses ? `AND eh."Status" = ANY($2)` : '';
+  const params = statuses ? [userId, statuses] : [userId];
+  return (await db.query(
+    `SELECT eh."EstimateID", eh."EstimateNo", eh."NameOfWork", eh."Status",
+            eh."Version", eh."SubmissionDate", u."Name" as "CreatedByName",
+            COALESCE(ab."GrandTotal",0) as "GrandTotal",
+            EXTRACT(EPOCH FROM (NOW() - COALESCE(eh."SubmissionDate", eh."CreatedDate"))) / 86400 as "daysWaiting"
+     FROM "EstimateHeader" eh
+     LEFT JOIN "Users" u ON u."UserID" = eh."CreatedBy"
+     LEFT JOIN "Abstract" ab ON ab."EstimateID" = eh."EstimateID"
+     WHERE eh."CurrentOwner" = $1 ${statusCond}
+       AND (NOW() - COALESCE(eh."SubmissionDate", eh."CreatedDate")) > INTERVAL '3 days'
+     ORDER BY eh."SubmissionDate" ASC NULLS LAST`,
+    params
+  )).rows;
 }
 
 exports.getStats = async (req, res, next) => {
@@ -222,6 +266,23 @@ exports.getStats = async (req, res, next) => {
         oldestWaiting: oldestWaiting.rows[0] || null,
       };
 
+      // DGM division-scoped estimate pipeline. Same authoritative stages as the
+      // Manager "My Estimate Pipeline" but scoped to the DGM's assigned Circles
+      // (+ their own creations), so every card count equals the rows the
+      // /estimates?stage=<stage> click-through opens (count == click-through).
+      const dgmScope = buildEstimateScope({ userId, scope: 'assignedOrCreated' });
+      const dgmLocScope = await estimateScopeConds(req.user, 'eh', dgmScope.params.length + 1);
+      const pipelineRows = await db.query(`
+        SELECT ${PIPELINE_STAGE_EXPR} AS "Stage", COUNT(*)::int AS "count"
+        FROM "EstimateHeader" eh
+        LEFT JOIN "Users" ou ON ou."UserID" = eh."CurrentOwner"
+        WHERE ${[...dgmScope.conds, ...dgmLocScope.conds].join(' AND ')}
+        GROUP BY 1
+      `, [...dgmScope.params, ...dgmLocScope.params]);
+      const pipeline = Object.fromEntries(PIPELINE_STAGES.map(s => [s, 0]));
+      pipelineRows.rows.forEach(r => { if (r.Stage in pipeline) pipeline[r.Stage] = r.count; });
+      dgmDashboard.pipeline = pipeline;
+
       // Bill check queue for DGM (Level 2)
       const dgmBillStatuses = ['ManagerChecked', 'ReturnedToDGM'];
       dgmDashboard.billing = await billQueueFor(userId, dgmBillStatuses);
@@ -264,6 +325,10 @@ exports.getStats = async (req, res, next) => {
         queue: gmQueue.rows,
         metrics: gmMetrics.rows[0],
       };
+
+      // GM zone-scoped approval pipeline (Manager→…→Approved) + escalated rows.
+      gmDashboard.pipeline = await rolePipelineFor(req.user, 'assignedOrCreated');
+      gmDashboard.escalated = await escalatedQueueFor(userId, ['DGM_Approved', 'Approved', 'TSPending']);
 
       // Bill check queue for GM (Level 3 → Finance)
       const gmBillStatuses = ['DGMChecked'];
@@ -598,6 +663,8 @@ exports.getStats = async (req, res, next) => {
         queue: cgmQueue.rows,
         metrics: cgmMetrics.rows[0],
         oldestWaiting: cgmOldest.rows[0] || null,
+        pipeline: await rolePipelineFor(req.user, 'assignedOrCreated'),
+        escalated: await escalatedQueueFor(userId, null),
       };
     }
 
@@ -644,6 +711,8 @@ exports.getStats = async (req, res, next) => {
         queue: dopQueue.rows,
         metrics: dopMetrics.rows[0],
         oldestWaiting: dopOldest.rows[0] || null,
+        pipeline: await rolePipelineFor(req.user, null),
+        escalated: await escalatedQueueFor(userId, null),
       };
     }
 
@@ -689,6 +758,8 @@ exports.getStats = async (req, res, next) => {
         queue: edQueue.rows,
         metrics: edMetrics.rows[0],
         oldestWaiting: edOldest.rows[0] || null,
+        pipeline: await rolePipelineFor(req.user, null),
+        escalated: await escalatedQueueFor(userId, null),
       };
     }
 
@@ -734,6 +805,8 @@ exports.getStats = async (req, res, next) => {
         queue: mdQueue.rows,
         metrics: mdMetrics.rows[0],
         oldestWaiting: mdOldest.rows[0] || null,
+        pipeline: await rolePipelineFor(req.user, null),
+        escalated: await escalatedQueueFor(userId, null),
       };
     }
 

@@ -1,175 +1,293 @@
 import { memo } from 'react'
-import { Copy, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Check } from 'lucide-react'
 import NumericInput from '../NumericInput'
 import ItemSearchDropdown from './ItemSearchDropdown'
 
-const FIELD_ORDER = ['N', 'L', 'B', 'D']
-const READ_MORE_THRESHOLD = 60
-
 const fmt = (v) => parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })
 
-function nextField(item, field) {
-  const idx = FIELD_ORDER.indexOf(field)
-  return idx >= 0 && idx < FIELD_ORDER.length - 1 ? FIELD_ORDER[idx + 1] : null
-}
-
 function ItemRow({
-  item, idx, expanded, disabled, highlighted, flashed,
-  errorN, errorL, errorB, errorD,
-  onUpdate, onRemove, onDuplicate, onToggleDesc,
-  onFocusField, onFocusSearch, fieldRefs, search,
+  item,
+  idx,
+  disabled,
+  highlighted,
+  flashed,
+  isEditing,
+  onToggleEdit,
+  onUpdate,
+  onRemove,
+  onFocusField,
+  onFocusSearch,
+  fieldRefs,
+  search,
 }) {
   const qty = parseFloat(item.Qty || 0)
   const rate = parseFloat(item.Rate || 0)
   const amt = parseFloat(item.Amount || 0)
-  const isLong = (item.Description || '').length > READ_MORE_THRESHOLD
-
-  const handleKeyDown = (field) => (e) => {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
-    e.stopPropagation()
-    const next = nextField(item, field)
-    if (next) onFocusField(item._tempId, next)
-    else onFocusSearch()
+  const setFieldRef = (field) => (el) => {
+    if (fieldRefs?.current) {
+      fieldRefs.current[`${item._tempId}_${field}`] = el
+    }
   }
 
-  const setFieldRef = (field) => (el) => { fieldRefs.current[`${item._tempId}_${field}`] = el }
-
-  const dimCell = (field, error) => (
-    <div className="ec-grid-cell ec-dim-col">
-      <NumericInput
-        id={`${item._tempId}_${field}`}
-        ref={setFieldRef(field)}
-        value={item[field] ?? ''}
-        disabled={disabled}
-        onChange={e => { e.stopPropagation(); onUpdate(item._tempId, field, e.target.value) }}
-        onFocus={e => e.stopPropagation()}
-        onKeyDown={handleKeyDown(field)}
-        error={error}
-        aria-label={`${field} for item ${item.ItemCode}`}
-        aria-invalid={!!error}
-        className="ec-dim-input"
-        placeholder="0"
-        autoComplete="off"
-      />
+  const actions = !disabled && (
+    <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => onToggleEdit(item._tempId)}
+        title={isEditing ? 'Done editing' : 'Edit dimensions'}
+        aria-label={isEditing ? 'Done editing' : `Edit item ${item.ItemCode}`}
+        className={`p-1 rounded transition-colors ${
+          isEditing
+            ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 bg-emerald-50'
+            : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+        }`}
+      >
+        {isEditing ? <Check className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+      </button>
+      <button
+        type="button"
+        onClick={() => onRemove(item._tempId)}
+        title="Delete item"
+        aria-label={`Delete item ${item.ItemCode}`}
+        className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </div>
   )
 
+  const descBlock = search ? (
+    <div className="ew-grid-cell ew-desc-cell col-span-1">
+      <input
+        ref={setFieldRef('DESC')}
+        type="text"
+        value={search.term}
+        onChange={e => search.onTermChange(e.target.value)}
+        onKeyDown={search.onKeyDown}
+        onFocus={search.onFocus}
+        placeholder="Search item by code or description..."
+        className="ew-items-search ec-search-row-input"
+        aria-label="Search estimate item"
+        aria-expanded={search.open}
+        role="combobox"
+        autoComplete="off"
+        spellCheck="false"
+      />
+      {search.open && (
+        <ItemSearchDropdown
+          searching={search.searching}
+          query={search.term}
+          results={search.results}
+          activeResult={search.activeResult}
+          onMouseEnter={search.onMouseEnter}
+          onSelect={search.onSelect}
+        />
+      )}
+    </div>
+  ) : (
+    <div className="ew-grid-cell ew-desc-cell py-0.5 px-2 text-left">
+      <span className="font-bold text-xs text-slate-900 leading-tight block">{item.ItemCode}</span>
+      <span className="text-xs text-slate-600 leading-snug block" style={{ wordBreak: 'break-word' }}>
+        {item.Description}
+      </span>
+    </div>
+  )
+
+  const typeLabel = item.Category === 'Material' ? 'Material' : 'Civil Work'
+
   return (
     <div
-      className={`ec-grid-row ${idx % 2 === 1 ? 'ec-grid-row-odd' : ''} ${highlighted ? 'ec-item-highlight-row' : ''}`}
+      className={`ew-grid-row ${idx % 2 === 1 ? 'ew-grid-row-odd' : ''} ${
+        highlighted ? 'ec-item-highlight-row' : ''
+      } ${isEditing ? 'bg-blue-50/40' : ''}`}
     >
-      <div className="ec-grid-cell ec-cell-sno">{idx + 1}</div>
+      {/* S.NO */}
+      <div className="ew-grid-cell ew-cell-sno text-center text-xs font-medium text-slate-600">
+        {idx + 1}
+      </div>
 
-      {search ? (
-        <div className="ec-grid-cell ec-desc-cell ec-desc-cell-editing" ref={search.cellRef}>
-          <input
-            ref={setFieldRef('DESC')}
-            type="text"
-            value={search.term}
-            onChange={e => { e.stopPropagation(); search.onTermChange(e.target.value) }}
-            onKeyDown={search.onKeyDown}
-            onFocus={search.onFocus}
-            placeholder="Search item by code or description..."
-            className="ec-search-row-input"
-            aria-label="Search estimate item"
-            aria-expanded={search.open}
-            aria-controls={`item-search-results_${item._tempId}`}
-            role="combobox"
+      {/* ITEM CODE / DESCRIPTION */}
+      {descBlock}
+
+      {/* TYPE */}
+      <div className="ew-grid-cell ew-cell-center px-1 text-center">
+        {isEditing && !search ? (
+          <select
+            value={item.Category || 'Civil'}
+            onChange={e => onUpdate(item._tempId, 'Category', e.target.value)}
+            className="text-[10px] py-0.5 px-1 rounded border border-[#CBD5E1] bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+            title="Item Type"
+            aria-label="Item Type"
+          >
+            <option value="Civil">Civil Work</option>
+            <option value="Material">Material</option>
+          </select>
+        ) : (
+          <span className="text-xs text-slate-600 font-medium">{search ? '-' : typeLabel}</span>
+        )}
+      </div>
+
+      {/* N */}
+      <div className="ew-grid-cell ew-cell-center px-1 text-center">
+        {search ? (
+          <span className="text-slate-400 text-xs">-</span>
+        ) : isEditing ? (
+          <NumericInput
+            id={`${item._tempId}_N`}
+            ref={el => setFieldRef('N')(el)}
+            value={item.N ?? ''}
+            disabled={disabled}
+            onChange={e => onUpdate(item._tempId, 'N', e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onFocusField?.(item._tempId, 'L')
+              }
+            }}
+            className="ew-dim-input ec-dim-input text-center"
+            placeholder="-"
             autoComplete="off"
-            spellCheck="false"
           />
-          {search.open && (
-            <div id={`item-search-results_${item._tempId}`} role="listbox">
-              <ItemSearchDropdown
-                searching={search.searching}
-                query={search.term}
-                results={search.results}
-                activeResult={search.activeResult}
-                onMouseEnter={search.onMouseEnter}
-                onSelect={search.onSelect}
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="ec-grid-cell ec-desc-cell">
-          <div className="ec-item-code">{item.ItemCode}</div>
-          <p id={`desc_${item._tempId}`} className={`text-xs text-[#334155] leading-snug ${expanded ? '' : 'ec-clamp-2'}`}>
-            {item.Description}
-          </p>
-          {isLong && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onToggleDesc(item._tempId) }}
-              aria-expanded={expanded}
-              aria-controls={`desc_${item._tempId}`}
-              className="ec-read-more"
-            >
-              {expanded ? 'Read Less' : 'Read More'}
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="ec-grid-cell ec-cell-center">
-        <select
-          value={item.Category === 'Material' ? 'Yes' : 'No'}
-          disabled={disabled}
-          onClick={e => e.stopPropagation()}
-          onChange={e => { e.stopPropagation(); onUpdate(item._tempId, 'Category', e.target.value === 'Yes' ? 'Material' : 'Civil') }}
-          aria-label={`Material status for item ${item.ItemCode}`}
-          title={item.Category === 'Material' ? 'Material item' : 'Civil item'}
-          className={`ec-cat-select ${item.Category === 'Material' ? 'ec-cat-select-material' : 'ec-cat-select-civil'}`}
-        >
-          <option value="Yes">Yes</option>
-          <option value="No">No</option>
-        </select>
+        ) : (
+          <span className="text-slate-500 text-xs font-medium">
+            {item.N != null && item.N !== '' ? item.N : '-'}
+          </span>
+        )}
       </div>
 
-      {dimCell('N', errorN)}
-      {dimCell('L', errorL)}
-      {dimCell('B', errorB)}
-      {dimCell('D', errorD)}
-
-      <div className="ec-grid-cell ec-cell-center">
-        <span className={`ec-qty ${flashed ? 'ec-flash' : ''}`}>{fmt(qty)}</span>
+      {/* L */}
+      <div className="ew-grid-cell ew-cell-center px-1 text-center">
+        {search ? (
+          <span className="text-slate-400 text-xs">-</span>
+        ) : isEditing ? (
+          <NumericInput
+            id={`${item._tempId}_L`}
+            ref={el => setFieldRef('L')(el)}
+            value={item.L ?? ''}
+            disabled={disabled}
+            onChange={e => onUpdate(item._tempId, 'L', e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onFocusField?.(item._tempId, 'B')
+              }
+            }}
+            className="ew-dim-input ec-dim-input text-center"
+            placeholder="-"
+            autoComplete="off"
+          />
+        ) : (
+          <span className="text-slate-500 text-xs font-medium">
+            {item.L != null && item.L !== '' ? item.L : '-'}
+          </span>
+        )}
       </div>
 
-      <div className="ec-grid-cell ec-cell-center">
-        <span className="ec-unit">{item.Unit}</span>
+      {/* B */}
+      <div className="ew-grid-cell ew-cell-center px-1 text-center">
+        {search ? (
+          <span className="text-slate-400 text-xs">-</span>
+        ) : isEditing ? (
+          <NumericInput
+            id={`${item._tempId}_B`}
+            ref={el => setFieldRef('B')(el)}
+            value={item.B ?? ''}
+            disabled={disabled}
+            onChange={e => onUpdate(item._tempId, 'B', e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onFocusField?.(item._tempId, 'D')
+              }
+            }}
+            className="ew-dim-input ec-dim-input text-center"
+            placeholder="-"
+            autoComplete="off"
+          />
+        ) : (
+          <span className="text-slate-500 text-xs font-medium">
+            {item.B != null && item.B !== '' ? item.B : '-'}
+          </span>
+        )}
       </div>
 
-      <div className="ec-grid-cell ec-cell-right">
-        <span className="ec-rate">₹{fmt(rate)}</span>
+      {/* D */}
+      <div className="ew-grid-cell ew-cell-center px-1 text-center">
+        {search ? (
+          <span className="text-slate-400 text-xs">-</span>
+        ) : isEditing ? (
+          <NumericInput
+            id={`${item._tempId}_D`}
+            ref={el => setFieldRef('D')(el)}
+            value={item.D ?? ''}
+            disabled={disabled}
+            onChange={e => onUpdate(item._tempId, 'D', e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onFocusSearch?.()
+              }
+            }}
+            className="ew-dim-input ec-dim-input text-center"
+            placeholder="-"
+            autoComplete="off"
+          />
+        ) : (
+          <span className="text-slate-500 text-xs font-medium">
+            {item.D != null && item.D !== '' ? item.D : '-'}
+          </span>
+        )}
       </div>
 
-      <div className="ec-grid-cell ec-cell-right">
-        <span className={`ec-amount ${flashed ? 'ec-flash' : ''}`}>₹{fmt(amt)}</span>
+      {/* QTY */}
+      <div className="ew-grid-cell ew-cell-center px-1 text-center">
+        {search ? (
+          <span className="text-slate-400 text-xs">-</span>
+        ) : isEditing ? (
+          <NumericInput
+            value={item.Qty ?? ''}
+            disabled={disabled}
+            onChange={e => onUpdate(item._tempId, 'Qty', e.target.value)}
+            className="ew-dim-input text-center"
+            placeholder="0.00"
+          />
+        ) : (
+          <span className={`text-slate-800 text-xs font-medium tabular-nums ${flashed ? 'ec-flash' : ''}`}>
+            {fmt(qty)}
+          </span>
+        )}
       </div>
 
-      <div className="ec-grid-cell ec-cell-actions">
-        {!disabled && (
-          <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => onDuplicate(item)}
-              title="Duplicate item"
-              aria-label={`Duplicate item ${item.ItemCode}`}
-              className="ec-btn-outline ec-btn-sm !p-1 hover:!bg-[#EFF6FF] hover:!text-[#1E3A5F]"
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
+      {/* UNIT */}
+      <div className="ew-grid-cell ew-cell-center text-center text-slate-700 text-xs">
+        {item.Unit || '-'}
+      </div>
+
+      {/* RATE (₹) */}
+      <div className="ew-grid-cell ew-cell-right text-right text-slate-800 text-xs font-medium tabular-nums px-2">
+        {fmt(rate)}
+      </div>
+
+      {/* AMOUNT (₹) */}
+      <div className="ew-grid-cell ew-cell-right text-right text-slate-900 text-xs font-semibold tabular-nums px-2">
+        <span className={flashed ? 'ec-flash' : ''}>{fmt(amt)}</span>
+      </div>
+
+      {/* ACTIONS */}
+      <div className="ew-grid-cell ew-cell-actions text-center">
+        {search ? (
+          <div className="flex items-center justify-center">
             <button
               type="button"
               onClick={() => onRemove(item._tempId)}
-              title="Remove item"
-              aria-label={`Remove item ${item.ItemCode}`}
-              className="ec-btn-outline ec-btn-sm !p-1 hover:!bg-[#FEF2F2] hover:!text-[#DC2626]"
+              title="Cancel item"
+              className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
+        ) : (
+          actions
         )}
       </div>
     </div>

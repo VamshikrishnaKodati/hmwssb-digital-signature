@@ -21,6 +21,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const usersRoutes = require('./routes/users');
 const auditRoutes = require('./routes/audit');
 const deletedEstimateRoutes = require('./routes/deletedEstimates');
+const estimateDocumentRoutes = require('./routes/estimateDocuments');
 
 const app = express();
 
@@ -69,7 +70,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/audit-logs', auditRoutes);
 app.use('/api/deleted-estimates', deletedEstimateRoutes);
-app.use('/api/deleted-estimates', deletedEstimateRoutes);
+app.use('/api/estimate-documents', estimateDocumentRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

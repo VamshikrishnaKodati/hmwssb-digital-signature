@@ -156,7 +156,7 @@ export default function MeasurementList() {
         <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="ec-input text-xs w-auto" />
         {(search || filterStatus || filterDate) && (
           <button onClick={() => { setSearch(''); setFilterStatus(''); setFilterDate('') }}
-            className="text-xs text-[#64748B] hover:text-[#1E3A5F] flex items-center gap-1">
+            className="text-xs text-[#475569] hover:text-[#2563EB] flex items-center gap-1">
             <X className="w-3 h-3" /> Clear
           </button>
         )}
@@ -217,22 +217,22 @@ export default function MeasurementList() {
               <th>Date</th><th>Status</th><th>Recorded By</th><th>Actions</th>
             </tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={11} className="text-center py-8 text-sm text-[#64748B]">Loading...</td></tr>}
+              {loading && <tr><td colSpan={11} className="text-center py-8 text-sm text-[#475569]">Loading...</td></tr>}
               {!loading && filtered.map(m => (
                 <tr key={m.MeasurementID}>
-                  <td className="font-mono text-xs text-[#1E3A5F] font-medium">#{m.MeasurementID}</td>
+                  <td className="font-mono text-xs text-[#2563EB] font-medium">#{m.MeasurementID}</td>
                   <td className="text-xs">{m.EstimateNo || '-'}</td>
-                  <td className="text-xs max-w-[180px]"><span className="font-medium">{m.ItemCode || '-'}</span><span className="block text-[10px] text-[#64748B] truncate">{m.Description}</span></td>
+                  <td className="text-xs max-w-[180px]"><span className="font-medium">{m.ItemCode || '-'}</span><span className="block text-[10px] text-[#475569] truncate">{m.Description}</span></td>
                   <td className="text-right text-xs">{fmt(m.PreviousQty)}</td>
                   <td className="text-right text-xs font-medium">{fmt(m.CurrentQty)} <span className="text-[10px] text-[#94A3B8]">{m.Unit || ''}</span></td>
-                  <td className="text-right text-xs font-bold text-[#1E3A5F]">{fmt(m.CumulativeQty)}</td>
+                  <td className="text-right text-xs font-bold text-[#2563EB]">{fmt(m.CumulativeQty)}</td>
                   <td className="text-right text-xs">{fmt(m.BalanceQty)}</td>
-                  <td className="text-xs text-[#64748B]">{m.MeasuredDate?.slice(0, 10)}</td>
+                  <td className="text-xs text-[#475569]">{m.MeasuredDate?.slice(0, 10)}</td>
                   <td><span className={'ec-badge ' + (m.Status === 'Verified' ? 'ec-badge-success' : 'ec-badge-draft')}>{m.Status}</span></td>
-                  <td className="text-xs text-[#64748B]">{m.MeasuredByName || '-'}{m.VerifiedByName && <span className="block text-[10px] text-[#059669]">v {m.VerifiedByName}</span>}</td>
+                  <td className="text-xs text-[#475569]">{m.MeasuredByName || '-'}{m.VerifiedByName && <span className="block text-[10px] text-[#059669]">v {m.VerifiedByName}</span>}</td>
                   <td>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => setViewing(m)} className="text-[#64748B] hover:text-[#1E3A5F] text-xs" title="View details">
+                      <button onClick={() => setViewing(m)} className="text-[#475569] hover:text-[#2563EB] text-xs" title="View details">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
                       {m.Status === 'Draft' && role === 'SiteEngineer' && (
@@ -266,7 +266,7 @@ export default function MeasurementList() {
           </table>
         </div>
         {!loading && filtered.length > 0 && (
-          <div className="px-4 py-2 text-[10px] text-[#94A3B8] border-t border-[#E2E8F0]">
+          <div className="px-4 py-2 text-[10px] text-[#94A3B8] border-t border-[#CBD5E1]">
             Showing {filtered.length} of {entries.length} measurement{entries.length !== 1 ? 's' : ''}
           </div>
         )}
@@ -277,7 +277,7 @@ export default function MeasurementList() {
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-[#0F172A]">Measurement #{viewing.MeasurementID}</h2>
-              <button onClick={() => setViewing(null)} className="text-[#94A3B8] hover:text-[#64748B]"><X className="w-4 h-4" /></button>
+              <button onClick={() => setViewing(null)} className="text-[#94A3B8] hover:text-[#475569]"><X className="w-4 h-4" /></button>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
               {[

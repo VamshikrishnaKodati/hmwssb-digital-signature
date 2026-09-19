@@ -109,26 +109,25 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#F0F4F8] via-white to-[#F0F4F8] relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[45%] w-[800px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(30,58,95,0.035)_0%,transparent_65%)] pointer-events-none" />
-
-      <div className="bg-white border-b border-[#E5E7EB] px-5 sm:px-6 py-3 flex items-center justify-center gap-4">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-cover bg-center" style={{ backgroundImage: "url('/image.png')" }}>
+      <div className="absolute inset-0 bg-white/55 pointer-events-none" />
+      <div className="relative z-10 bg-white border-b border-[#E5E7EB] px-5 sm:px-6 py-3 flex items-center justify-center gap-4">
         <Logo size={36} />
         <div className="text-center">
           <p className="text-xs sm:text-sm font-semibold text-[#1E293B] leading-tight">HYDERABAD METROPOLITAN WATER SUPPLY AND SEWERAGE BOARD</p>
-          <p className="text-xs text-[#64748B] font-medium mt-0.5">Government of Telangana &middot; Works Management System</p>
+          <p className="text-xs text-[#475569] font-medium mt-0.5">Government of Telangana &middot; Works Management System</p>
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-10">
+      <div className="flex-1 flex items-center justify-center px-4 py-10 relative z-10">
         <div className="w-full max-w-[440px]">
-          <div className="bg-white rounded-2xl shadow-[0_12px_36px_rgba(15,23,42,0.08)] border border-[#E2E8F0] overflow-hidden">
-            <div className="h-1.5 bg-gradient-to-r from-[#1E3A5F] via-[#1E3A5F]/80 to-[#1E3A5F]/60" />
+          <div className="bg-white rounded-2xl shadow-[0_12px_36px_rgba(15,23,42,0.08)] border border-[#CBD5E1] overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-[#2563EB] via-[#2563EB]/80 to-[#2563EB]/60" />
 
             <div className="px-6 pt-5 pb-2 text-center">
               <Logo size={100} />
               <h2 className="text-lg font-bold text-[#0F172A] mt-3">Welcome Back</h2>
-              <p className="text-xs text-[#64748B] mt-1">Sign in to your account</p>
+              <p className="text-xs text-[#475569] mt-1">Sign in to your account</p>
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="px-6 pb-5 space-y-[14px]">
@@ -180,7 +179,7 @@ export default function Login() {
         </div>
       </div>
 
-      <footer className="px-4 py-5 text-center">
+      <footer className="relative z-10 px-4 py-5 text-center">
         <p className="text-[11px] text-[#94A3B8]">
           &copy; {new Date().getFullYear()} Hyderabad Metropolitan Water Supply &amp; Sewerage Board
         </p>

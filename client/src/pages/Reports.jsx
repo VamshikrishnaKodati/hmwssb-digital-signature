@@ -129,7 +129,7 @@ export default function Reports() {
       {/* Export Section */}
       <div className="ec-card mb-6">
         <div className="ec-card-header">
-          <FileDown className="w-4 h-4 text-[#1E3A5F]" />
+          <FileDown className="w-4 h-4 text-[#2563EB]" />
           <span className="ec-card-title">Export Estimate Documents</span>
         </div>
         <div className="ec-card-body">
@@ -143,7 +143,7 @@ export default function Reports() {
                 className="ec-input w-40" placeholder="Enter Estimate ID"
                 autoComplete="off" spellCheck={false} />
             </div>
-            <span className="text-xs text-[#64748B] self-end mb-1">Generate:</span>
+            <span className="text-xs text-[#475569] self-end mb-1">Generate:</span>
             {EXPORT_FILES.map((exp, i) => (
               <button key={exp.key} id={i === 0 ? 'export-first-btn' : undefined} onClick={() => {
                 handleExport(exp.key)
@@ -195,11 +195,11 @@ export default function Reports() {
             <button key={r.key} onClick={() => loadReport(r.key)}
               className={`text-left p-4 rounded-xl border transition-all ${
                 isActive
-                  ? 'bg-[#1E3A5F] text-white border-[#1E3A5F] shadow-md'
-                  : 'bg-white border-[#E2E8F0] hover:border-[#1E3A5F]/30 hover:shadow-sm'
+                  ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-md'
+                  : 'bg-white border-[#CBD5E1] hover:border-[#2563EB]/30 hover:shadow-sm'
               }`}>
               <p className="font-medium text-sm">{r.label}</p>
-              <p className={`text-xs mt-1 ${isActive ? 'text-blue-200' : 'text-[#64748B]'}`}>{r.desc}</p>
+              <p className={`text-xs mt-1 ${isActive ? 'text-blue-200' : 'text-[#475569]'}`}>{r.desc}</p>
             </button>
           )
         })}
@@ -217,7 +217,7 @@ export default function Reports() {
                   <Download className="w-3.5 h-3.5" /> Export CSV
                 </button>
               )}
-              <button onClick={() => setData(null)} className="text-xs text-[#64748B] hover:text-[#1E3A5F]">Clear</button>
+              <button onClick={() => setData(null)} className="text-xs text-[#475569] hover:text-[#2563EB]">Clear</button>
             </div>
           </div>
           <div className="ec-card-body">{renderTable()}</div>

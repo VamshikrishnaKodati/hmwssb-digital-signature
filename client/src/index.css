@@ -16,17 +16,17 @@
   }
   body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    @apply bg-[#F5F7FA] text-[#1E293B] antialiased;
+    @apply bg-[#F8FAFC] text-[#0F172A] antialiased;
   }
 }
 
 @layer components {
   /* --- Cards --- */
   .ec-card {
-    @apply bg-white rounded-lg border border-[#E2E8F0] shadow-sm;
+    @apply bg-white rounded-lg border border-[#CBD5E1] shadow-sm;
   }
   .ec-card-header {
-    @apply flex items-center justify-between px-5 py-3.5 border-b border-[#E2E8F0];
+    @apply flex items-center justify-between px-5 py-3.5 border-b border-[#CBD5E1];
   }
   .ec-card-title {
     @apply text-sm font-semibold text-[#0F172A];
@@ -42,7 +42,7 @@
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .ec-btn-primary {
-    @apply ec-btn bg-[#1E3A5F] text-white hover:bg-[#162D4A] focus:ring-[#1E3A5F]/30 shadow-sm;
+    @apply ec-btn bg-[#2563EB] text-white hover:bg-[#1D4ED8] focus:ring-[#2563EB]/30 shadow-sm;
   }
   .ec-btn-success {
     @apply ec-btn bg-[#059669] text-white hover:bg-[#047857] focus:ring-[#059669]/30 shadow-sm;
@@ -58,7 +58,7 @@
            hover:bg-[#F8FAFC] hover:border-[#94A3B8] focus:ring-[#CBD5E1]/30;
   }
   .ec-btn-ghost {
-    @apply ec-btn text-[#64748B] hover:bg-[#F1F5F9] focus:ring-[#E2E8F0]/30;
+    @apply ec-btn text-[#475569] hover:bg-[#F1F5F9] focus:ring-[#CBD5E1]/30;
   }
   .ec-btn-sm {
     @apply px-3 py-1.5 text-xs rounded-md;
@@ -74,7 +74,7 @@
   .ec-input {
     @apply w-full border border-[#CBD5E1] rounded-lg px-3 py-2 text-sm text-[#1E293B]
            transition-all duration-200
-           focus:outline-none focus:border-2 focus:ring-[3px] focus:ring-[rgba(30,58,95,0.12)] focus:border-[#1E3A5F]
+           focus:outline-none focus:border-2 focus:ring-[3px] focus:ring-[rgba(37,99,235,0.12)] focus:border-[#2563EB]
            placeholder:text-[#94A3B8] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8];
   }
   .ec-select {
@@ -84,6 +84,17 @@
   }
   .ec-textarea {
     @apply ec-input resize-y min-h-[80px];
+  }
+  /* Dialog description: auto-grows with content, then scrolls internally. */
+  .ec-dialog-textarea {
+    @apply ec-input resize-y leading-relaxed;
+    field-sizing: content;
+    min-height: 6rem;
+    max-height: 12rem;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
   }
   .ec-input-error {
     @apply border-[#EF4444] focus:ring-[#EF4444]/20 focus:border-[#EF4444];
@@ -100,7 +111,7 @@
     @apply w-full text-sm;
   }
   .ec-table thead {
-    @apply bg-[#F8FAFC] text-xs font-semibold text-[#64748B] uppercase tracking-wider;
+    @apply bg-[#F8FAFC] text-xs font-semibold text-[#475569] uppercase tracking-wider;
   }
   .ec-table th {
     @apply px-4 py-3 text-left;
@@ -116,7 +127,7 @@
   .ec-badge {
     @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
-  .ec-badge-draft { @apply ec-badge bg-[#F1F5F9] text-[#64748B]; }
+  .ec-badge-draft { @apply ec-badge bg-[#F1F5F9] text-[#475569]; }
   .ec-badge-submitted { @apply ec-badge bg-[#EFF6FF] text-[#2563EB]; }
   .ec-badge-approved { @apply ec-badge bg-[#F0FDF4] text-[#059669]; }
   .ec-badge-reverted { @apply ec-badge bg-[#FEF2F2] text-[#DC2626]; }
@@ -143,27 +154,27 @@
   }
   .ec-step-completed .ec-step-circle { @apply bg-[#059669] border-[#059669] text-white; }
   .ec-step-completed .ec-step-line { @apply bg-[#059669]; }
-  .ec-step-active .ec-step-circle { @apply bg-[#1E3A5F] border-[#1E3A5F] text-white shadow-md; }
+  .ec-step-active .ec-step-circle { @apply bg-[#2563EB] border-[#2563EB] text-white shadow-md; }
   .ec-step-active .ec-step-line { @apply bg-[#CBD5E1]; }
   .ec-step-pending .ec-step-circle { @apply bg-white border-[#CBD5E1] text-[#94A3B8]; }
-  .ec-step-pending .ec-step-line { @apply bg-[#E2E8F0]; }
+  .ec-step-pending .ec-step-line { @apply bg-[#CBD5E1]; }
   .ec-step-label {
     @apply text-xs font-medium;
   }
   .ec-step-completed .ec-step-label { @apply text-[#059669]; }
-  .ec-step-active .ec-step-label { @apply text-[#1E3A5F]; }
+  .ec-step-active .ec-step-label { @apply text-[#2563EB]; }
   .ec-step-pending .ec-step-label { @apply text-[#94A3B8]; }
 
   /* --- Navigation Drawer --- */
   .ec-nav-link {
-    @apply relative text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#1E293B];
+    @apply relative text-[#475569] hover:bg-[#F1F5F9] hover:text-[#1E293B];
   }
   .ec-nav-link-active {
-    @apply bg-[#1E3A5F]/10 text-[#1E3A5F] font-semibold;
+    @apply bg-[#2563EB]/10 text-[#2563EB] font-semibold;
   }
   .ec-nav-link-active::before {
     content: '';
-    @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#1E3A5F] rounded-r-md;
+    @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#2563EB] rounded-r-md;
   }
   .ec-nav-link-inactive {
     @apply ec-nav-link;
@@ -188,7 +199,7 @@
     @apply flex items-center gap-1.5 text-xs text-[#94A3B8];
   }
   .ec-breadcrumb a {
-    @apply hover:text-[#1E3A5F] transition-colors;
+    @apply hover:text-[#2563EB] transition-colors;
   }
   .ec-breadcrumb-sep {
     @apply text-[#CBD5E1];
@@ -199,19 +210,19 @@
     @apply flex justify-between items-center py-2;
   }
   .ec-summary-label {
-    @apply text-sm text-[#64748B];
+    @apply text-sm text-[#475569];
   }
   .ec-summary-value {
     @apply text-sm font-semibold text-[#1E293B];
   }
   .ec-summary-total {
-    @apply flex justify-between items-center py-3 border-t-2 border-[#1E3A5F] mt-1;
+    @apply flex justify-between items-center py-3 border-t-2 border-[#2563EB] mt-1;
   }
   .ec-summary-total-label {
-    @apply text-sm font-bold text-[#1E3A5F];
+    @apply text-sm font-bold text-[#2563EB];
   }
   .ec-summary-total-value {
-    @apply text-lg font-bold text-[#1E3A5F];
+    @apply text-lg font-bold text-[#2563EB];
   }
 
   /* --- General Abstract Summary --- */
@@ -225,7 +236,7 @@
     @apply mb-0;
   }
   .ec-ga-part-title {
-    @apply text-[11px] font-bold uppercase tracking-wide text-[#1E3A5F] mb-2;
+    @apply text-[11px] font-bold uppercase tracking-wide text-[#2563EB] mb-2;
   }
   .ec-ga-row {
     @apply flex items-center justify-between gap-3 py-0.5;
@@ -244,10 +255,10 @@
     @apply py-1.5;
   }
   .ec-ga-label-total {
-    @apply text-[13px] font-bold text-[#1E3A5F];
+    @apply text-[13px] font-bold text-[#2563EB];
   }
   .ec-ga-value-total {
-    @apply text-sm font-bold text-[#1E3A5F] tabular-nums whitespace-nowrap;
+    @apply text-sm font-bold text-[#2563EB] tabular-nums whitespace-nowrap;
   }
   .ec-ga-select {
     @apply ec-input !py-1 !px-2 w-20 text-xs font-semibold text-right;
@@ -257,70 +268,25 @@
   }
   .ec-ga-grand {
     @apply mt-4 pt-3;
-    border-top: 4px double #1E3A5F;
+    border-top: 4px double #2563EB;
   }
   .ec-ga-grand-label {
-    @apply text-sm font-bold text-[#1E3A5F];
+    @apply text-sm font-bold text-[#2563EB];
   }
   .ec-ga-grand-value {
-    @apply text-lg font-bold text-[#1E3A5F] tabular-nums whitespace-nowrap;
+    @apply text-lg font-bold text-[#2563EB] tabular-nums whitespace-nowrap;
   }
   .ec-ga-ls-caption {
     @apply text-xs font-semibold text-[#475569] mb-2;
   }
-  .ec-ga-ls-table-wrap {
-    @apply border border-[#E5E7EB] rounded-lg overflow-hidden;
-  }
-  .ec-ga-ls-table {
-    @apply w-full table-fixed border-collapse;
-  }
-  .ec-ga-ls-col-desc {
-    width: 70%;
-  }
-  .ec-ga-ls-col-amt {
-    width: 18%;
-  }
-  .ec-ga-ls-col-act {
-    width: 12%;
-  }
-  .ec-ga-ls-th {
-    @apply text-left text-[10px] font-semibold uppercase tracking-wider text-[#94A3B8] whitespace-nowrap px-2 py-1.5 bg-[#F8FAFC] border-b border-[#E5E7EB];
-  }
-  .ec-ga-ls-th-amt {
-    @apply text-right;
-  }
-  .ec-ga-ls-th-act {
-    @apply text-right;
-  }
-  .ec-ga-ls-td {
-    @apply px-2 py-1.5 border-b border-[#E5E7EB];
-  }
-  .ec-ga-ls-td-act {
-    @apply text-right whitespace-nowrap;
-  }
-  .ec-ga-ls-input {
-    @apply ec-input !py-1 !px-2 text-xs w-full;
-  }
-  .ec-ga-ls-input-amt {
-    @apply text-right font-semibold tabular-nums;
-  }
-  .ec-ga-ls-remove {
-    @apply p-1 rounded text-[#DC2626] hover:bg-red-50 inline-flex;
-  }
   .ec-ga-ls-actions {
-    @apply flex justify-end mt-2;
+    @apply flex justify-end mt-1.5;
   }
   .ec-ga-ls-add {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white transition-colors whitespace-nowrap;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white transition-colors whitespace-nowrap;
   }
   .ec-ga-ls-total {
     @apply flex items-center justify-end gap-3 mt-2;
-  }
-  .ec-ga-ls-empty-cell {
-    @apply px-2 py-2 text-center text-xs text-[#94A3B8];
-  }
-  .ec-ga-ls-table tr:last-child td {
-    border-bottom: none;
   }
 
   /* --- Estimate Summary: two main containers ---
@@ -331,14 +297,14 @@
     @apply grid grid-cols-1 lg:grid-cols-2 gap-4 items-start;
   }
   .ec-sum2-card {
-    @apply flex flex-col gap-2 p-4 min-w-0 rounded-xl border border-[#E2E8F0] bg-white shadow-sm;
+    @apply flex flex-col gap-1.5 p-2.5 min-w-0 rounded-xl border border-[#CBD5E1] bg-white shadow-sm;
   }
   .ec-sum2-divider {
     @apply flex-none my-0.5;
-    border-top: 1px solid #E2E8F0;
+    border-top: 1px solid #CBD5E1;
   }
   .ec-sum2-section {
-    @apply flex flex-col rounded-lg py-2.5 px-3 min-w-0;
+    @apply flex flex-col rounded-lg py-1.5 px-2.5 min-w-0;
   }
   .ec-sum2-part-i {
     @apply bg-[#EFF6FF];
@@ -353,36 +319,33 @@
     @apply bg-[#FEFCE8];
   }
   .ec-sum2-title {
-    @apply text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A5F] mb-0.5;
+    @apply text-[11px] font-extrabold uppercase tracking-wider text-[#2563EB] mb-0.5;
   }
   .ec-sum2-subtitle {
-    @apply text-[10px] font-medium uppercase tracking-wide text-[#64748B] mb-1.5;
-  }
-  .ec-sum2-note {
-    @apply text-[10px] text-[#64748B] mb-1.5 leading-snug;
+    @apply text-[10px] font-medium uppercase tracking-wide text-[#475569] mb-1;
   }
   .ec-sum2-total {
-    @apply mt-2 pt-2 flex items-center justify-between gap-2;
+    @apply mt-1 pt-1 flex items-center justify-between gap-2;
     border-top: 1px dotted #94A3B8;
   }
   .ec-sum2-total-label {
-    @apply text-[11px] font-bold text-[#1E3A5F];
+    @apply text-[11px] font-bold text-[#2563EB];
   }
   .ec-sum2-total-value {
-    @apply text-sm font-bold text-[#1E3A5F] tabular-nums whitespace-nowrap;
+    @apply text-[13px] font-bold text-[#2563EB] tabular-nums whitespace-nowrap;
   }
   .ec-sum2-grand-total {
-    @apply mt-3 pt-2.5;
-    border-top: 3px double #1E3A5F;
+    @apply mt-1.5 pt-1.5;
+    border-top: 3px double #2563EB;
   }
   .ec-sum2-grand-total-label {
-    @apply text-[13px] font-extrabold text-[#1E3A5F];
+    @apply text-xs font-extrabold text-[#2563EB];
   }
   .ec-sum2-grand-total-value {
-    @apply text-xl font-extrabold text-[#1E3A5F] tabular-nums whitespace-nowrap;
+    @apply text-lg font-extrabold text-[#2563EB] tabular-nums whitespace-nowrap;
   }
   .ec-sum2-breakdown {
-    @apply space-y-1;
+    @apply space-y-0.5;
   }
   .ec-sum2-bd-row {
     @apply flex items-center justify-between gap-2 text-[11px];
@@ -396,35 +359,41 @@
   .ec-sum2-gst-row {
     @apply flex items-center justify-between gap-2 mb-1;
   }
-  .ec-sum2-desc-textarea {
-    @apply ec-input !py-1.5 !px-2 text-xs w-full;
-    resize: vertical;
-    field-sizing: content;
-    min-height: 3.4em;
-    max-height: 6.5em;
-    overflow-y: auto;
+
+  /* Compact read-only Part-II / Part-III summaries — the Add/Edit dialogs
+     own all entry/editing now, this panel only shows results. */
+  .ec-ai-list {
+    @apply space-y-1 mt-1;
+  }
+  .ec-ai-count {
+    @apply text-[11px] font-semibold text-[#475569];
+  }
+  .ec-ai-item {
+    @apply flex items-center justify-between gap-2 rounded-md border border-[#E5E7EB] bg-white px-2 py-1;
+  }
+  .ec-ai-main {
+    @apply flex flex-col gap-0.5 min-w-0;
+  }
+  .ec-ai-desc {
+    @apply text-xs text-[#334155] leading-snug;
     overflow-wrap: anywhere;
     word-break: break-word;
     white-space: pre-wrap;
-    line-height: 1.35;
   }
-  /* Bounded item-list region: rows scroll inside, never the page. */
-  .ec-sum2-ls-scroll {
-    @apply max-h-[200px] overflow-y-auto;
-    scrollbar-width: thin;
-    scrollbar-color: #CBD5E1 transparent;
+  .ec-ai-amt {
+    @apply text-xs font-bold text-[#0F172A] tabular-nums whitespace-nowrap;
   }
-  .ec-sum2-ls-scroll th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
+  .ec-ai-empty {
+    @apply text-xs text-[#94A3B8];
   }
-  .ec-sum2-ls-scroll::-webkit-scrollbar {
-    width: 8px;
+  .ec-ai-actions {
+    @apply flex items-center gap-1 shrink-0;
   }
-  .ec-sum2-ls-scroll::-webkit-scrollbar-thumb {
-    background: #CBD5E1;
-    border-radius: 8px;
+  .ec-ai-btn {
+    @apply p-1.5 rounded-md text-[#475569] hover:bg-[#F1F5F9] transition-colors inline-flex;
+  }
+  .ec-ai-btn-danger {
+    @apply text-[#DC2626] hover:bg-red-50;
   }
 
   /* --- Section --- */
@@ -440,12 +409,12 @@
     @apply text-xl font-bold text-[#0F172A];
   }
   .ec-page-subtitle {
-    @apply text-sm text-[#64748B] mt-0.5;
+    @apply text-sm text-[#475569] mt-0.5;
   }
 
   /* --- Stat Card --- */
   .ec-stat {
-    @apply bg-white rounded-lg border border-[#E2E8F0] shadow-sm p-4 transition-all hover:shadow-md;
+    @apply bg-white rounded-lg border border-[#CBD5E1] shadow-sm p-4 transition-all hover:shadow-md;
   }
   .ec-stat-icon {
     @apply w-10 h-10 rounded-lg flex items-center justify-center;
@@ -454,7 +423,7 @@
     @apply text-2xl font-bold text-[#0F172A] mt-2;
   }
   .ec-stat-label {
-    @apply text-xs text-[#64748B] mt-0.5;
+    @apply text-xs text-[#475569] mt-0.5;
   }
 
   /* --- Empty State --- */
@@ -473,7 +442,7 @@
     @apply flex justify-center items-center py-12;
   }
   .ec-spinner {
-    @apply w-6 h-6 border-2 border-[#E2E8F0] border-t-[#1E3A5F] rounded-full animate-spin;
+    @apply w-6 h-6 border-2 border-[#CBD5E1] border-t-[#2563EB] rounded-full animate-spin;
   }
 
   /* --- Notification Dropdown --- */
@@ -483,12 +452,12 @@
 
   /* --- Item Row (legacy) --- */
   .ec-item-row {
-    @apply border border-[#E2E8F0] rounded-lg p-3 mb-2 bg-white transition-all hover:border-[#1E3A5F]/30 hover:shadow-sm;
+    @apply border border-[#CBD5E1] rounded-lg p-3 mb-2 bg-white transition-all hover:border-[#2563EB]/30 hover:shadow-sm;
   }
 
   /* --- Estimate Items Grid --- */
   .ec-grid-scroll {
-    @apply rounded-lg border border-[#E2E8F0] bg-white;
+    @apply rounded-lg border border-[#CBD5E1] bg-white;
     max-height: 2000px;
     overflow: auto;
   }
@@ -540,7 +509,7 @@
     animation: ecItemHighlight 1.2s ease-out 1;
   }
   .ec-item-code {
-    @apply text-[10px] font-mono font-semibold text-[#1E3A5F] mb-0.5 truncate;
+    @apply text-[10px] font-mono font-semibold text-[#2563EB] mb-0.5 truncate;
   }
   .ec-qty {
     @apply inline-block text-[11px] font-bold text-[#0F172A] tabular-nums bg-[#E8EEF6] px-1.5 py-0.5 rounded-md whitespace-nowrap;
@@ -559,12 +528,12 @@
     border-radius: 0.375rem;
   }
   .ec-read-more {
-    @apply mt-1 text-[10px] font-semibold text-[#1E3A5F] hover:underline rounded
-           focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A5F]/40;
+    @apply mt-1 text-[10px] font-semibold text-[#2563EB] hover:underline rounded
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40;
   }
   .ec-action-btn {
     @apply p-1.5 rounded-md text-[#94A3B8] transition-colors
-           focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A5F]/40;
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40;
   }
   .ec-clamp-2 {
     display: -webkit-box;
@@ -584,7 +553,7 @@
   .ec-dim-input {
     @apply w-full min-w-0 border border-[#CBD5E1] rounded-md text-center text-[11px] font-medium text-[#1E293B]
            px-0.5 py-0.5 transition-all duration-200
-           focus:outline-none focus:ring-[3px] focus:ring-[rgba(30,58,95,0.12)] focus:border-[#1E3A5F]
+           focus:outline-none focus:ring-[3px] focus:ring-[rgba(37,99,235,0.12)] focus:border-[#2563EB]
            placeholder:text-[#94A3B8] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8];
   }
 
@@ -592,7 +561,7 @@
   .ec-cat-select {
     @apply w-full max-w-[58px] border rounded-md text-[10px] font-semibold
            px-1 py-0.5 text-center cursor-pointer transition-all duration-200
-           focus:outline-none focus:ring-[3px] focus:ring-[rgba(30,58,95,0.12)] focus:border-[#1E3A5F]
+           focus:outline-none focus:ring-[3px] focus:ring-[rgba(37,99,235,0.12)] focus:border-[#2563EB]
            disabled:opacity-70 disabled:cursor-not-allowed;
   }
   .ec-cat-select-civil {
@@ -612,9 +581,9 @@
 
   /* --- Newly added item highlight (fades out) --- */
   @keyframes ecItemHighlight {
-    0% { background-color: rgba(30, 58, 95, 0.16); box-shadow: 0 0 0 1px rgba(30, 58, 95, 0.28); }
-    60% { background-color: rgba(30, 58, 95, 0.08); box-shadow: 0 0 0 1px rgba(30, 58, 95, 0.12); }
-    100% { background-color: rgba(30, 58, 95, 0); box-shadow: 0 0 0 0 rgba(30, 58, 95, 0); }
+    0% { background-color: rgba(37, 99, 235, 0.16); box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.28); }
+    60% { background-color: rgba(37, 99, 235, 0.08); box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12); }
+    100% { background-color: rgba(37, 99, 235, 0); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
   }
   /* --- Qty/Amount recalculation flash --- */
   @keyframes ecCalcFlash {
@@ -635,21 +604,21 @@
 
   /* --- Item Search Popup --- */
   .ec-search-popup {
-    @apply bg-white rounded-xl border border-[#E2E8F0] shadow-xl overflow-hidden;
+    @apply bg-white rounded-xl border border-[#CBD5E1] shadow-xl overflow-hidden;
   }
   .ec-search-popup-head {
-    @apply flex items-center gap-2 px-4 py-2.5 bg-[#F8FAFC] border-b border-[#E2E8F0]
+    @apply flex items-center gap-2 px-4 py-2.5 bg-[#F8FAFC] border-b border-[#CBD5E1]
            text-xs font-semibold text-[#1E293B];
   }
   .ec-search-popup-head svg {
-    @apply w-4 h-4 text-[#1E3A5F];
+    @apply w-4 h-4 text-[#2563EB];
   }
   .ec-search-popup-input {
-    @apply w-full bg-white border-0 border-b border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B]
+    @apply w-full bg-white border-0 border-b border-[#CBD5E1] px-4 py-2.5 text-sm text-[#1E293B]
            outline-none transition-colors placeholder:text-[#94A3B8];
   }
   .ec-search-popup-input:focus {
-    border-color: #1E3A5F;
+    border-color: #2563EB;
   }
   .ec-search-popup-body {
     @apply max-h-72 overflow-y-auto;
@@ -668,7 +637,7 @@
     @apply bg-[#EFF6FF];
   }
   .ec-search-popup-code {
-    @apply text-xs font-mono font-bold text-[#1E3A5F];
+    @apply text-xs font-mono font-bold text-[#2563EB];
   }
   .ec-search-popup-desc {
     @apply text-xs text-[#475569] leading-snug;
@@ -681,7 +650,7 @@
     @apply flex items-center gap-1.5 mt-0.5;
   }
   .ec-search-popup-unit {
-    @apply text-[10px] font-semibold uppercase tracking-wide text-[#64748B]
+    @apply text-[10px] font-semibold uppercase tracking-wide text-[#475569]
            bg-[#F1F5F9] px-1.5 py-0.5 rounded;
   }
   .ec-search-popup-sep {
@@ -691,12 +660,12 @@
     @apply text-xs font-semibold text-[#0F172A] tabular-nums;
   }
   .ec-search-popup-foot {
-    @apply flex items-center gap-4 px-4 py-2 bg-[#F8FAFC] border-t border-[#E2E8F0]
+    @apply flex items-center gap-4 px-4 py-2 bg-[#F8FAFC] border-t border-[#CBD5E1]
            text-[10px] text-[#94A3B8];
   }
   .ec-search-popup-foot kbd {
     @apply inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-0.5 mx-0.5
-           rounded border border-[#CBD5E1] bg-white text-[9px] font-semibold text-[#64748B]
+           rounded border border-[#CBD5E1] bg-white text-[9px] font-semibold text-[#475569]
            shadow-[0_1px_0_rgba(0,0,0,0.04)];
   }
 
@@ -712,11 +681,11 @@
            px-2 py-1.5 outline-none transition-colors placeholder:text-[#94A3B8];
   }
   .ec-search-row-input:focus {
-    border-color: #1E3A5F;
-    box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.12);
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
   }
   .ec-search-row-dropdown {
-    @apply absolute left-0 right-0 top-full z-40 mt-1.5 bg-white rounded-lg border border-[#E2E8F0]
+    @apply absolute left-0 right-0 top-full z-40 mt-1.5 bg-white rounded-lg border border-[#CBD5E1]
            shadow-xl overflow-hidden;
   }
   .ec-search-row-dropdown-body {
@@ -738,7 +707,7 @@
     @apply flex items-center justify-between gap-2;
   }
   .ec-search-row-code {
-    @apply text-[10px] font-mono font-semibold text-[#1E3A5F];
+    @apply text-[10px] font-mono font-semibold text-[#2563EB];
   }
   .ec-search-row-desc {
     @apply text-xs text-[#475569] leading-snug;
@@ -751,7 +720,7 @@
     @apply flex items-center gap-1.5;
   }
   .ec-search-row-unit {
-    @apply text-[10px] font-semibold uppercase tracking-wide text-[#64748B]
+    @apply text-[10px] font-semibold uppercase tracking-wide text-[#475569]
            bg-[#F1F5F9] px-1.5 py-0.5 rounded;
   }
   .ec-search-row-sep {
@@ -761,12 +730,12 @@
     @apply text-[10px] font-semibold text-[#0F172A] tabular-nums;
   }
   .ec-search-row-foot {
-    @apply flex items-center gap-4 px-3 py-1.5 bg-[#F8FAFC] border-t border-[#E2E8F0]
+    @apply flex items-center gap-4 px-3 py-1.5 bg-[#F8FAFC] border-t border-[#CBD5E1]
            text-[10px] text-[#94A3B8];
   }
   .ec-search-row-foot kbd {
     @apply inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-0.5 mx-0.5
-           rounded border border-[#CBD5E1] bg-white text-[9px] font-semibold text-[#64748B]
+           rounded border border-[#CBD5E1] bg-white text-[9px] font-semibold text-[#475569]
            shadow-[0_1px_0_rgba(0,0,0,0.04)];
   }
 
@@ -775,7 +744,7 @@
     @apply flex flex-wrap gap-2 items-center;
   }
   .ec-location-link {
-    @apply text-xs text-[#1E3A5F] bg-[#EFF6FF] px-2 py-1 rounded-md font-medium;
+    @apply text-xs text-[#2563EB] bg-[#EFF6FF] px-2 py-1 rounded-md font-medium;
   }
   .ec-location-arrow {
     @apply text-[#94A3B8] text-xs;
@@ -783,7 +752,7 @@
 
   /* --- Divider --- */
   .ec-divider {
-    @apply border-t border-[#E2E8F0] my-5;
+    @apply border-t border-[#CBD5E1] my-5;
   }
 
   /* --- Animations --- */
@@ -801,6 +770,13 @@
   .animate-scaleIn {
     animation: scaleIn 0.15s ease-out;
   }
+  @keyframes ecDrawerUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-ecDrawerUp {
+    animation: ecDrawerUp 0.2s ease-out;
+  }
 
   /* ── Futuristic Billing design layer ─────────────────────────────────
      Pure visual. Does not alter workflow / status / API contracts.
@@ -814,7 +790,7 @@
 
   /* Glass-free tinted surface card */
   .bi-panel {
-    @apply bg-white rounded-xl border border-[#E3E8F0] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-200;
+    @apply bg-white rounded-xl border border-[#CBD5E1] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-200;
     background-image: linear-gradient(180deg, rgba(248,250,252,0.6), rgba(255,255,255,0));
   }
   .bi-panel-hover:hover {
@@ -823,17 +799,17 @@
 
   /* Responsibility hero */
   .bi-hero {
-    @apply relative overflow-hidden rounded-xl border border-[#E3E8F0] bg-white p-4 sm:p-5;
+    @apply relative overflow-hidden rounded-xl border border-[#CBD5E1] bg-white p-4 sm:p-5;
   }
   .bi-hero::after {
     content: '';
     @apply absolute inset-0 pointer-events-none;
     background:
-      radial-gradient(420px 160px at 12% -20%, rgba(30,58,95,0.10), transparent 60%),
-      linear-gradient(115deg, rgba(30,58,95,0.04), transparent 40%);
+      radial-gradient(420px 160px at 12% -20%, rgba(37,99,235,0.10), transparent 60%),
+      linear-gradient(115deg, rgba(37,99,235,0.04), transparent 40%);
   }
   .bi-hero-role {
-    @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-[#1E3A5F] inline-flex items-center gap-1.5;
+    @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-[#2563EB] inline-flex items-center gap-1.5;
   }
   .bi-hero-title {
     @apply text-xl font-bold text-[#0F172A] tracking-tight;
@@ -856,8 +832,8 @@
     @apply bg-[#059669] border-[#059669] text-white flex items-center justify-center;
   }
   .bi-pipe-dot-current {
-    @apply bg-[#1E3A5F] border-[#1E3A5F] ring-[5px] ring-[rgba(30,58,95,0.16)] scale-125;
-    box-shadow: 0 0 0 0 rgba(30,58,95,0.35);
+    @apply bg-[#2563EB] border-[#2563EB] ring-[5px] ring-[rgba(37,99,235,0.16)] scale-125;
+    box-shadow: 0 0 0 0 rgba(37,99,235,0.35);
     animation: biNodeGlow 2.2s ease-in-out infinite;
   }
   .bi-pipe-dot-pending {
@@ -867,20 +843,20 @@
     @apply h-[2px] flex-1 min-w-[16px] rounded transition-colors duration-300;
   }
   .bi-pipe-line-complete { @apply bg-[#059669]; }
-  .bi-pipe-line-flow { @apply bg-[#1E3A5F]/25; }
-  .bi-pipe-line-pending { @apply bg-[#E2E8F0]; }
+  .bi-pipe-line-flow { @apply bg-[#2563EB]/25; }
+  .bi-pipe-line-pending { @apply bg-[#CBD5E1]; }
   .bi-pipe-label {
-    @apply text-[10px] font-semibold text-[#64748B] leading-tight text-center;
+    @apply text-[10px] font-semibold text-[#475569] leading-tight text-center;
   }
   .bi-pipe-sub {
     @apply text-[9px] text-[#94A3B8] leading-tight text-center;
   }
-  .bi-pipe-label-current { @apply text-[#1E3A5F]; }
+  .bi-pipe-label-current { @apply text-[#2563EB]; }
   .bi-pipe-label-complete { @apply text-[#059669]; }
 
   @keyframes biNodeGlow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(30,58,95,0.30); }
-    50% { box-shadow: 0 0 0 6px rgba(30,58,95,0.10); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.30); }
+    50% { box-shadow: 0 0 0 6px rgba(37,99,235,0.10); }
   }
 
   /* SLA progress */
@@ -896,7 +872,7 @@
 
   /* Metric chips / cards */
   .bi-metric {
-    @apply bg-white rounded-xl border border-[#E3E8F0] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]
+    @apply bg-white rounded-xl border border-[#CBD5E1] p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]
            hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)] hover:-translate-y-px transition-all duration-200;
   }
   .bi-metric-icon {
@@ -906,13 +882,13 @@
     @apply text-xl font-bold text-[#0F172A] tracking-tight tabular-nums leading-none;
   }
   .bi-metric-label {
-    @apply text-[10px] font-medium text-[#64748B] mt-1 leading-tight;
+    @apply text-[10px] font-medium text-[#475569] mt-1 leading-tight;
   }
 
   /* Data table */
   .bi-table { @apply w-full text-sm border-collapse; }
   .bi-table thead th {
-    @apply text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#64748B]
+    @apply text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#475569]
            px-3 py-2.5 border-b border-[#E7ECF3] bg-[#F8FAFC]/80 whitespace-nowrap;
   }
   .bi-table tbody td {
@@ -935,7 +911,7 @@
   }
 
   .bi-empty {
-    @apply text-center py-8 text-xs text-[#94A3B8] bg-white rounded-xl border border-dashed border-[#E3E8F0];
+    @apply text-center py-8 text-xs text-[#94A3B8] bg-white rounded-xl border border-dashed border-[#CBD5E1];
   }
 
   /* Timeline (approval history) */
@@ -950,7 +926,7 @@
   }
 
   .bi-ghost-icon {
-    @apply w-4 h-4 text-[#1E3A5F]/70;
+    @apply w-4 h-4 text-[#2563EB]/70;
   }
 
   /* Responsive grid for metrics */
@@ -977,6 +953,323 @@
   .ec-grid-6 {
     @apply grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4;
   }
+
+  /* ── Estimate Editing Workspace ──────────────────────────────────────
+     ONE unified workspace frame: the Location/Work header row, the
+     estimate-items panel, the side-by-side financial summary and the action
+     bar. The frame is an ordinary page-level column that sizes to its
+     content (no fixed height, no overflow clipping) — the estimate page
+     scrolls naturally with the page. */
+  .ew-frame {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    height: auto;
+    max-height: none;
+    min-width: 0;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 12px;
+    backdrop-filter: blur(3px);
+    overflow: visible;
+  }
+  /* Top form — one row (Location | Category | Work Name), compact, with a
+     subtle separator from the items below. */
+  .ew-frame-top {
+    flex: none;
+    padding: 0.125rem 0.25rem 0.5rem;
+    border-bottom: 1px solid #CBD5E1;
+  }
+  .ew-frame-top fieldset {
+    width: 100%;
+  }
+  /* Reworked-revert ATR card sits inside the frame, kept slim. */
+  .ew-atr-card {
+    flex: none;
+    @apply m-0 p-3;
+  }
+  .ew-atr-card .ec-card-body {
+    padding: 0;
+  }
+  .ew-atr-card textarea {
+    margin-top: 0.5rem;
+  }
+
+  /* Workspace — Estimate Items (full width) then the 4-card summary row below
+     it, matching the reference UI. Natural height; nothing clips or scrolls
+     internally, the page scrolls when content is taller than the viewport. */
+  .ew-workspace {
+    flex: none;
+    height: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Items panel — natural height; the table body below scrolls within its own
+     scroll region, so the panel never clips rows and the page never needs a
+     fixed height. */
+  .ew-items-panel {
+    @apply bg-white/70 rounded-lg border;
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    height: auto;
+    min-width: 0;
+  }
+  .ew-items-header {
+    @apply flex items-center justify-between px-3 py-1.5 border-b border-[#CBD5E1] bg-[#FAFBFC] shrink-0;
+  }
+  .ew-items-header-left {
+    @apply flex items-center gap-2;
+  }
+  .ew-items-count {
+    @apply text-[11px] font-medium text-[#475569] bg-[#F1F5F9] rounded-full px-2 py-0.5;
+  }
+  .ew-items-search {
+    @apply w-full text-xs text-[#1E293B] bg-white border border-[#CBD5E1] rounded-lg
+           px-3 py-1.5 outline-none transition-colors placeholder:text-[#94A3B8];
+  }
+  .ew-items-search:focus {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
+  }
+
+  /* Compact internal vertical scrolling for large item lists while keeping
+     the page from scrolling horizontally. Only the table body scrolls; the
+     sticky table header stays visible at the top of its scroll region. */
+  .ew-item-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-height: 420px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Compact item table matching reference UI — columns sized to the approved
+     widths while keeping description text wrapping cleanly. */
+  .ew-item-table {
+    --ew-cols: 42px minmax(180px, 2.2fr) 86px 38px 38px 38px 38px 64px 58px 84px 96px 74px;
+    @apply w-full text-[11px];
+    min-width: 0;
+  }
+  .ew-grid-row {
+    display: grid;
+    grid-template-columns: var(--ew-cols);
+    border-bottom: 1px solid #F1F5F9;
+    transition: background-color 0.15s ease;
+    min-height: 34px;
+  }
+  .ew-grid-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #F8FAFC;
+    border-bottom: 1px solid #CBD5E1;
+  }
+  .ew-grid-cell {
+    @apply flex items-center px-1 py-0.5;
+    min-width: 0;
+  }
+  .ew-th {
+    @apply text-[10px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap;
+  }
+  .ew-cell-sno {
+    @apply justify-center text-xs text-slate-500 font-medium;
+  }
+  .ew-desc-cell {
+    @apply flex-col items-start justify-center gap-0.5;
+    min-width: 0;
+    position: relative;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+  .ew-cell-center { @apply justify-center; }
+  .ew-cell-right { @apply justify-end; }
+  .ew-cell-actions { @apply justify-center; gap: 4px; }
+  .ew-grid-row-odd { background-color: #FAFBFC; }
+  .ew-grid-row:hover:not(.ew-grid-head) { background-color: #F8FAFC; }
+  /* Default row height ≈ 34px; long descriptions wrap to two lines. */
+  .ew-grid-row:not(.ew-grid-head) .ew-grid-cell { min-height: 20px; }
+  .ew-grid-row:has(+ .ew-detail-row) {
+    background: #EFF6FF;
+    box-shadow: inset 3px 0 0 #93C5FD;
+  }
+
+  /* Expanded detail row — full-width section beneath the item row */
+  .ew-detail-row {
+    display: grid;
+    grid-template-columns: var(--ew-cols);
+    border-top: 1px solid #EDF2F7;
+    border-bottom: 1px solid #EDF2F7;
+    background: #F8FAFC;
+    box-shadow: inset 3px 0 0 #BFDBFE;
+  }
+  .ew-detail-cell {
+    grid-column: 1 / -1;
+    padding: 6px 12px 6px 52px;
+  }
+  .ew-detail-fields {
+    @apply flex flex-wrap items-center gap-3;
+  }
+  .ew-dim-group {
+    @apply flex items-center gap-1.5;
+  }
+  .ew-dim-label {
+    @apply text-[10px] font-semibold text-[#475569] uppercase;
+  }
+  .ew-dim-input {
+    @apply w-14 min-w-0 border border-[#CBD5E1] rounded-md text-center text-[11px] font-medium text-[#1E293B]
+           px-1 py-0.5 transition-all duration-200
+           focus:outline-none focus:ring-[3px] focus:ring-[rgba(37,99,235,0.12)] focus:border-[#2563EB]
+           placeholder:text-[#94A3B8] disabled:bg-[#F1F5F9] disabled:text-[#94A3B8];
+  }
+
+  /* Summary row (under Estimate Items) — PART-I | PART-II | PART-III | GRAND
+     TOTAL in ONE horizontal row, equal heights, as in the reference UI. The
+     row is flex:none (natural content height); cards stretch to the tallest
+     and use justify-between so totals/add buttons sit at the card bottom. */
+  .ew-summary-panel {
+    flex: none;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.375rem;
+    align-items: stretch;
+  }
+  .ew-sum-card {
+    padding: 0.5rem 0.625rem;
+    min-height: 0;
+  }
+  .ew-summary-panel > * {
+    min-width: 0;
+  }
+
+  /* Part-II / Part-III compact count — click opens a popup item list */
+  .ew-partlist {
+    position: relative;
+    margin-top: 0.125rem;
+  }
+  .ec-ai-count-btn {
+    @apply inline-flex items-center gap-1 text-[11px] font-semibold text-[#475569]
+           rounded-md border border-[#CBD5E1] bg-white px-2 py-0.5
+           hover:border-[#2563EB] hover:text-[#2563EB] transition-colors;
+  }
+  .ec-ai-count-btn[aria-expanded='true'] {
+    @apply border-[#2563EB] text-[#2563EB] bg-[#EFF6FF];
+  }
+  .ew-partlist-pop {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 4px);
+    z-index: 40;
+    width: min(18rem, 90vw);
+    max-height: 11rem;
+    overflow-y: auto;
+    @apply bg-white border border-[#CBD5E1] rounded-lg shadow-xl p-2;
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+  .ew-partlist-pop .ec-ai-list { margin-top: 0; }
+
+  /* Grand total — visually strongest column, restrained highlight */
+  .ec-gt-block {
+    flex: none;
+  }
+  .ec-gt-inner {
+    background: #FEFCE8;
+  }
+  .ew-sum-grid .ec-sum2-grand .ec-sum2-grand-total {
+    margin-top: 0.5rem;
+  }
+  /* Align Part-III stack with Part-II's GST row above it (same height),
+     so counts, totals and add-buttons sit on a common vertical rhythm. */
+  .ew-sum2-spacer {
+    height: 26px;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Narrow desktop / tablet portrait: summary stacks 2×2; the page scrolls
+     normally (frame auto height, complete table visible). */
+  @media (max-width: 1023px) {
+    .ew-summary-panel {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Action bar — compact bottom row, a normal flex:none sibling below the
+     workspace grid (never sticky, never overlapping the summary). */
+  .ew-action-wrap {
+    flex: none;
+    min-height: 44px;
+    padding: 0.25rem 0.5rem;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+  }
+
+  /* Mobile item cards */
+  .ew-mobile-item {
+    @apply bg-white rounded-lg border border-[#CBD5E1] p-3 mb-2;
+  }
+  .ew-mobile-item-header {
+    @apply flex items-start justify-between gap-2 mb-2;
+  }
+  .ew-mobile-item-code {
+    @apply text-[10px] font-mono font-semibold text-[#2563EB];
+  }
+  .ew-mobile-item-desc {
+    @apply text-xs text-[#334155] leading-snug mt-0.5;
+  }
+  .ew-mobile-item-meta {
+    @apply flex flex-wrap items-center gap-2 mt-2 text-[11px];
+  }
+  .ew-mobile-item-dims {
+    @apply flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-[#F1F5F9];
+  }
+  .ew-mobile-item-map {
+    @apply flex flex-wrap items-center gap-3 mt-2 pt-2 border-t border-[#F1F5F9];
+  }
+  .ew-mobile-cat {
+    @apply border rounded-md text-[10px] font-semibold px-1.5 py-1 text-center cursor-pointer;
+  }
+  .ew-mobile-cat-civil {
+    @apply bg-[#EFF6FF] border-[#BFDBFE] text-[#1D4ED8];
+  }
+  .ew-mobile-cat-material {
+    @apply bg-[#FFFBEB] border-[#FDE68A] text-[#B45309];
+  }
+
+  /* Desktop table vs mobile cards toggle */
+  @media (max-width: 767px) {
+    .ew-item-table,
+    .ew-detail-row {
+      display: none;
+    }
+    .ew-item-scroll {
+      max-height: none;
+      overflow: visible;
+    }
+    .ew-frame,
+    .ew-workspace,
+    .ew-items-panel {
+      flex: none;
+      height: auto;
+    }
+  }
+  @media (min-width: 768px) {
+    .ew-mobile-item {
+      display: none;
+    }
+  }
 }
 
 /* --- High contrast mode --- */
@@ -985,7 +1278,7 @@
   .ec-stat,
   .ec-btn-outline,
   .ec-item-row {
-    @apply border-[#64748B];
+    @apply border-[#475569];
   }
   .ec-grid-row-odd {
     background-color: #ffffff;
@@ -1001,7 +1294,7 @@
     @apply border border-transparent;
   }
   .ec-nav-link-active {
-    @apply border-[#1E3A5F];
+    @apply border-[#2563EB];
   }
 }
 
@@ -1033,90 +1326,438 @@
   }
 }
 
-/* --- Create Estimate: location details --- */
+/* --- Create Estimate: content hierarchy ------------------------------------
+   The global HMWSSB artwork is the canvas. Location/Work Details are
+   transparent sections over it; only their input controls are near-white.
+   The Estimate Items / Summary workspace stays an opaque professional
+   surface. */
+.ef-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* Create Estimate: location/work input controls — near-white and readable
+   over the transparent sections, never fully transparent. */
 .ef-loc-field {
   @apply min-w-0;
 }
 .ef-loc-label {
-  @apply block text-[10px] font-medium text-[#64748B] mb-1 truncate;
+  @apply block text-[10px] font-medium text-[#475569] mb-1 truncate;
 }
 .ef-loc-input {
-  @apply w-full border border-[#D1D5DB] rounded-lg bg-white text-xs text-[#1E293B] px-2.5 py-1.5
-         focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]/20
+  @apply w-full border border-[#D1D5DB] rounded-lg text-xs text-[#1E293B] px-2.5 py-1.5
+         focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20
          placeholder:text-[#94A3B8] transition-colors;
+  background-color: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
+  height: 2.375rem;
+  box-sizing: border-box;
 }
 
 .ef-action-bar {
-  @apply flex items-center justify-between gap-3 bg-white border border-[#E2E8F0] rounded-lg px-4 py-3 mb-4 shadow-sm;
+  @apply flex items-center justify-between gap-3 flex-wrap;
+  padding: 0.125rem 0 0;
+  border-top: 1px solid #CBD5E1;
 }
 
 /* --- HMWSSB background artwork -------------------------------------------
-   One shared branded background for the Officer Portal. The image
-   (client/public/image.png) is a public asset rendered as the background of
-   the main content area (.app-main) — behind every white content surface —
-   under a translucent white wash so text stays dominant. Intensity tiers:
-   the dashboard (open space) shows more artwork (.bg-open), standard
-   business pages keep a quieter default, tablet/mobile reduce visibility.
-   Pure CSS + the existing asset; no JS, no extra downloads. Print output is
-   unaffected (print.css clears .app-main to #fff). */
+   ONE global fixed canvas for the whole Officer Portal. The image
+   (client/public/image.png) is layered behind every chrome element:
+   header, sidebar and main content all sit on translucent surfaces above
+   it, so the artwork is visible in every open/empty area and only
+   intentional UI surfaces are white. Pure CSS, no JS, uses the existing
+   asset. Print output is unaffected (print.css hides the layer). The light
+   wash keeps text dominant while the identity (tower / water artwork) stays
+   clearly noticeable in open space; on tablet/mobile it quiets down. */
 .app-shell {
-  background-color: #F5F7FA;
+  position: relative;
+  background-color: #F8FAFC;
+  isolation: isolate;
 }
 
-.app-main {
+.app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background-image:
-    linear-gradient(rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.94)),
+    linear-gradient(rgba(249, 250, 252, 0.82), rgba(255, 255, 255, 0.93)),
     url('/image.png');
   background-repeat: no-repeat, no-repeat;
   background-position: center top, center top;
   background-size: auto, cover;
-  background-attachment: scroll, fixed;
+  background-attachment: fixed, fixed;
+  pointer-events: none;
 }
 
-.app-main.bg-open {
-  background-image:
-    linear-gradient(rgba(248, 250, 252, 0.7), rgba(255, 255, 255, 0.9)),
-    url('/image.png');
+/* Header — translucent white surface; artwork shows through around it.
+   Rendered `!important` over the Tailwind `bg-white` utility on the same
+   element so the canvas stays visible beneath/around the top region. */
+.app-header,
+.app-breadcrumb {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  backdrop-filter: blur(3px);
 }
 
-/* Navigation sidebar — near-white, water-tinted; the artwork shows very
-   faintly, slightly more in the lower portion. Menu text stays crisp. */
+/* Main content — fully transparent canvas; cards/forms/tables remain the
+   white surfaces. */
+.app-main {
+  background-color: transparent;
+}
+
+/* Navigation sidebar — near-white, water-tinted translucent surface; the
+   artwork shows faintly through, with slightly more in the lower portion.
+   Menu text stays crisp. */
 #app-navigation {
-  background-color: #fbfdff;
+  background-color: rgba(251, 253, 255, 0.6);
   background-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.97) 55%, rgba(224, 241, 255, 0.9) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 255, 255, 0.98) 55%, rgba(224, 241, 255, 0.95) 100%),
     url('/image.png');
   background-repeat: no-repeat, no-repeat;
   background-size: auto, cover;
   background-position: center top, center bottom;
+  backdrop-filter: blur(6px);
 }
 
 /* Tablet: quieter artwork, normal scrolling behaviour. */
 @media (max-width: 1023px) {
-  .app-main {
+  .app-shell::before {
+    background-image:
+      linear-gradient(rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.93)),
+      url('/image.png');
     background-attachment: scroll, scroll;
-    background-image:
-      linear-gradient(rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 0.97)),
-      url('/image.png');
-  }
-  .app-main.bg-open {
-    background-image:
-      linear-gradient(rgba(248, 250, 252, 0.86), rgba(255, 255, 255, 0.95)),
-      url('/image.png');
   }
 }
 
 /* Mobile: very light treatment; navigation stays fully readable. */
 @media (max-width: 767px) {
-  .app-main,
-  .app-main.bg-open {
+  .app-shell::before {
     background-image:
-      linear-gradient(rgba(250, 251, 252, 0.96), rgba(255, 255, 255, 0.98)),
+      linear-gradient(rgba(250, 251, 252, 0.94), rgba(255, 255, 255, 0.98)),
       url('/image.png');
     background-attachment: scroll, scroll;
   }
   #app-navigation {
     background-image: linear-gradient(180deg, #ffffff, #f1f7ff);
+  }
+}
+
+/* --- Dark mode ----------------------------------------------------------
+   Toggled via a `.dark` class on <html> (see Layout.jsx). Neutral surfaces
+   and near-black text flip to a deep navy palette; accent tints (status
+   chips, gradient metric cards) keep their hue and stay readable on dark
+   surfaces. Loaded after Tailwind utilities so the `.dark ...` selectors
+   (higher specificity) win. */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0F172A;
+  color: #cbd5e1;
+}
+
+html.dark .app-shell {
+  background-color: #0F172A;
+}
+
+html.dark .app-shell::before {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.88), rgba(23, 34, 54, 0.95)),
+    url('/image.png');
+  background-attachment: fixed, fixed;
+}
+
+html.dark .app-header,
+html.dark .app-breadcrumb {
+  background-color: rgba(23, 34, 54, 0.96) !important;
+  border-color: #1E293B;
+  backdrop-filter: blur(3px);
+}
+
+html.dark #app-navigation {
+  background-color: rgba(15, 23, 42, 0.94);
+  background-image:
+    linear-gradient(180deg, rgba(17, 25, 43, 0.98) 0%, rgba(20, 29, 48, 0.98) 55%, rgba(27, 39, 61, 0.96) 100%),
+    url('/image.png');
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto, cover;
+  background-position: center top, center bottom;
+  backdrop-filter: blur(6px);
+}
+
+/* Neutrals: white/light-gray surfaces -> deep navy slate. */
+html.dark .bg-white { background-color: #1E293B; }
+html.dark [class~="bg-[#F1F5F9]"] { background-color: #263447; }
+html.dark [class~="bg-[#F6F9FF]"] { background-color: #182231; }
+html.dark [class~="bg-[#F8FAFC]"] { background-color: #162231; }
+html.dark .bg-slate-50 { background-color: #182434; }
+html.dark .bg-gray-200 { background-color: #334155; }
+
+html.dark .manager-dashboard {
+  background-color: rgba(15, 23, 42, 0.96);
+  border-radius: 0.75rem;
+}
+
+html.dark .quick-action-card .quick-action-title,
+html.dark .workflow-stage-card .workflow-stage-label,
+html.dark .workflow-stage-card .workflow-stage-count,
+html.dark .quick-action-card .quick-action-desc,
+html.dark .workflow-stage-card .workflow-stage-subtitle {
+  color: #0F172A !important;
+}
+
+html.dark .quick-action-card .quick-action-desc,
+html.dark .workflow-stage-card .workflow-stage-subtitle {
+  color: #334155 !important;
+}
+
+html.dark .workflow-current-stage-badge {
+  top: 0.5rem;
+  z-index: 2;
+}
+
+html.dark .workflow-stage-card.current-stage-card {
+  padding-top: 1.5rem;
+}
+
+/* Neutral borders -> dark lines. */
+html.dark [class~="border-[#CBD5E1]"],
+html.dark .border-slate-200 { border-color: #334155; }
+
+/* Near-black text -> light. */
+html.dark [class~="text-[#0F172A]"],
+html.dark [class~="text-[#1E293B]"] { color: #F8FAFC; }
+html.dark [class~="text-[#334155]"] { color: #cbd5e1; }
+html.dark [class~="text-[#475569]"],
+html.dark .text-slate-400 { color: #94a3b8; }
+
+/* Navy accent text (links, headings, Grand Total values) -> light steel
+   blue so it stays legible on the dark navy canvas. */
+html.dark [class~="text-[#2563EB]"] { color: #60A5FA; }
+html.dark [class~="group-hover:text-[#2563EB]"] { color: #60A5FA; }
+
+/* Row dividers used by the estimate lists. */
+html.dark [class~="divide-[#F1F5F9]"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155;
+}
+
+/* Hover surfaces mirror the base flips so no light-on-light rows appear. */
+html.dark [class~="hover:bg-[#F1F5F9]"]:hover { background-color: #263447; }
+html.dark [class~="hover:bg-[#CBD5E1]"]:hover { background-color: #334155; }
+
+/* Slate family (Create Estimate table & misc text) — mirror the hex flips. */
+html.dark .bg-white { background-color: #1E293B; }
+html.dark .bg-slate-50 { background-color: #182434; }
+html.dark .bg-slate-100 { background-color: #263447; }
+html.dark .bg-gray-200 { background-color: #334155; }
+html.dark .border-slate-200,
+html.dark .border-slate-300 { border-color: #334155; }
+html.dark .text-slate-400 { color: #94a3b8; }
+html.dark .text-slate-500 { color: #94a3b8; }
+html.dark .text-slate-600 { color: #cbd5e1; }
+html.dark .text-slate-700,
+html.dark .text-slate-800,
+html.dark .text-slate-900 { color: #F8FAFC; }
+
+/* Shared component surfaces. */
+html.dark .ec-card {
+  background-color: #1E293B;
+  border-color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+html.dark .ec-card-header { border-color: #334155; }
+html.dark .ec-card-title,
+html.dark .ec-card-subtitle { color: #F8FAFC; }
+html.dark .ec-table thead th { background-color: #263447; color: #cbd5e1; }
+html.dark .ec-table tbody tr { border-color: #334155; }
+html.dark .ec-table tbody tr:hover { background-color: #263447; }
+html.dark .ec-table td { border-color: #334155; }
+
+/* Page titles / subtitles (baked via @apply, not utility names). */
+html.dark .ec-page-title { color: #F8FAFC; }
+html.dark .ec-page-subtitle { color: #94a3b8; }
+html.dark .ec-section-title { color: #94a3b8; }
+
+/* Buttons — baked hex needs explicit overrides. Solid actions keep their
+   colour (white-on-navy/white-on-green is already legible); outline and
+   ghost flip to dark surfaces with light text. */
+html.dark .ec-btn-outline {
+  background-color: #263447;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+html.dark .ec-btn-outline:hover {
+  background-color: #2d3b4f;
+  border-color: #475569;
+}
+html.dark .ec-btn-ghost { color: #94a3b8; }
+html.dark .ec-btn-ghost:hover { background-color: #263447; color: #F8FAFC; }
+
+/* Form controls — input values must be readable. */
+html.dark .ec-label { color: #cbd5e1; }
+html.dark .ec-input,
+html.dark .ec-select,
+html.dark .ec-textarea,
+html.dark .ec-dialog-textarea {
+  background-color: #1E293B;
+  border-color: #334155;
+  color: #F8FAFC;
+}
+html.dark .ec-input::placeholder,
+html.dark .ec-textarea::placeholder,
+html.dark .ec-dialog-textarea::placeholder { color: #64748b; }
+html.dark .ec-input:focus,
+html.dark .ec-select:focus,
+html.dark .ec-textarea:focus {
+  border-color: #60A5FA;
+  background-color: #263447;
+}
+html.dark .ec-input:disabled,
+html.dark .ec-textarea:disabled {
+  background-color: #263447;
+  color: #64748b;
+}
+html.dark .ec-error-text { color: #fca5a5; }
+
+/* Stepper — pending circles turn dark. */
+html.dark .ec-step-pending .ec-step-circle {
+  background-color: #1E293B;
+  border-color: #334155;
+  color: #94a3b8;
+}
+html.dark .ec-step-pending .ec-step-line { background-color: #334155; }
+html.dark .ec-step-completed .ec-step-label { color: #34d399; }
+
+/* Statistical cards / empty states / search popups. */
+html.dark .ec-stat {
+  background-color: #1E293B;
+  border-color: #334155;
+}
+html.dark .ec-stat-value { color: #F8FAFC; }
+html.dark .ec-stat-label { color: #94a3b8; }
+html.dark .ec-empty-icon { color: #334155; }
+html.dark .ec-empty-text { color: #94a3b8; }
+html.dark .ec-search-popup { background-color: #1E293B; border-color: #334155; }
+html.dark .ec-search-popup-head {
+  background-color: #263447;
+  border-color: #334155;
+  color: #F8FAFC;
+}
+
+/* Billing design layer (`.bi-*`) — same baked-hex treatment. */
+html.dark .bi-panel,
+html.dark .bi-hero,
+html.dark .bi-metric {
+  background-color: #1E293B;
+  border-color: #334155;
+}
+html.dark .bi-metric-value,
+html.dark .bi-hero-title { color: #F8FAFC; }
+html.dark .bi-metric-label,
+html.dark .bi-pipe-label,
+html.dark .bi-pipe-sub,
+html.dark .bi-section-label { color: #94a3b8; }
+html.dark .bi-hero-role,
+html.dark .bi-pipe-label-current { color: #60A5FA; }
+html.dark .bi-table thead th {
+  background-color: #263447;
+  color: #94a3b8;
+  border-color: #334155;
+}
+html.dark .bi-table tbody td,
+html.dark .bi-table tbody tr {
+  border-color: #334155;
+}
+html.dark .bi-table tbody tr:hover { background-color: #263447; }
+html.dark .bi-pipe-dot-pending {
+  background-color: #1E293B;
+  border-color: #334155;
+}
+html.dark .bi-pipe-line-pending { background-color: #334155; }
+html.dark .bi-sla-track { background-color: #263447; }
+
+/* Estimate form location/work inputs sit on the artwork canvas — flip the
+   near-white chip so typed text stays legible. */
+html.dark .ef-loc-input {
+  background-color: rgba(30, 41, 59, 0.96);
+  border-color: #334155;
+  color: #F8FAFC;
+}
+html.dark .ef-loc-input::placeholder { color: #64748b; }
+html.dark .ef-loc-input:focus { border-color: #60A5FA; }
+html.dark .ef-loc-label { color: #94a3b8; }
+
+/* ── Dark mode: Create Estimate workspace (glass frame, compact item table,
+   summary cards, inline dim inputs) — translucent slate surfaces so the
+   HMWSSB artwork stays visible while text stays readable. ── */
+html.dark .ew-frame {
+  background: rgba(15, 23, 42, 0.62);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+html.dark .ew-items-panel {
+  background-color: rgba(30, 41, 59, 0.72);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+html.dark .ew-items-header {
+  background-color: rgba(30, 41, 59, 0.6);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+html.dark .ew-grid-head { background-color: #263447; border-bottom-color: #334155; }
+html.dark .ew-grid-row { border-bottom-color: #334155; }
+html.dark .ew-grid-row-odd { background-color: #182434; }
+html.dark .ew-grid-row:hover:not(.ew-grid-head) { background-color: #263447; }
+html.dark .ew-detail-row { background-color: #182434; border-color: #334155; }
+html.dark .ew-sum-card { background-color: rgba(30, 41, 59, 0.92); border-color: #475569; }
+html.dark .ew-sum-grand { background-color: rgba(66, 57, 26, 0.55); border-color: rgba(180, 128, 32, 0.75); }
+/* PART headings keep their hue but brighten to stay legible on the dark cards. */
+html.dark .ew-sum-card h4[class~="text-[#1D4ED8]"] { color: #93C5FD; }
+html.dark .ew-sum-card h4[class~="text-[#059669]"] { color: #6EE7B7; }
+html.dark .ew-sum-card h4[class~="text-[#7C3AED]"] { color: #D8B4FE; }
+html.dark .ew-sum-card h4[class~="text-[#0F172A]"] { color: #F8FAFC; }
+html.dark .ew-sum-card div[class~="border-[#DBEAFE]"],
+html.dark .ew-sum-card div[class~="border-[#A7F3D0]"],
+html.dark .ew-sum-card div[class~="border-[#FEF08A]"] { border-color: #334155; }
+/* Item search / dim inputs stay readable on dark */
+html.dark .ew-items-search,
+html.dark .ew-dim-input {
+  background-color: #1E293B;
+  border-color: #334155;
+  color: #F8FAFC;
+}
+html.dark .ew-items-search::placeholder,
+html.dark .ew-dim-input::placeholder { color: #64748b; }
+/* Part popup list and its rows — separate surfaces so lines don't vanish. */
+html.dark .ew-partlist-pop { background-color: #263447; border-color: #475569; }
+html.dark .ew-partlist-pop .ec-ai-item { background-color: #1E293B; border-color: #334155; }
+html.dark .ec-ai-count-btn[aria-expanded='true'] { background-color: #1E3A5F; border-color: #60A5FA; }
+html.dark [class~="border-[#2563EB]"] { border-color: #3B82F6; }
+
+/* Metric-card sheen: keep the accent gradient, just soften the card so
+   the dark canvas doesn't fight it — desaturate the vivid solid fills. */
+html.dark [data-testid="dashboard-metric-card"] {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  filter: saturate(0.85);
+}
+
+@media (max-width: 1023px) {
+  html.dark .app-shell::before {
+    background-attachment: scroll, scroll;
+  }
+}
+
+@media (max-width: 767px) {
+  html.dark .app-shell::before {
+    background-image:
+      linear-gradient(rgba(13, 20, 36, 0.94), rgba(17, 26, 45, 0.98)),
+      url('/image.png');
+    background-attachment: scroll, scroll;
+  }
+  html.dark #app-navigation {
+    background-image: linear-gradient(180deg, #0F172A, #162231);
   }
 }
 

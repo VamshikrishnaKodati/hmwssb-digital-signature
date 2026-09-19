@@ -2,20 +2,25 @@ const db = require('../config/db');
 
 exports.listAgencies = async (req, res, next) => {
   try {
-    const { estimateId } = req.query;
+    const { estimateId, tenderId } = req.query;
     const params = [];
-    let where = '';
+    const conditions = [];
     if (estimateId) {
       params.push(parseInt(estimateId, 10));
-      where = ` WHERE eh."EstimateID" = $${params.length}`;
+      conditions.push(`eh."EstimateID" = $${params.length}`);
     }
+    if (tenderId) {
+      params.push(parseInt(tenderId, 10));
+      conditions.push(`a."TenderID" = $${params.length}`);
+    }
+    const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
       `SELECT a.*, eh."WorkID", eh."NameOfWork", eh."EstimateNo", eh."Status" as "EstimateStatus", t."TenderNo"
        FROM "Agency" a
        JOIN "EstimateHeader" eh ON eh."EstimateID" = a."EstimateID"
        LEFT JOIN "Tender" t ON t."TenderID" = a."TenderID"
        ${where}
-       ORDER BY a."AgreementDate" DESC`,
+       ORDER BY a."AgreementDate" DESC NULLS LAST, a."AgencyID" DESC`,
       params
     );
     res.json(result.rows);
@@ -33,8 +38,9 @@ exports.createAgency = async (req, res, next) => {
 
     const est = await db.query('SELECT "Status" FROM "EstimateHeader" WHERE "EstimateID" = $1', [EstimateID]);
     if (!est.rows.length) return res.status(404).json({ error: 'Estimate not found' });
-    if (est.rows[0].Status !== 'TenderPublished')
-      return res.status(400).json({ error: 'Agencies can only be created for TenderPublished estimates' });
+    const validEstimateStatuses = ['TenderPublished', 'AgencySelected'];
+    if (!validEstimateStatuses.includes(est.rows[0].Status))
+      return res.status(400).json({ error: 'Agencies can only be created for TenderPublished or AgencySelected estimates' });
 
     if (TenderID) {
       const ten = await db.query(
@@ -42,8 +48,18 @@ exports.createAgency = async (req, res, next) => {
         [TenderID, EstimateID]
       );
       if (!ten.rows.length) return res.status(400).json({ error: 'Tender does not belong to this estimate' });
-      if (ten.rows[0].Status !== 'Awarded')
+      const validTenderStatuses = ['Awarded', 'WorkAwarded', 'WorkOrderIssued', 'AgreementExecuted'];
+      if (!validTenderStatuses.includes(ten.rows[0].Status))
         return res.status(400).json({ error: 'Agencies can only be linked to an awarded tender' });
+
+      // If an agency already exists for this tender, return 409 conflict
+      const existing = await db.query(
+        'SELECT "AgencyID" FROM "Agency" WHERE "EstimateID" = $1 AND "TenderID" = $2',
+        [EstimateID, TenderID]
+      );
+      if (existing.rows.length) {
+        return res.status(409).json({ error: 'Agency already exists for this tender', AgencyID: existing.rows[0].AgencyID });
+      }
     }
 
     const result = await db.query(

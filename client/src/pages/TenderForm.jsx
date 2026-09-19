@@ -175,7 +175,7 @@ export default function TenderForm() {
     <div className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link to="/tenders" className="inline-flex items-center gap-1 text-xs text-[#1E3A5F] hover:underline mb-1">
+          <Link to="/tenders" className="inline-flex items-center gap-1 text-xs text-[#2563EB] hover:underline mb-1">
             <ArrowLeft className="w-3 h-3" /> Back to Tenders
           </Link>
           <h1 className="ec-page-title">{mode === 'edit' ? 'Edit Tender Draft' : 'Create Tender Draft'}</h1>
@@ -205,7 +205,7 @@ export default function TenderForm() {
       <div className="ec-card">
         <div className="ec-card-header flex items-center justify-between">
           <span className="ec-card-title inline-flex items-center gap-1.5"><FileText className="w-4 h-4" /> Approved Estimate</span>
-          {estimateId && <Link to={`/estimates/${estimateId}`} className="text-xs text-[#1E3A5F] hover:underline">View estimate</Link>}
+          {estimateId && <Link to={`/estimates/${estimateId}`} className="text-xs text-[#2563EB] hover:underline">View estimate</Link>}
         </div>
         <div className="ec-card-body grid grid-cols-2 md:grid-cols-4 gap-4">
           <Field label="Estimate No."><ReadOnly value={estimateBlock?.EstimateNo} /></Field>

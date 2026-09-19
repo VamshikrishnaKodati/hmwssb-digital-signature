@@ -49,11 +49,6 @@ function ItemSearchDropdown({ searching, query, results, activeResult, onMouseEn
           </ul>
         )}
       </div>
-      <div className="ec-search-row-foot">
-        <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-        <span><kbd>Enter</kbd> select</span>
-        <span><kbd>Esc</kbd> close</span>
-      </div>
     </div>
   )
 }

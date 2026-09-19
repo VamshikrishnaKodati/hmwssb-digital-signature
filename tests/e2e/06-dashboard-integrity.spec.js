@@ -36,21 +36,10 @@ test.describe('Dashboard data integrity (real data, KPI = drilldown)', () => {
       const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('user')));
       const token = await page.evaluate(() => localStorage.getItem('token'));
 
-      // The dashboard must show the greeting (real user, other roles) or the
-      // Manager's attention section + overview — all driven by /dashboard/stats.
-      if (stored.Designation === 'Manager') {
-        await expect(page.locator('[data-testid="dashboard-shell"]')).toBeVisible({ timeout: 20000 });
-        await expect(page.locator('[data-testid="operational-overview"]')).toBeVisible({ timeout: 20000 });
-        // Manager attention section: Prepare Estimate + two count cards.
-        await expect(page.locator('h2', { hasText: 'Needs Your Attention' })).toBeVisible();
-        const attentionLinks = await page.locator('[aria-labelledby="attention-heading"] a').count();
-        expect(attentionLinks).toBe(3);
-      } else {
-        await expect(page.locator('[data-testid="dashboard-greeting"]')).toBeVisible({ timeout: 20000 });
-        const greeting = await page.locator('[data-testid="dashboard-greeting"]').textContent();
-        expect(greeting).toBeTruthy();
-        expect(greeting.length).toBeGreaterThan(5);
-      }
+      // Every dashboard follows the same skeleton: shell + pipeline +
+      // operational-overview, all driven by /dashboard/stats.
+      await expect(page.locator('[data-testid="dashboard-shell"]')).toBeVisible({ timeout: 20000 });
+      await expect(page.locator('[data-testid="operational-overview"]')).toBeVisible({ timeout: 20000 });
 
       // No error toast / retry state should be present.
       const body = await page.locator('body').textContent();
