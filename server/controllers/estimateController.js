@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { checkPermission } = require('../middleware/rbac');
 const { buildEstimateScope, orderClause, PIPELINE_STAGES } = require('../utils/estimateScope');
 const { calcAbstract } = require('../utils/calc');
 const { numberToWords } = require('../utils/numberToWords');
@@ -7,14 +8,14 @@ const { getLocationChainFromWard, locationInScope, estimateInScope, estimateScop
 const WORK_CATEGORIES = ['Water Supply', 'Sewerage', 'EAM'];
 
 // Audit fix C1/C2: in-place edits (items, abstract, header) are only allowed by
-// the creator, who must be a Manager, while the estimate is still editable.
-// This mirrors the DB edit-guard trigger but for the endpoints that mutate
-// EstimateDetails/Abstract (which the trigger does not cover).
-function editableBy(header, user) {
+// the creator, who must hold the Estimate Edit permission, while the estimate is
+// still editable. This mirrors the DB edit-guard trigger but for the endpoints
+// that mutate EstimateDetails/Abstract (which the trigger does not cover).
+async function editableBy(header, user) {
   if (user.UserID !== header.CreatedBy)
     return { ok: false, error: 'Only the creator can edit this estimate' };
-  if (user.Designation !== 'Manager')
-    return { ok: false, error: 'Only Manager can edit estimates' };
+  if (!(await checkPermission(user.Designation, 'estimate.edit')))
+    return { ok: false, error: 'You do not have permission to edit estimates' };
   if (!['Draft', 'Reverted'].includes(header.Status))
     return { ok: false, error: `Only Draft or Reverted estimates can be edited (current status: ${header.Status})` };
   return { ok: true };
@@ -340,7 +341,7 @@ exports.updateEstimate = async (req, res, next) => {
     const header = await db.query('SELECT * FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId]);
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
 
-    const guard = editableBy(header.rows[0], req.user);
+    const guard = await editableBy(header.rows[0], req.user);
     if (!guard.ok) return res.status(403).json({ error: guard.error });
 
     const { NameOfWork, RegionID: reqRegionID, ZoneID: reqZoneID, DivisionID: reqDivisionID, CircleID: reqCircleID, WardID,
@@ -806,7 +807,7 @@ exports.recalculateItem = async (req, res, next) => {
     const estimateId = detail.rows[0].EstimateID;
     const header = await db.query('SELECT * FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId]);
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
-    const guard = editableBy(header.rows[0], req.user);
+    const guard = await editableBy(header.rows[0], req.user);
     if (!guard.ok) return res.status(403).json({ error: guard.error });
 
     const formulaType = detail.rows[0].ItemFormulaType;

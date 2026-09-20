@@ -16,8 +16,8 @@ router.get('/:id/boq', authenticate, tenderController.getBOQ);
 router.get('/:id/nit', authenticate, tenderController.generateNIT);
 router.get('/:id/preview', authenticate, tenderController.getTenderPreview);
 router.get('/:id/documents', authenticate, tenderController.getTenderDocuments);
-router.post('/:id/documents', authenticate, tenderController.addTenderDocument);
-router.delete('/:id/documents/:docId', authenticate, tenderController.deleteTenderDocument);
+router.post('/:id/documents', authenticate, requirePermission('tender.update'), tenderController.addTenderDocument);
+router.delete('/:id/documents/:docId', authenticate, requirePermission('tender.update'), tenderController.deleteTenderDocument);
 router.get('/:id/versions', authenticate, tenderController.getTenderVersions);
 
 // T3: publication gate + bid submission window control (TenderOfficer)

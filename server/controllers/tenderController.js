@@ -80,8 +80,6 @@ const PUBLISHABLE_STATUSES = ['TenderDraft', 'ReadyForPublication'];
 
 exports.publishTender = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can publish a tender' });
     const tenderId = req.params.id;
 
     const tr = await db.query('SELECT * FROM "Tender" WHERE "TenderID" = $1', [tenderId]);
@@ -163,8 +161,6 @@ exports.publishTender = async (req, res, next) => {
 /* ------------------------------------------------------------------ */
 exports.closeTender = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can close a tender' });
     const tenderId = req.params.id;
 
     const tr = await db.query('SELECT * FROM "Tender" WHERE "TenderID" = $1', [tenderId]);
@@ -195,8 +191,6 @@ exports.closeTender = async (req, res, next) => {
 /* ------------------------------------------------------------------ */
 exports.getReadyList = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can view the ready-for-tender queue' });
     const rows = await getReadyForTender(req.user.UserID);
     res.json(rows);
   } catch (err) { next(err); }
@@ -278,9 +272,6 @@ function buildReadiness(tender, est) {
 /* ------------------------------------------------------------------ */
 exports.createTender = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can create tenders' });
-
     const { EstimateID } = req.body;
     if (!EstimateID) return res.status(400).json({ error: 'EstimateID is required' });
 
@@ -347,9 +338,6 @@ exports.createTender = async (req, res, next) => {
 
 exports.updateTender = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can update tenders' });
-
     const tenderRes = await db.query('SELECT * FROM "Tender" WHERE "TenderID" = $1', [req.params.id]);
     if (!tenderRes.rows.length) return res.status(404).json({ error: 'Tender not found' });
     const tender = tenderRes.rows[0];
@@ -467,8 +455,6 @@ exports.getTenderDocuments = async (req, res, next) => {
 
 exports.addTenderDocument = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can manage tender documents' });
     const tender = await db.query('SELECT * FROM "Tender" WHERE "TenderID" = $1', [req.params.id]);
     if (!tender.rows.length) return res.status(404).json({ error: 'Tender not found' });
     if (tender.rows[0].CurrentOwner !== req.user.UserID)
@@ -493,8 +479,6 @@ exports.addTenderDocument = async (req, res, next) => {
 
 exports.deleteTenderDocument = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can manage tender documents' });
     const result = await db.query(
       `DELETE FROM "TenderDocuments" WHERE "DocumentID" = $1 AND "TenderID" = $2 RETURNING *`,
       [req.params.docId, req.params.id]
@@ -522,8 +506,6 @@ exports.getTenderVersions = async (req, res, next) => {
 
 exports.deleteTender = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can delete tenders' });
     const tender = await db.query('SELECT "Status" FROM "Tender" WHERE "TenderID" = $1', [req.params.id]);
     if (!tender.rows.length) return res.status(404).json({ error: 'Tender not found' });
     if (tender.rows[0].Status !== 'TenderDraft')

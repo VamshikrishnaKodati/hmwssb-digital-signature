@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { startSla, stopSla } = require('../utils/sla');
+const { checkPermission } = require('../middleware/rbac');
 
 const VALID_TRANSITIONS = {
   Inward: 'Verification',
@@ -296,8 +297,8 @@ exports.recommendFinance = async (req, res, next) => {
 
 exports.approveFinance = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'FinanceHead')
-      return res.status(403).json({ error: 'Only FinanceHead can approve' });
+    if (!(await checkPermission(req.user.Designation, 'finance.approve')))
+      return res.status(403).json({ error: 'You do not have permission to approve finance' });
 
     const { id } = req.params;
     const { Remarks } = req.body;
@@ -332,8 +333,8 @@ exports.approveFinance = async (req, res, next) => {
 
 exports.issueCheque = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'FinanceHead')
-      return res.status(403).json({ error: 'Only FinanceHead can issue cheque' });
+    if (!(await checkPermission(req.user.Designation, 'finance.cheque')))
+      return res.status(403).json({ error: 'You do not have permission to issue cheque' });
 
     const { id } = req.params;
     const { ChequeNumber, ChequeDate, Remarks } = req.body;

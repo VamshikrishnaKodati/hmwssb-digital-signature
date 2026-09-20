@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { checkPermission } = require('../middleware/rbac');
 
 const VALID_PERCENTAGES = [0, 25, 50, 75, 100];
 const isPercent = (p) => p !== undefined && VALID_PERCENTAGES.includes(Number(p));
@@ -26,8 +27,8 @@ exports.listProgress = async (req, res, next) => {
 
 exports.createProgress = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'SiteEngineer')
-      return res.status(403).json({ error: 'Only SiteEngineer can create progress entries' });
+    if (!(await checkPermission(req.user.Designation, 'work.progress')))
+      return res.status(403).json({ error: 'You do not have permission to create progress entries' });
 
     const { EstimateID, Stage, Percentage, Remarks, Date: progressDate, Photos, InspectionNotes, EngineerRemarks, DelayReason } = req.body;
     if (!isPercent(Percentage))
@@ -51,8 +52,8 @@ exports.createProgress = async (req, res, next) => {
 
 exports.updateProgress = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'SiteEngineer')
-      return res.status(403).json({ error: 'Only SiteEngineer can update progress' });
+    if (!(await checkPermission(req.user.Designation, 'work.progress')))
+      return res.status(403).json({ error: 'You do not have permission to update progress' });
 
     const { Stage, Percentage, Remarks, Date: progressDate, Photos, InspectionNotes, EngineerRemarks, DelayReason } = req.body;
     if (Percentage !== undefined && !isPercent(Percentage))
@@ -69,8 +70,8 @@ exports.updateProgress = async (req, res, next) => {
 
 exports.deleteProgress = async (req, res, next) => {
   try {
-    if (req.user.Designation !== 'SiteEngineer')
-      return res.status(403).json({ error: 'Only SiteEngineer can delete progress entries' });
+    if (!(await checkPermission(req.user.Designation, 'work.progress')))
+      return res.status(403).json({ error: 'You do not have permission to delete progress entries' });
     await db.query('DELETE FROM "WorkProgress" WHERE "ProgressID" = $1', [req.params.id]);
     res.json({ message: 'Deleted' });
   } catch (err) { next(err); }

@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, FileEdit, FileText, Bell, Briefcase, Building2,
   Hammer, DollarSign, BarChart3, CheckSquare, FileSpreadsheet, LogOut,
-  Users, ScrollText, Ruler, Trash2
+  Users, ScrollText, Ruler, Trash2, ShieldCheck
 } from 'lucide-react'
 
 export const DRAWER_WIDTH = 260
@@ -24,6 +24,7 @@ export const navItems = [
   { label: 'Finance', path: '/finance', icon: DollarSign, group: 'workflow', roles: ['FinanceClerk', 'FinanceManager', 'FinanceHead'] },
   { label: 'Reports', path: '/reports', icon: BarChart3, group: 'workflow', roles: ['SoRAdmin', 'Manager', 'DGM', 'GM', 'Administrator'] },
   { label: 'Item Master', path: '/items', icon: FileSpreadsheet, group: 'admin', roles: ['SoRAdmin'] },
+  { label: 'Role & Permissions', path: '/roles', icon: ShieldCheck, group: 'admin', roles: ['SoRAdmin'] },
   { label: 'User Management', path: '/users', icon: Users, group: 'admin', roles: ['Administrator', 'SoRAdmin'] },
   { label: 'Audit Logs', path: '/audit-logs', icon: ScrollText, group: 'admin', roles: ['Administrator', 'GM', 'DGM', 'DirectorOfAdministration'] },
   { label: 'Logout', path: '/logout', icon: LogOut, group: 'logout', roles: ['SoRAdmin', 'Manager', 'DGM', 'GM', 'CGM', 'TenderOfficer', 'SiteEngineer', 'BillingOfficer', 'Administrator', 'DOP', 'ED', 'MD', 'FinanceClerk', 'FinanceManager', 'FinanceHead', 'DirectorOfAdministration'], isLogout: true },

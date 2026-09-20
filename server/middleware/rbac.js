@@ -69,6 +69,44 @@ function requirePermission(...permissionKeys) {
   };
 }
 
+// ── checkPermission ───────────────────────────────────────────────────────────
+// DB-backed single-permission check for a designation (used by controllers).
+async function checkPermission(designation, permissionKey) {
+  if (!permissionKey) return false;
+  try {
+    const perms = await getPermissions();
+    return !!(perms[designation] && perms[designation].has(permissionKey));
+  } catch {
+    return false;
+  }
+}
+
+// ── requireAnyPermission ───────────────────────────────────────────────────────
+// Passes if the user holds ANY of the listed keys (allows legacy key fallbacks).
+function requireAnyPermission(...permissionKeys) {
+  return async (req, res, next) => {
+    try {
+      const perms = await getPermissions();
+      const userPerms = perms[req.user.Designation];
+      if (!userPerms) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Access denied. Unknown role.' }
+        });
+      }
+      if (!permissionKeys.some(k => userPerms.has(k))) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Access denied. Missing permission: ' + permissionKeys.join(' or ') }
+        });
+      }
+      next();
+    } catch (err) {
+      next();
+    }
+  };
+}
+
 // ── requireOwnership ──────────────────────────────────────────────────────────
 // Verifies req.user.UserID owns the record. Store param name in opts.
 function requireOwnership(getOwnerId) {
@@ -141,8 +179,10 @@ function getPermissionsForRole(designation) {
 module.exports = {
   requireRole,
   requirePermission,
+  requireAnyPermission,
   requireOwnership,
   assertWorkflowPermission,
+  checkPermission,
   getPermissionsForRole,
   loadPermissions,
   invalidateCache,

@@ -10,6 +10,7 @@ const { buildOtpEmailHtml, buildOtpEmailText, buildWorkflowEmailHtml, buildWorkf
 const { startSla, stopSla } = require('../utils/sla');
 const { logOtp } = require('../utils/devOtpLog');
 const { resolveApprovalUser } = require('../services/locationScope');
+const { checkPermission } = require('../middleware/rbac');
 
 async function getEstimate(estimateId) {
   const r = await db.query('SELECT * FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId]);
@@ -100,8 +101,8 @@ exports.requestSubmitOtp = async (req, res, next) => {
       return res.status(400).json({ error: 'Only Draft or Reverted estimates can be submitted' });
     if (req.user.UserID !== est.CreatedBy)
       return res.status(403).json({ error: 'Only the creator of the estimate can submit it' });
-    if (req.user.Designation !== 'Manager')
-      return res.status(403).json({ error: 'Only Manager can submit estimates' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.submit')))
+      return res.status(403).json({ error: 'You do not have permission to submit estimates' });
 
     const itemCount = await db.query('SELECT COUNT(*)::int as cnt FROM "EstimateDetails" WHERE "EstimateID" = $1', [estimateId]);
     if (itemCount.rows[0].cnt === 0)
@@ -199,8 +200,8 @@ exports.submitEstimate = async (req, res, next) => {
 
     if (req.user.UserID !== est.CreatedBy)
       return res.status(403).json({ error: 'Only the creator of the estimate can submit it' });
-    if (req.user.Designation !== 'Manager')
-      return res.status(403).json({ error: 'Only Manager can submit estimates' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.submit')))
+      return res.status(403).json({ error: 'You do not have permission to submit estimates' });
 
     const itemCount = await db.query('SELECT COUNT(*)::int as cnt FROM "EstimateDetails" WHERE "EstimateID" = $1', [estimateId]);
     if (itemCount.rows[0].cnt === 0)
@@ -445,8 +446,8 @@ exports.requestDgmApproveOtp = async (req, res, next) => {
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
     const est = header.rows[0];
 
-    if (req.user.Designation !== 'DGM')
-      return res.status(403).json({ error: 'Only DGM can request approval OTP' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.verify')))
+      return res.status(403).json({ error: 'You do not have permission to request approval OTP' });
     if (est.CurrentOwner !== userId)
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
     if (est.Status !== 'Submitted')
@@ -525,8 +526,8 @@ exports.verifyDgmApprove = async (req, res, next) => {
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
     const est = header.rows[0];
 
-    if (req.user.Designation !== 'DGM')
-      return res.status(403).json({ error: 'Only DGM can approve estimates' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.verify')))
+      return res.status(403).json({ error: 'You do not have permission to approve estimates' });
     if (est.CurrentOwner !== userId)
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
     if (!otpCode || !String(otpCode).trim())
@@ -647,8 +648,8 @@ exports.requestSignatureOtp = async (req, res, next) => {
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
     if (!['DGM_Approved', 'Approved'].includes(est.Status))
       return res.status(400).json({ error: 'OTP can only be requested for estimates forwarded by DGM' });
-    if (req.user.Designation !== 'GM')
-      return res.status(403).json({ error: 'Only GM can request the signature OTP' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.recommend')))
+      return res.status(403).json({ error: 'You do not have permission to request the signature OTP' });
 
     const userRes = await db.query('SELECT "Email" FROM "Users" WHERE "UserID" = $1', [userId]);
 
@@ -749,8 +750,8 @@ exports.signAndAuditEstimate = async (req, res, next) => {
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
     if (!['DGM_Approved', 'Approved'].includes(est.Status))
       return res.status(400).json({ error: 'Only estimates forwarded by DGM can be recommended by GM' });
-    if (req.user.Designation !== 'GM')
-      return res.status(403).json({ error: 'Only GM can recommend estimates' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.recommend')))
+      return res.status(403).json({ error: 'You do not have permission to recommend estimates' });
     if (!otpCode || !String(otpCode).trim())
       return res.status(400).json({ error: 'OTP is required to confirm recommendation' });
 
@@ -862,6 +863,7 @@ async function genericOtpApproval({
   actionLabel,    // human label for audit, e.g. 'CGM submitted for approval'
   emailSubject,   // OTP email subject
   successMessage, // response message
+  permissionKey,  // optional: DB permission key required INSTEAD of designation
 }) {
   try {
     const estimateId = req.params.id;
@@ -872,7 +874,7 @@ async function genericOtpApproval({
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
     const est = header.rows[0];
 
-    if (req.user.Designation !== requiredRole)
+    if (req.user.Designation !== requiredRole && !(await checkPermission(req.user.Designation, permissionKey)))
       return res.status(403).json({ error: `Only ${requiredRole} can perform this action` });
     if (est.CurrentOwner !== userId)
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
@@ -992,6 +994,7 @@ async function genericRequestOtp({
   requiredRole,
   requiredStatus,
   emailSubject,
+  permissionKey, // optional: DB permission key required INSTEAD of designation
 }) {
   try {
     const estimateId = req.params.id;
@@ -1001,7 +1004,7 @@ async function genericRequestOtp({
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
     const est = header.rows[0];
 
-    if (req.user.Designation !== requiredRole)
+    if (req.user.Designation !== requiredRole && !(await checkPermission(req.user.Designation, permissionKey)))
       return res.status(403).json({ error: `Only ${requiredRole} can request this OTP` });
     if (est.CurrentOwner !== userId)
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
@@ -1100,6 +1103,7 @@ exports.requestDopApproveOtp = (req, res, next) => genericRequestOtp({
   requiredRole: 'DOP',
   requiredStatus: 'CGM_Submitted',
   emailSubject: 'HMWSSB - OTP Verification for DOP Approval',
+  permissionKey: 'estimate.approve',
 });
 
 exports.verifyDopApprove = (req, res, next) => genericOtpApproval({
@@ -1113,6 +1117,7 @@ exports.verifyDopApprove = (req, res, next) => genericOtpApproval({
   actionLabel: 'DOP approved',
   emailSubject: 'HMWSSB - OTP Verification for DOP Approval',
   successMessage: 'OTP verified. Approved and forwarded to ED.',
+  permissionKey: 'estimate.approve',
 });
 
 // ── ED: Approve ──────────────────────────────────────────────────────────────
@@ -1123,6 +1128,7 @@ exports.requestEdApproveOtp = (req, res, next) => genericRequestOtp({
   requiredRole: 'ED',
   requiredStatus: 'DOP_Approved',
   emailSubject: 'HMWSSB - OTP Verification for ED Approval',
+  permissionKey: 'estimate.approve',
 });
 
 exports.verifyEdApprove = (req, res, next) => genericOtpApproval({
@@ -1136,6 +1142,7 @@ exports.verifyEdApprove = (req, res, next) => genericOtpApproval({
   actionLabel: 'ED approved',
   emailSubject: 'HMWSSB - OTP Verification for ED Approval',
   successMessage: 'OTP verified. Approved and forwarded to MD.',
+  permissionKey: 'estimate.approve',
 });
 
 // ── MD: Final Approve ────────────────────────────────────────────────────────
@@ -1320,8 +1327,8 @@ exports.publishTender = async (req, res, next) => {
       return res.status(403).json({ error: 'You are not the current owner' });
     if (!['TSApproved'].includes(est.Status))
       return res.status(400).json({ error: 'Only TSApproved estimates can have tender published' });
-    if (req.user.Designation !== 'TenderOfficer')
-      return res.status(403).json({ error: 'Only TenderOfficer can publish tender' });
+    if (!(await checkPermission(req.user.Designation, 'tender.publish')))
+      return res.status(403).json({ error: 'You do not have permission to publish tenders' });
 
     const director = await findUserByDesignation('DirectorOfAdministration');
     if (!director) return res.status(400).json({ error: 'No DirectorOfAdministration found' });
@@ -1435,8 +1442,8 @@ exports.startWork = async (req, res, next) => {
 
     if (est.CurrentOwner !== userId)
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
-    if (req.user.Designation !== 'SiteEngineer')
-      return res.status(403).json({ error: 'Only SiteEngineer can start work' });
+    if (!(await checkPermission(req.user.Designation, 'work.start')))
+      return res.status(403).json({ error: 'You do not have permission to start work' });
     if (est.Status === 'WorkStarted')
       return res.status(400).json({ error: 'Work has already been started for this estimate' });
     if (est.Status !== 'AgencySelected')
@@ -1516,8 +1523,8 @@ exports.completeWork = async (req, res, next) => {
       return res.status(403).json({ error: 'You are not the current owner' });
     if (est.Status !== 'WorkStarted')
       return res.status(400).json({ error: 'Only WorkStarted estimates can be marked complete' });
-    if (req.user.Designation !== 'SiteEngineer')
-      return res.status(403).json({ error: 'Only SiteEngineer can complete work' });
+    if (!(await checkPermission(req.user.Designation, 'work.complete')))
+      return res.status(403).json({ error: 'You do not have permission to complete work' });
 
     const bo = await findUserByDesignation('BillingOfficer');
     if (!bo) return res.status(400).json({ error: 'No BillingOfficer found' });
@@ -1566,8 +1573,8 @@ exports.submitBill = async (req, res, next) => {
       return res.status(403).json({ error: 'You are not the current owner' });
     if (est.Status !== 'WorkCompleted')
       return res.status(400).json({ error: 'Only WorkCompleted estimates can have bills submitted' });
-    if (req.user.Designation !== 'BillingOfficer')
-      return res.status(403).json({ error: 'Only BillingOfficer can submit bills' });
+    if (!(await checkPermission(req.user.Designation, 'bill.create')))
+      return res.status(403).json({ error: 'You do not have permission to submit bills' });
 
     const admin = await findUserByDesignation('Administrator');
     if (!admin) return res.status(400).json({ error: 'No Administrator found' });
@@ -1687,8 +1694,8 @@ exports.generateFCN = async (req, res, next) => {
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
     const est = header.rows[0];
 
-    if (req.user.Designation !== 'DirectorOfAdministration')
-      return res.status(403).json({ error: 'Only Director of Administration can generate FCN' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.generateFCN')))
+      return res.status(403).json({ error: 'You do not have permission to generate FCN' });
     if (est.CurrentOwner !== userId)
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
     if (est.Status !== 'FinalApproved')
@@ -1768,8 +1775,8 @@ exports.generateAdminSanction = async (req, res, next) => {
     if (header.rows.length === 0) return res.status(404).json({ error: 'Estimate not found' });
     const est = header.rows[0];
 
-    if (req.user.Designation !== 'DirectorOfAdministration')
-      return res.status(403).json({ error: 'Only DirectorOfAdministration can generate Administrative Sanction' });
+    if (!(await checkPermission(req.user.Designation, 'estimate.generateSanction')))
+      return res.status(403).json({ error: 'You do not have permission to generate Administrative Sanction' });
     if (est.CurrentOwner !== userId)
       return res.status(403).json({ error: 'You are not the current owner of this estimate' });
     if (est.Status !== 'FCNGenerated')

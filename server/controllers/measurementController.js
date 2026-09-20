@@ -1,6 +1,5 @@
 const db = require('../config/db');
-
-const RECORDER = 'SiteEngineer';
+const { checkPermission } = require('../middleware/rbac');
 const VERIFIER = 'BillingOfficer';
 
 async function auditLog(estimateId, userId, action, remarks) {
@@ -37,8 +36,8 @@ exports.listMeasurements = async (req, res, next) => {
 
 exports.createMeasurement = async (req, res, next) => {
   try {
-    if (req.user.Designation !== RECORDER)
-      return res.status(403).json({ error: 'Only SiteEngineer can record measurements' });
+    if (!(await checkPermission(req.user.Designation, 'measurement.create')))
+      return res.status(403).json({ error: 'You do not have permission to record measurements' });
 
     const { EstimateID, DetailID, ItemCode, Description, Unit, PreviousQty, CurrentQty, MeasuredDate, Remarks } = req.body;
     if (!EstimateID) return res.status(400).json({ error: 'EstimateID is required' });
@@ -91,8 +90,8 @@ exports.createMeasurement = async (req, res, next) => {
 
 exports.verifyMeasurement = async (req, res, next) => {
   try {
-    if (req.user.Designation !== VERIFIER)
-      return res.status(403).json({ error: 'Only BillingOfficer can verify measurements' });
+    if (!(await checkPermission(req.user.Designation, 'measurement.verify')))
+      return res.status(403).json({ error: 'You do not have permission to verify measurements' });
 
     const m = await db.query('SELECT * FROM "MeasurementBook" WHERE "MeasurementID" = $1', [req.params.id]);
     if (!m.rows.length) return res.status(404).json({ error: 'Measurement not found' });
@@ -112,8 +111,8 @@ exports.verifyMeasurement = async (req, res, next) => {
 
 exports.updateMeasurement = async (req, res, next) => {
   try {
-    if (req.user.Designation !== RECORDER)
-      return res.status(403).json({ error: 'Only SiteEngineer can update measurements' });
+    if (!(await checkPermission(req.user.Designation, 'measurement.create')))
+      return res.status(403).json({ error: 'You do not have permission to update measurements' });
 
     const m = await db.query('SELECT * FROM "MeasurementBook" WHERE "MeasurementID" = $1', [req.params.id]);
     if (!m.rows.length) return res.status(404).json({ error: 'Measurement not found' });
@@ -161,8 +160,8 @@ exports.updateMeasurement = async (req, res, next) => {
 
 exports.deleteMeasurement = async (req, res, next) => {
   try {
-    if (req.user.Designation !== RECORDER)
-      return res.status(403).json({ error: 'Only SiteEngineer can delete measurements' });
+    if (!(await checkPermission(req.user.Designation, 'measurement.create')))
+      return res.status(403).json({ error: 'You do not have permission to delete measurements' });
     const m = await db.query('SELECT * FROM "MeasurementBook" WHERE "MeasurementID" = $1', [req.params.id]);
     if (!m.rows.length) return res.status(404).json({ error: 'Measurement not found' });
     if (m.rows[0].Status === 'Verified')
