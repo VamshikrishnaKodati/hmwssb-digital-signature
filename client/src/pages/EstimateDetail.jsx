@@ -293,6 +293,7 @@ export default function EstimateDetail() {
   }
 
   const sendOtp = async () => {
+    if (sendingOtp) return
     setSendingOtp(true)
     try {
       const res = await api.post(`/workflow/${id}/sign/request-otp`)
@@ -338,15 +339,18 @@ export default function EstimateDetail() {
     setOtpSent(false); setOtpSentTo('')
     setOtpDigits(Array(6).fill('')); setCertificateId(''); setResendIn(0); setVerified(false)
     setShowSign(true)
+    sendOtp()
   }
 
   const openSubmitOtpModal = () => {
     setSubmitOtpSent(false); setSubmitOtpSentTo('')
     setSubmitOtpDigits(Array(6).fill('')); setSubmitResendIn(0); setSubmitVerified(false)
     setShowSubmitOtp(true)
+    sendSubmitOtp()
   }
 
   const sendSubmitOtp = async () => {
+    if (sendingSubmitOtp) return
     setSendingSubmitOtp(true)
     try {
       const res = await api.post(`/workflow/${id}/submit/request-otp`)
@@ -394,9 +398,11 @@ export default function EstimateDetail() {
     setDgmOtpSent(false); setDgmOtpSentTo('')
     setDgmOtpDigits(Array(6).fill('')); setDgmResendIn(0); setDgmVerified(false)
     setShowDgmApprove(true)
+    sendDgmOtp()
   }
 
   const sendDgmOtp = async () => {
+    if (sendingDgmOtp) return
     setSendingDgmOtp(true)
     try {
       const res = await api.post(`/workflow/${id}/approve/request-otp`)
@@ -443,9 +449,11 @@ export default function EstimateDetail() {
     setCgmOtpSent(false); setCgmOtpSentTo('')
     setCgmOtpDigits(Array(6).fill('')); setCgmResendIn(0); setCgmVerified(false)
     setShowCgmSubmit(true)
+    sendCgmOtp()
   }
 
   const sendCgmOtp = async () => {
+    if (sendingCgmOtp) return
     setSendingCgmOtp(true)
     try {
       const res = await api.post(`/workflow/${id}/cgm-submit/request-otp`)
@@ -481,9 +489,11 @@ export default function EstimateDetail() {
     setDopOtpSent(false); setDopOtpSentTo('')
     setDopOtpDigits(Array(6).fill('')); setDopResendIn(0); setDopVerified(false)
     setShowDopApprove(true)
+    sendDopOtp()
   }
 
   const sendDopOtp = async () => {
+    if (sendingDopOtp) return
     setSendingDopOtp(true)
     try {
       const res = await api.post(`/workflow/${id}/dop-approve/request-otp`)
@@ -519,9 +529,11 @@ export default function EstimateDetail() {
     setEdOtpSent(false); setEdOtpSentTo('')
     setEdOtpDigits(Array(6).fill('')); setEdResendIn(0); setEdVerified(false)
     setShowEdApprove(true)
+    sendEdOtp()
   }
 
   const sendEdOtp = async () => {
+    if (sendingEdOtp) return
     setSendingEdOtp(true)
     try {
       const res = await api.post(`/workflow/${id}/ed-approve/request-otp`)
@@ -557,9 +569,11 @@ export default function EstimateDetail() {
     setMdOtpSent(false); setMdOtpSentTo('')
     setMdOtpDigits(Array(6).fill('')); setMdResendIn(0); setMdVerified(false)
     setShowMdFinal(true)
+    sendMdOtp()
   }
 
   const sendMdOtp = async () => {
+    if (sendingMdOtp) return
     setSendingMdOtp(true)
     try {
       const res = await api.post(`/workflow/${id}/md-final/request-otp`)
@@ -1799,12 +1813,10 @@ export default function EstimateDetail() {
                 </p>
                 <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
 
-                {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
-                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
-                    <p className="text-xs text-[#0F172A]">{remarks}</p>
-                  </div>
-                )}
+                <label htmlFor="submitModalRemarks" className="ec-label">Remarks (optional)</label>
+                <textarea id="submitModalRemarks" name="remarks" value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for submission (optional)" />
 
                 <label className="ec-label">Enter OTP</label>
                 <div className="mb-3">
@@ -1893,12 +1905,10 @@ export default function EstimateDetail() {
                 </p>
                 <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
 
-                {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
-                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
-                    <p className="text-xs text-[#0F172A]">{remarks}</p>
-                  </div>
-                )}
+                <label htmlFor="dgmModalRemarks" className="ec-label">Remarks (optional)</label>
+                <textarea id="dgmModalRemarks" name="remarks" value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for approval (optional)" />
 
                 <label className="ec-label">Enter OTP</label>
                 <div className="mb-3">
@@ -1971,12 +1981,10 @@ export default function EstimateDetail() {
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
                 <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {cgmOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(cgmOtpSentTo)}</span> : 'your email'}.</p>
                 <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
-                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
-                    <p className="text-xs text-[#0F172A]">{remarks}</p>
-                  </div>
-                )}
+                <label htmlFor="cgmModalRemarks" className="ec-label">Remarks (optional)</label>
+                <textarea id="cgmModalRemarks" name="remarks" value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for submission" />
                 <label className="ec-label">Enter OTP</label>
                 <div className="mb-3"><OtpInput value={cgmOtpDigits} onChange={setCgmOtpDigits} /></div>
                 <div className="flex items-center justify-between mb-3">
@@ -2045,12 +2053,10 @@ export default function EstimateDetail() {
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
                 <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {dopOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(dopOtpSentTo)}</span> : 'your email'}.</p>
                 <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
-                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
-                    <p className="text-xs text-[#0F172A]">{remarks}</p>
-                  </div>
-                )}
+                <label htmlFor="dopModalRemarks" className="ec-label">Remarks (optional)</label>
+                <textarea id="dopModalRemarks" name="remarks" value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for approval" />
                 <label className="ec-label">Enter OTP</label>
                 <div className="mb-3"><OtpInput value={dopOtpDigits} onChange={setDopOtpDigits} /></div>
                 <div className="flex items-center justify-between mb-3">
@@ -2119,12 +2125,10 @@ export default function EstimateDetail() {
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
                 <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {edOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(edOtpSentTo)}</span> : 'your email'}.</p>
                 <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
-                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
-                    <p className="text-xs text-[#0F172A]">{remarks}</p>
-                  </div>
-                )}
+                <label htmlFor="edModalRemarks" className="ec-label">Remarks (optional)</label>
+                <textarea id="edModalRemarks" name="remarks" value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for approval" />
                 <label className="ec-label">Enter OTP</label>
                 <div className="mb-3"><OtpInput value={edOtpDigits} onChange={setEdOtpDigits} /></div>
                 <div className="flex items-center justify-between mb-3">
@@ -2193,12 +2197,10 @@ export default function EstimateDetail() {
                 <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
                 <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {mdOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(mdOtpSentTo)}</span> : 'your email'}.</p>
                 <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                {remarks && (
-                  <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
-                    <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
-                    <p className="text-xs text-[#0F172A]">{remarks}</p>
-                  </div>
-                )}
+                <label htmlFor="mdModalRemarks" className="ec-label">Remarks (optional)</label>
+                <textarea id="mdModalRemarks" name="remarks" value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for final approval" />
                 <label className="ec-label">Enter OTP</label>
                 <div className="mb-3"><OtpInput value={mdOtpDigits} onChange={setMdOtpDigits} /></div>
                 <div className="flex items-center justify-between mb-3">
