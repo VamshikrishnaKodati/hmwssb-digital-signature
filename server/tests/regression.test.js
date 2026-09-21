@@ -1,7 +1,7 @@
 // Regression tests for the audit fixes (C1/C2/C3 edit & submit authorization,
 // H3 OTP single-use + one-tender-per-estimate). These cover the negative paths
-// the golden E2E suite does not: non-creator edits, non-creator submits, recalc
-// on a Signed estimate, and the OTP double-verification race.
+// the golden E2E suite does not: out-of-scope / unauthorized edits, non-creator
+// submits, recalc on a Signed estimate, and the OTP double-verification race.
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
@@ -259,14 +259,14 @@ after(async () => {
 });
 
 describe('Regression: edit & submit authorization (C2, C3)', () => {
-  it('rejects editing another user\'s draft estimate (non-creator)', async () => {
-    const est = await createEstimate(managerToken, 'C2 Owner');
-    const byDgm = await request('PUT', `/api/estimates/${est.EstimateID}`, { NameOfWork: 'hacked' }, dgmToken);
-    assert.equal(byDgm.status, 403, JSON.stringify(byDgm.body));
+  it('allows an in-scope DGM (estimate.edit holder) to correct a Manager draft, rejects an out-of-scope non-creator', async () => {
+    const est = await createEstimate(managerToken, 'C2 Delegate');
+    const byDgm = await request('PUT', `/api/estimates/${est.EstimateID}`, { NameOfWork: 'C2 fixed by DGM' }, dgmToken);
+    assert.equal(byDgm.status, 200, JSON.stringify(byDgm.body));
     const byOtherManager = await request('PUT', `/api/estimates/${est.EstimateID}`, { NameOfWork: 'hacked' }, manager2Token);
     assert.equal(byOtherManager.status, 403, JSON.stringify(byOtherManager.body));
     const get = await request('GET', `/api/estimates/${est.EstimateID}`, null, managerToken);
-    assert.equal(get.body.NameOfWork, 'C2 Owner', 'estimate must be unchanged');
+    assert.equal(get.body.NameOfWork, 'C2 fixed by DGM', 'only the in-scope DGM edit must apply');
   });
 
   it('allows the creator to edit a draft estimate', async () => {
@@ -311,11 +311,13 @@ describe('Regression: edit & submit authorization (C2, C3)', () => {
 });
 
 describe('Regression: recalculateItem edit-guard (C1)', () => {
-  it('rejects recalc of another user\'s draft estimate', async () => {
-    const est = await createEstimate(managerToken, 'C1 Recalc Owner');
+  it('allows an in-scope DGM to recalc, rejects an out-of-scope non-creator', async () => {
+    const est = await createEstimate(managerToken, 'C1 Recalc Delegate');
     const detailId = est.Items[0].DetailID;
-    const res = await request('PUT', `/api/estimates/recalculate/${detailId}`, { N: 5 }, dgmToken);
-    assert.equal(res.status, 403, JSON.stringify(res.body));
+    const ok = await request('PUT', `/api/estimates/recalculate/${detailId}`, { N: 5 }, dgmToken);
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    const blocked = await request('PUT', `/api/estimates/recalculate/${detailId}`, { N: 9 }, manager2Token);
+    assert.equal(blocked.status, 403, JSON.stringify(blocked.body));
   });
 
   it('allows owner recalc on a draft estimate', async () => {

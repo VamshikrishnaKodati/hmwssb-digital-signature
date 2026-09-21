@@ -1,4 +1,7 @@
 const db = require('../config/db');
+const { estimateInScope } = require('../services/locationScope');
+
+const EDITABLE_ESTIMATE_STATUSES = ['Draft', 'Reverted'];
 
 // ── Permission cache (loaded once at startup, refreshed on demand) ────────────
 let permissionCache = null; // { rolePermissions: { 'Manager': Set([...]) } }
@@ -67,6 +70,30 @@ function requirePermission(...permissionKeys) {
       next();
     }
   };
+}
+
+// ── canPerform ────────────────────────────────────────────────────────────────
+// Entity-aware authorization: active user + RBAC permission + location scope +
+// workflow-state rule. The single source of truth for "can this user do this
+// action on this entity"; mirrored on the client (utils/permissions.js) so the
+// UI only shows actions the API will accept. The server re-checks everything
+// on every request — the client mirror is never trusted on its own.
+async function canPerform(user, resource, action, entity) {
+  if (!user || !resource || !action) return false;
+  if (user.IsActive === false) return false;
+  try {
+    const { rows } = await db.query('SELECT "IsActive" FROM "Users" WHERE "UserID" = $1', [user.UserID]);
+    if (!rows.length || rows[0].IsActive === false) return false;
+  } catch {
+    return false;
+  }
+  const permissionKey = `${resource}.${action}`;
+  if (!(await checkPermission(user.Designation, permissionKey))) return false;
+  if (resource === 'estimate' && entity) {
+    if (!(await estimateInScope(user, entity))) return false;
+    if (action === 'edit' && !EDITABLE_ESTIMATE_STATUSES.includes(entity.Status)) return false;
+  }
+  return true;
 }
 
 // ── checkPermission ───────────────────────────────────────────────────────────
@@ -155,11 +182,11 @@ function assertWorkflowPermission({ requiredRole, requiredStatus, requiredOwner 
 // ── RBAC permission map (for client-side / audit use) ─────────────────────────
 const ROLE_PERMISSIONS = {
   Manager:          ['estimate.create','estimate.view','estimate.edit','estimate.submit'],
-  DGM:              ['estimate.view','estimate.verify'],
-  GM:               ['estimate.view','estimate.recommend'],
-  CGM:              ['estimate.view','estimate.submitApproval'],
-  DOP:              ['estimate.view','estimate.approve'],
-  ED:               ['estimate.view','estimate.approve'],
+  DGM:              ['estimate.view','estimate.verify','estimate.create','estimate.edit','estimate.submit','estimate.approve'],
+  GM:               ['estimate.view','estimate.create','estimate.edit','estimate.recommend','estimate.submit'],
+  CGM:              ['estimate.view','estimate.create','estimate.edit','estimate.submitApproval','estimate.submit'],
+  DOP:              ['estimate.view','estimate.create','estimate.edit','estimate.approve','estimate.submit'],
+  ED:               ['estimate.view','estimate.create','estimate.edit','estimate.approve','estimate.submit'],
   MD:               ['estimate.view','estimate.finalApprove'],
   TenderOfficer:    ['tender.view','tender.create','tender.publish','tender.update','tender.close','tender.evaluate','bid.open','bid.view','bid.submit','estimate.view'],
   DirectorOfAdministration:['agency.view','agency.create','agency.select','tender.view','tender.award','tender.workOrder','tender.agreement','bid.view','estimate.view'],
@@ -183,6 +210,7 @@ module.exports = {
   requireOwnership,
   assertWorkflowPermission,
   checkPermission,
+  canPerform,
   getPermissionsForRole,
   loadPermissions,
   invalidateCache,

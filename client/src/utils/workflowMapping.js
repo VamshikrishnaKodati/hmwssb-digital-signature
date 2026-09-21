@@ -309,6 +309,54 @@ export function getNextStage(status, context = {}) {
 }
 
 /**
+ * Resolve the CURRENT and NEXT approval-pipeline stage for an estimate, keyed
+ * on its persisted workflow state (Status) and CURRENT OWNER designation — the
+ * single resolver behind the status card (Current Stage / Next Stage / Next
+ * Role) and the submit/forward action.
+ *
+ * Front of the pipeline (Draft/Reverted): the owner stands in for the Manager's
+ * role (create + own Draft/Reverted, so CurrentOwner === CreatedBy). A chain
+ * owner (DGM/GM/CGM/DOP/ED/MD) acts at their OWN stage (DGM creator is in DGM
+ * Verification, not Draft), and the next authority is the first pipeline role
+ * STRICTLY ABOVE the owner (maker-checker: a user who creates an estimate can
+ * never review their own work). A Manager or non-pipeline owner stays at Draft
+ * and forwards to the DGM. No role is special-cased.
+ *
+ * Post-front statuses resolve purely from the status mapping (DGM_Approved →
+ * GM Recommendation → next CGM Submission), so the display tracks the
+ * persisted transition after every forward.
+ *
+ * @param {string} status - Backend estimate status
+ * @param {string} ownerDesignation - Current owner's Designation
+ * @returns {{ front, currentStage: {{key,label,owner}|null}, nextStage: {{key,label,owner,status}|null} }}
+ */
+export function resolveWorkflowPosition(status, ownerDesignation) {
+  const stages = PHASES[0].stages
+  const isFront = status === 'Draft' || status === 'Reverted'
+
+  if (isFront) {
+    const ownerIdx = ownerDesignation ? stages.findIndex(s => s.owner === ownerDesignation) : -1
+    const currentIdx = ownerIdx > 0 ? ownerIdx : 0
+    const current = stages[currentIdx]
+    const next = stages.slice(currentIdx + 1).find(s => s.backendStatuses.length > 0) || null
+    return {
+      front: true,
+      currentStage: current ? { key: current.key, label: current.label, owner: current.owner } : null,
+      nextStage: next ? { key: next.key, label: next.label, owner: next.owner, status: next.backendStatuses[0] } : null,
+    }
+  }
+
+  const info = getStatusInfo(status)
+  const nIx = info.flatIndex >= 0 ? info.flatIndex + 1 : -1
+  const next = nIx >= 0 && nIx < ALL_STAGES.length ? ALL_STAGES[nIx] : null
+  return {
+    front: false,
+    currentStage: { key: info.stageKey, label: info.stageLabel, owner: info.owner },
+    nextStage: next ? { key: next.key, label: next.label, owner: next.owner, status: next.backendStatuses[0] || null } : null,
+  }
+}
+
+/**
  * Get which phase a status belongs to.
  * @param {string} status
  * @param {object} [context]

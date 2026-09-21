@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const { JWT_SECRET } = require('../middleware/auth');
+const { getPermissions } = require('../middleware/rbac');
 const { checkLoginRateLimit, recordLoginAttempt, auditLogin, auditPasswordChange } = require('../utils/security');
 
 exports.login = async (req, res, next) => {
@@ -58,6 +59,11 @@ exports.login = async (req, res, next) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
     );
 
+    // Carries the role's permission keys + location scope so the client can
+    // gate UI actions with the same canPerform rule the API enforces.
+    const perms = await getPermissions();
+    const permissions = perms[user.Designation] ? [...perms[user.Designation]] : [];
+
     res.json({
       token,
       user: {
@@ -76,6 +82,8 @@ exports.login = async (req, res, next) => {
         WardID: user.WardID,
         MobileNumber: user.MobileNumber,
         Email: user.Email,
+        IsActive: user.IsActive !== false,
+        Permissions: permissions,
       },
     });
   } catch (err) {
@@ -124,7 +132,13 @@ exports.getProfile = async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(result.rows[0]);
+    const perms = await getPermissions();
+    const profile = result.rows[0];
+    res.json({
+      ...profile,
+      IsActive: profile.IsActive !== false,
+      Permissions: perms[profile.Designation] ? [...perms[profile.Designation]] : [],
+    });
   } catch (err) {
     next(err);
   }

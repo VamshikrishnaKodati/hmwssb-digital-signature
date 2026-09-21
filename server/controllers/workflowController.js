@@ -99,8 +99,8 @@ exports.requestSubmitOtp = async (req, res, next) => {
 
     if (!['Draft', 'Reverted'].includes(est.Status))
       return res.status(400).json({ error: 'Only Draft or Reverted estimates can be submitted' });
-    if (req.user.UserID !== est.CreatedBy)
-      return res.status(403).json({ error: 'Only the creator of the estimate can submit it' });
+    if (req.user.UserID !== est.CurrentOwner)
+      return res.status(403).json({ error: 'Only the current owner of the estimate can submit it' });
     if (!(await checkPermission(req.user.Designation, 'estimate.submit')))
       return res.status(403).json({ error: 'You do not have permission to submit estimates' });
 
@@ -198,8 +198,8 @@ exports.submitEstimate = async (req, res, next) => {
     if (!['Draft', 'Reverted'].includes(est.Status))
       return res.status(400).json({ error: 'Only Draft or Reverted estimates can be submitted' });
 
-    if (req.user.UserID !== est.CreatedBy)
-      return res.status(403).json({ error: 'Only the creator of the estimate can submit it' });
+    if (req.user.UserID !== est.CurrentOwner)
+      return res.status(403).json({ error: 'Only the current owner of the estimate can submit it' });
     if (!(await checkPermission(req.user.Designation, 'estimate.submit')))
       return res.status(403).json({ error: 'You do not have permission to submit estimates' });
 
@@ -246,20 +246,38 @@ exports.submitEstimate = async (req, res, next) => {
       return res.status(409).json({ error: 'OTP has already been used. Request a new OTP.' });
     }
 
-    // Location-aware routing: the DGM of the estimate's division owns the
-    // review. Maker-checker: the creator can never be their own approver, so a
-    // (defensive) self-match escalates straight past DGM to the GM.
-    let dgm = await resolveApprovalUser('DGM', est);
-    let escToGm = false;
-    let gm = null;
-    if (dgm && dgm.UserID === est.CreatedBy) {
-      escToGm = true;
-      gm = await resolveApprovalUser('GM', est);
-      if (!gm) return res.status(400).json({ error: 'No GM found in system' });
+    // Resolve the next approval authority from the CURRENT OWNER's position in
+    // the approval pipeline, never from the creator's designation. The ladder
+    // mirrors the client's resolveSubmitTarget: the first authority STRICTLY
+    // ABOVE the current owner's own role (an owner who stands in for the Manager
+    // has filled every role up to their own, and can never review their own work
+    // — maker-checker). So a DGM-created estimate forwards to the GM, a
+    // GM-created one to the CGM, and so on. Location-aware routing applies at
+    // every step.
+    const APPROVAL_LADDER = [
+      { role: 'DGM', status: 'Submitted' },
+      { role: 'GM', status: 'DGM_Approved' },
+      { role: 'CGM', status: 'GM_Recommended' },
+      { role: 'DOP', status: 'CGM_Submitted' },
+      { role: 'ED', status: 'DOP_Approved' },
+      { role: 'MD', status: 'ED_Approved' },
+    ];
+    const ownerRank = APPROVAL_LADDER.findIndex(x => x.role === req.user.Designation);
+    const startIndex = Math.max(0, ownerRank + 1); // non-pipeline roles start at DGM (index 0); chain roles start past their own slot
+    let nextOwner = null;
+    let nextStatus = null;
+    let nextRole = null;
+    for (let i = startIndex; i < APPROVAL_LADDER.length; i++) {
+      const authority = await resolveApprovalUser(APPROVAL_LADDER[i].role, est);
+      if (!authority) continue;
+      nextOwner = authority;
+      nextStatus = APPROVAL_LADDER[i].status;
+      nextRole = APPROVAL_LADDER[i].role;
+      break;
     }
-    if (!dgm) return res.status(400).json({ error: 'No DGM found in system' });
-    const nextOwner = escToGm ? gm : dgm;
-    const nextStatus = escToGm ? 'DGM_Approved' : 'Submitted';
+    if (!nextOwner)
+      return res.status(400).json({ error: 'No forwarding authority found in system' });
+    const jumped = nextRole !== 'DGM'; // maker-checker escalation past the DGM (and any below-owner role)
 
     const currentVersion = await getOrCreateVersion(estimateId);
 
@@ -284,14 +302,18 @@ exports.submitEstimate = async (req, res, next) => {
         `INSERT INTO "Workflow" ("EstimateID","FromUserID","ToUserID","Action","Version","OTPVerified","Remarks")
          VALUES ($1,$2,$3,'Submit',$4,TRUE,$5)`,
         [estimateId, userId, nextOwner.UserID, currentVersion,
-         escToGm ? 'Submitted for DGM review (escalated to GM: maker-checker)' : 'Submitted for DGM review']
+         jumped
+           ? `Forwarded for ${nextRole} review (maker-checker escalation from ${req.user.Designation})`
+           : 'Submitted for DGM review']
       );
 
       await client.query(
         `INSERT INTO "AuditLog" ("EstimateID","UserID","Action","Remarks")
          VALUES ($1,$2,'Submit',$3)`,
         [estimateId, userId,
-          `Estimate ${est.EstimateNo} submitted to ${escToGm ? 'GM (maker-checker escalation)' : 'DGM'} (v${currentVersion})`]
+          jumped
+            ? `Estimate ${est.EstimateNo} forwarded to ${nextRole} (maker-checker escalation from ${req.user.Designation}) (v${currentVersion})`
+            : `Estimate ${est.EstimateNo} submitted to DGM (v${currentVersion})`]
       );
 
       await client.query('COMMIT');
@@ -302,8 +324,8 @@ exports.submitEstimate = async (req, res, next) => {
       client.release();
     }
 
-    // Start SLA for the review stage
-    await startSla('Estimate', escToGm ? 'GM' : 'DGM', estimateId, 'EstimateHeader');
+    // Start SLA for the review stage (tied to the resolved transition)
+    await startSla('Estimate', nextRole, estimateId, 'EstimateHeader');
 
     await sendNotification(estimateId, nextOwner.UserID, 'Submit',
       `Estimate ${est.EstimateNo} has been submitted for your review`, {
@@ -311,12 +333,14 @@ exports.submitEstimate = async (req, res, next) => {
           to: await resolveEmail(nextOwner.UserID),
           subject: `HMWSSB - Estimate ${est.EstimateNo} submitted for your review`,
           recipientName: nextOwner.Name, estimateNo: est.EstimateNo, workName: est.NameOfWork,
-          action: `Submitted for ${escToGm ? 'GM' : 'DGM'} review`,
+          action: `Submitted for ${nextRole} review`,
           fromUser: req.user.Name || req.user.Username, fromDesignation: req.user.Designation,
           dateTime: formatIstTime(new Date()),
         }
       });
-    res.json({ message: escToGm ? 'Estimate forwarded to GM for review (creator overrode DGM slot)' : 'Estimate forwarded to DGM for review' });
+    res.json({ message: jumped
+      ? `Estimate forwarded to ${nextRole} for review (maker-checker escalation)`
+      : 'Estimate forwarded to DGM for review' });
   } catch (err) { next(err); }
 };
 

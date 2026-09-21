@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { checkPermission } = require('../middleware/rbac');
+const { canPerform } = require('../middleware/rbac');
 const { buildEstimateScope, orderClause, PIPELINE_STAGES } = require('../utils/estimateScope');
 const { calcAbstract } = require('../utils/calc');
 const { numberToWords } = require('../utils/numberToWords');
@@ -7,17 +7,17 @@ const { getLocationChainFromWard, locationInScope, estimateInScope, estimateScop
 
 const WORK_CATEGORIES = ['Water Supply', 'Sewerage', 'EAM'];
 
-// Audit fix C1/C2: in-place edits (items, abstract, header) are only allowed by
-// the creator, who must hold the Estimate Edit permission, while the estimate is
-// still editable. This mirrors the DB edit-guard trigger but for the endpoints
-// that mutate EstimateDetails/Abstract (which the trigger does not cover).
+// Audit fix C1/C2: in-place edits (items, abstract, header) are gated by the
+// same canPerform rule the frontend uses to show/hide the Edit action. A granted
+// `estimate.edit` permission lets any in-scope, still-editable estimate be
+// edited (so a DGM granted the permission can correct a Manager's draft), while
+// status immutability, RBAC and location scope are still enforced. This mirrors
+// the DB edit-guard trigger for the endpoints that mutate EstimateDetails.
 async function editableBy(header, user) {
-  if (user.UserID !== header.CreatedBy)
-    return { ok: false, error: 'Only the creator can edit this estimate' };
-  if (!(await checkPermission(user.Designation, 'estimate.edit')))
-    return { ok: false, error: 'You do not have permission to edit estimates' };
   if (!['Draft', 'Reverted'].includes(header.Status))
     return { ok: false, error: `Only Draft or Reverted estimates can be edited (current status: ${header.Status})` };
+  if (!(await canPerform(user, 'estimate', 'edit', header)))
+    return { ok: false, error: 'You do not have permission to edit this estimate' };
   return { ok: true };
 }
 
@@ -506,7 +506,8 @@ async function getFullEstimate(estimateId) {
        r."Name" AS "RegionName", z."Name" AS "ZoneName",
        d."Name" AS "DivisionName", c."Name" AS "CircleName", w."Name" AS "WardName",
        cb."Name" AS "CompletedByName", sb."Name" AS "StartedByName",
-       crb."Name" AS "CreatedByName", crb."Designation" AS "CreatedByDesignation"
+       crb."Name" AS "CreatedByName", crb."Designation" AS "CreatedByDesignation",
+       cu."Name" AS "CurrentOwnerName", cu."Designation" AS "CurrentOwnerDesignation"
      FROM "EstimateHeader" eh
      LEFT JOIN "Regions" r ON r."RegionID" = eh."RegionID"
      LEFT JOIN "Zones" z ON z."ZoneID" = eh."ZoneID"
@@ -516,6 +517,7 @@ async function getFullEstimate(estimateId) {
      LEFT JOIN "Users" cb ON cb."UserID" = eh."CompletedBy"
      LEFT JOIN "Users" sb ON sb."UserID" = eh."StartedBy"
      LEFT JOIN "Users" crb ON crb."UserID" = eh."CreatedBy"
+     LEFT JOIN "Users" cu ON cu."UserID" = eh."CurrentOwner"
      WHERE eh."EstimateID" = $1`,
     [estimateId]
   );

@@ -10,6 +10,8 @@ import StatusBadge from '../components/shared/StatusBadge'
 import OtpInput from '../components/shared/OtpInput'
 import EstimateRowActions from '../components/EstimateRowActions'
 import ActionFan from '../components/ActionFan'
+import { canPerform } from '../utils/permissions'
+import useCurrentUser from '../utils/useCurrentUser'
 
 const WORK_TYPE_OPTIONS = ['Water Supply', 'Sewerage', 'EAM']
 
@@ -30,7 +32,7 @@ export default function EstimateList() {
   const [highlightId, setHighlightId] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = useCurrentUser()
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const pageSizeRef = useRef(responsivePageSize())
@@ -336,7 +338,7 @@ export default function EstimateList() {
 
   const buildMenuActions = useCallback((est) => {
     if (!est) return []
-    const canEdit = est.Status === 'Draft' || est.Status === 'Reverted'
+    const canEdit = canPerform(user, 'estimate', 'edit', est)
     const canDelete = canEdit && est.CreatedBy === user.UserID
     const items = [
       { key: 'preview', icon: FileText, label: 'Preview Estimate', onClick: () => handleAction('preview', est) },
@@ -344,7 +346,7 @@ export default function EstimateList() {
     if (canEdit) items.push({ key: 'edit', icon: Edit3, label: 'Edit Estimate', onClick: () => handleAction('edit', est) })
     if (canDelete) items.push({ key: 'delete', icon: Trash2, label: 'Delete Estimate', tone: 'danger', onClick: () => handleAction('delete', est) })
     return items
-  }, [user.UserID])
+  }, [user])
 
   const renderHistoryRow = (w, i) => (
     <div key={w.WorkflowID || i} className="relative pl-6 pb-3 border-l-2 border-[#CBD5E1] last:border-l-0 last:pb-0">

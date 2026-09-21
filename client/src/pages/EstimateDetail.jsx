@@ -11,6 +11,8 @@ import toast from 'react-hot-toast'
 import StatusBadge from '../components/shared/StatusBadge'
 import OtpInput from '../components/shared/OtpInput'
 import ActionPanel from '../components/estimate/ActionPanel'
+import { canPerform, hasPermission } from '../utils/permissions'
+import useCurrentUser from '../utils/useCurrentUser'
 
 const PROC_PANEL = {
   FinalApproved: { stage: 'FCN', role: 'Director of Administration', task: 'Generate FCN number' },
@@ -32,7 +34,7 @@ const slaTone = (dueAt, now = Date.now()) => {
   return { tone: 'ok', label: `${Math.floor(mins / 1440)}d left` }
 }
 import WorkflowProgress from '../components/shared/WorkflowProgress'
-import { getStatusInfo, getNextStage, getStatusLabel, getStatusKeyForStage } from '../utils/workflowMapping'
+import { getStatusInfo, getStatusLabel, getStatusKeyForStage, resolveWorkflowPosition } from '../utils/workflowMapping'
 import { downloadExport } from '../utils/download'
 
 export default function EstimateDetail() {
@@ -117,7 +119,7 @@ export default function EstimateDetail() {
   const [agencies, setAgencies] = useState([])
   const [progressList, setProgressList] = useState([])
   const [bills, setBills] = useState([])
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = useCurrentUser()
   const hasMaterial = (estimate?.Items || []).some(i => i.Category === 'Material')
 
   useEffect(() => { load() }, [id])
@@ -379,7 +381,7 @@ export default function EstimateDetail() {
       }
       const res = await api.post(`/workflow/${id}/submit`, payload)
       setSubmitVerified(true)
-      toast.success(res.data.message || 'Estimate forwarded to DGM')
+      toast.success(res.data.message || 'Estimate forwarded for review')
       setTimeout(() => {
         setShowSubmitOtp(false)
         setSubmitVerified(false)
@@ -678,7 +680,7 @@ export default function EstimateDetail() {
     DGM: 'Deputy General Manager',
     GM: 'General Manager',
     CGM: 'Chief General Manager',
-    DOP: 'Deputy operations Officer',
+    DOP: 'Deputy Operations Officer',
     ED: 'Executive Director',
     MD: 'Managing Director',
     TenderOfficer: 'Tender Officer',
@@ -724,27 +726,33 @@ export default function EstimateDetail() {
   const role = user.Designation
   const estSla = slaTone(estimate.SlaDueAt)
 
-  const canEdit = isOwner && ['Draft', 'Reverted'].includes(estimate.Status) && role === 'Manager'
-  const canSubmit = isOwner && ['Draft', 'Reverted'].includes(estimate.Status) && role === 'Manager'
-  const canRevert = isOwner && ['Submitted', 'DGM_Approved', 'GM_Recommended', 'CGM_Submitted',
-    'DOP_Approved', 'ED_Approved',
-    'Signed', 'TenderPublished', 'AgencySelected', 'WorkStarted', 'WorkCompleted', 'Billing'].includes(estimate.Status)
-  const canApprove = isOwner && role === 'DGM' && estimate.Status === 'Submitted'
-  const canSign = isOwner && role === 'GM' && estimate.Status === 'DGM_Approved'
-  const canCgmSubmit = isOwner && role === 'CGM' && estimate.Status === 'GM_Recommended'
-  const canDopApprove = isOwner && role === 'DOP' && estimate.Status === 'CGM_Submitted'
-  const canEdApprove = isOwner && role === 'ED' && estimate.Status === 'DOP_Approved'
-  const canMdFinal = isOwner && role === 'MD' && estimate.Status === 'ED_Approved'
-  const canGenerateFcn = isOwner && estimate.Status === 'FinalApproved' && role === 'DirectorOfAdministration'
-  const canGenerateSanction = isOwner && estimate.Status === 'FCNGenerated' && role === 'DirectorOfAdministration'
-  const canAssignTs = isOwner && estimate.Status === 'AdminSanctionGenerated' && role === 'DirectorOfAdministration'
-  const canApproveTs = isOwner && estimate.Status === 'TSPending' && (role === 'DirectorOfAdministration' || role === 'GM' || role === 'DGM')
-  const canReturnTs = isOwner && estimate.Status === 'TSPending' && (role === 'DirectorOfAdministration' || role === 'GM' || role === 'DGM')
-  const canPublishTender = isOwner && estimate.Status === 'TSApproved' && role === 'TenderOfficer'
-  const canSelectAgency = isOwner && estimate.Status === 'TenderPublished' && role === 'DirectorOfAdministration'
-  const canStartWork = isOwner && estimate.Status === 'AgencySelected' && role === 'SiteEngineer'
-  const canCompleteWork = isOwner && estimate.Status === 'WorkStarted' && role === 'SiteEngineer'
-  const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && role === 'BillingOfficer'
+const canEdit = canPerform(user, 'estimate', 'edit', estimate)
+// Where a Draft/Reverted estimate forwards to, resolved from the CURRENT OWNER's
+// designation (persisted in the payload), not the viewer's role or a default
+// Manager flow. The same resolver drives the status card's
+// Current/Next Stage/Role so display and actions always agree.
+const frontPipeline = estimate.Status === 'Draft' || estimate.Status === 'Reverted'
+const wfPos = resolveWorkflowPosition(estimate.Status, estimate.CurrentOwnerDesignation || estimate.CreatedByDesignation)
+const canSubmit = isOwner && frontPipeline && !!wfPos?.nextStage && hasPermission(user, 'estimate.submit')
+const canRevert = isOwner && ['Submitted', 'DGM_Approved', 'Approved', 'GM_Recommended', 'CGM_Submitted',
+  'DOP_Approved', 'ED_Approved',
+  'Signed', 'TenderPublished', 'AgencySelected', 'WorkStarted', 'WorkCompleted', 'Billing'].includes(estimate.Status)
+const canApprove = isOwner && estimate.Status === 'Submitted' && hasPermission(user, 'estimate.verify')
+const canSign = isOwner && estimate.Status === 'DGM_Approved' && hasPermission(user, 'estimate.recommend')
+const canCgmSubmit = isOwner && estimate.Status === 'GM_Recommended' && hasPermission(user, 'estimate.submitApproval')
+const canDopApprove = isOwner && estimate.Status === 'CGM_Submitted' && hasPermission(user, 'estimate.approve')
+const canEdApprove = isOwner && estimate.Status === 'DOP_Approved' && hasPermission(user, 'estimate.approve')
+const canMdFinal = isOwner && estimate.Status === 'ED_Approved' && hasPermission(user, 'estimate.finalApprove')
+const canGenerateFcn = isOwner && estimate.Status === 'FinalApproved' && hasPermission(user, 'estimate.generateFCN')
+const canGenerateSanction = isOwner && estimate.Status === 'FCNGenerated' && hasPermission(user, 'estimate.generateSanction')
+const canAssignTs = isOwner && estimate.Status === 'AdminSanctionGenerated' && role === 'DirectorOfAdministration'
+const canApproveTs = isOwner && estimate.Status === 'TSPending' && (role === 'DirectorOfAdministration' || role === 'GM' || role === 'DGM')
+const canReturnTs = isOwner && estimate.Status === 'TSPending' && (role === 'DirectorOfAdministration' || role === 'GM' || role === 'DGM')
+const canPublishTender = isOwner && estimate.Status === 'TSApproved' && hasPermission(user, 'tender.publish')
+const canSelectAgency = isOwner && estimate.Status === 'TenderPublished' && role === 'DirectorOfAdministration'
+const canStartWork = isOwner && estimate.Status === 'AgencySelected' && hasPermission(user, 'work.start')
+const canCompleteWork = isOwner && estimate.Status === 'WorkStarted' && hasPermission(user, 'work.complete')
+const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermission(user, 'bill.create')
   const canArchive = isOwner && estimate.Status === 'Billing' && role === 'Administrator'
 
   const a = estimate.Abstract || {}
@@ -763,7 +771,7 @@ export default function EstimateDetail() {
   // Single source of truth for every action — reused by header, More Actions and ActionPanel.
   const allActions = [
     { key: 'edit', label: 'Edit Estimate', icon: Edit3, tone: 'secondary', show: canEdit, onClick: () => navigate(`/estimates/${id}/edit`) },
-    { key: 'submit', label: 'Submit to DGM', icon: Send, tone: 'primary', show: canSubmit, onClick: openSubmitOtpModal },
+    { key: 'submit', label: wfPos?.nextStage?.owner === 'DGM' ? 'Submit to DGM' : `Forward to ${DESIGNATION_FULL[wfPos?.nextStage?.owner] || wfPos?.nextStage?.owner || 'DGM'}`, icon: Send, tone: 'primary', show: canSubmit, onClick: openSubmitOtpModal },
     { key: 'approve', label: 'Forward to GM', icon: CheckCircle, tone: 'primary', show: canApprove, onClick: openDgmApproveModal },
     { key: 'sign', label: 'Recommend to CGM', icon: PenSquare, tone: 'primary', show: canSign, onClick: openSignModal },
     { key: 'cgm', label: 'Forward to DOP', icon: Send, tone: 'primary', show: canCgmSubmit, onClick: openCgmSubmitModal },
@@ -1095,10 +1103,10 @@ export default function EstimateDetail() {
           <div className="ec-card-body">
             <div className="space-y-2.5 text-xs">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[#475569]">Current Status</span>
+                <span className="text-[#475569]">Current Stage</span>
                 <span className="flex items-center gap-1.5">
                   <StatusBadge status={estimate.Status} />
-                  <span className="font-medium text-[#0F172A]">{getStatusLabel(estimate.Status)}</span>
+                  <span className="font-medium text-[#0F172A]">{wfPos?.currentStage?.label || getStatusLabel(estimate.Status)}</span>
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2">
@@ -1110,11 +1118,11 @@ export default function EstimateDetail() {
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[#475569]">Next Stage</span>
-                <span className="font-medium text-[#0EA5E9] text-right">{getNextStage(estimate.Status)?.stageLabel || '—'}</span>
+                <span className="font-medium text-[#0EA5E9] text-right">{wfPos?.nextStage?.label || '—'}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[#475569]">Next Role</span>
-                <span className="font-medium text-[#0F172A] text-right">{STATUS_INFO[estimate.Status]?.role || getNextStage(estimate.Status)?.owner || '—'}</span>
+                <span className="font-medium text-[#0F172A] text-right">{wfPos?.nextStage?.owner || '—'}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[#475569]">SLA</span>
@@ -1784,7 +1792,7 @@ export default function EstimateDetail() {
               <>
                 <p className="text-xs text-[#475569] mb-4">
                   An OTP will be sent to your registered email to verify this submission.
-                  The estimate will be forwarded to the DGM for review.
+                  The estimate will be forwarded to {DESIGNATION_FULL[wfPos?.nextStage?.owner] || 'the next authority'} for review.
                 </p>
                 <label htmlFor="submitRemarks" className="ec-label">Remarks</label>
                 <textarea id="submitRemarks" name="remarks" value={remarks}
@@ -1801,7 +1809,7 @@ export default function EstimateDetail() {
               <div className="py-8 flex flex-col items-center gap-2">
                 <CheckCircle className="w-10 h-10 text-[#059669]" />
                 <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#475569]">Submitting estimate to DGM...</p>
+                <p className="text-xs text-[#475569]">Submitting estimate to {DESIGNATION_FULL[wfPos?.nextStage?.owner] || 'next authority'}...</p>
               </div>
             ) : (
               <>
