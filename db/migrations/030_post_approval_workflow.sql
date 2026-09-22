@@ -113,45 +113,45 @@ ON CONFLICT DO NOTHING;
 
 -- ── 8. RBAC permissions for new stages ───────────────────────────────────────
 
-INSERT INTO "Permission" ("Code", "Name", "Module")
+INSERT INTO "Permission" ("PermissionKey", "Description", "Module")
 VALUES
   ('estimate.generateFCN', 'Generate FCN', 'estimate'),
   ('estimate.verifyFCN', 'Verify FCN', 'estimate'),
   ('estimate.generateSanction', 'Generate Administrative Sanction', 'estimate'),
   ('estimate.verifySanction', 'Verify Administrative Sanction', 'estimate'),
   ('estimate.reviewForward', 'Review and Forward', 'estimate')
-ON CONFLICT ("Code") DO NOTHING;
+ON CONFLICT ("PermissionKey") DO NOTHING;
 
 -- Map permissions to roles
 INSERT INTO "RolePermission" ("RoleID", "PermissionID")
 SELECT r."RoleID", p."PermissionID"
 FROM "Role" r, "Permission" p
-WHERE r."Name" = 'FinanceHead' AND p."Code" IN ('estimate.generateFCN', 'estimate.verifyFCN')
+WHERE r."RoleName" = 'FinanceHead' AND p."PermissionKey" IN ('estimate.generateFCN', 'estimate.verifyFCN')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO "RolePermission" ("RoleID", "PermissionID")
 SELECT r."RoleID", p."PermissionID"
 FROM "Role" r, "Permission" p
-WHERE r."Name" = 'DirectorOfAdministration' AND p."Code" IN ('estimate.generateSanction', 'estimate.verifySanction')
+WHERE r."RoleName" = 'DirectorOfAdministration' AND p."PermissionKey" IN ('estimate.generateSanction', 'estimate.verifySanction')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO "RolePermission" ("RoleID", "PermissionID")
 SELECT r."RoleID", p."PermissionID"
 FROM "Role" r, "Permission" p
-WHERE r."Name" = 'GM' AND p."Code" = 'estimate.reviewForward'
+WHERE r."RoleName" = 'GM' AND p."PermissionKey" = 'estimate.reviewForward'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO "RolePermission" ("RoleID", "PermissionID")
 SELECT r."RoleID", p."PermissionID"
 FROM "Role" r, "Permission" p
-WHERE r."Name" = 'DGM' AND p."Code" = 'estimate.reviewForward'
+WHERE r."RoleName" = 'DGM' AND p."PermissionKey" = 'estimate.reviewForward'
 ON CONFLICT DO NOTHING;
 
 -- ── 9. Seed DirectorOfAdministration role ─────────────────────────────────────
 
-INSERT INTO "Role" ("Name", "Description")
+INSERT INTO "Role" ("RoleName", "Description")
 VALUES ('DirectorOfAdministration', 'Director of Administration - generates and verifies administrative sanctions')
-ON CONFLICT ("Name") DO NOTHING;
+ON CONFLICT ("RoleName") DO NOTHING;
 
 -- ── 10. Generate sequence for FCN and Sanction numbers ───────────────────────
 

@@ -42,8 +42,12 @@ BEGIN
     ORDER BY "UserID" LIMIT 1;
   SELECT "UserID" INTO v_po FROM "Users" WHERE "Username" = 'procurement_officer';
 
-  IF v_director IS NULL THEN RAISE EXCEPTION 'No active DirectorOfAdministration found; aborting'; END IF;
-  IF v_po IS NULL THEN RAISE EXCEPTION 'ProcurementOfficer user not found; aborting'; END IF;
+  -- Fresh database: no ProcurementOfficer (removed in 038) and no orphaned rows;
+  -- skip cleanly instead of aborting the bootstrap.
+  IF v_director IS NULL OR v_po IS NULL THEN
+    RAISE NOTICE 'Reassignment skipped: required users absent (fresh database); nothing to do.';
+    RETURN;
+  END IF;
 
   -- The edit-guard trigger (trg_block_in_place_edit) permits only status/SLA
   -- changes once an estimate leaves Draft/Reverted. This migration changes only

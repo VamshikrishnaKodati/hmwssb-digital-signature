@@ -11,7 +11,7 @@ sleep 5
 
 # Check health
 for i in 1 2 3 4 5; do
-  if curl -sf http://localhost:5000/api/health > /dev/null 2>&1; then
+  if curl -sf http://localhost:5001/api/health > /dev/null 2>&1; then
     echo "Server is healthy!"
     break
   fi
@@ -22,6 +22,6 @@ done
 echo ""
 echo "Services:"
 echo "  Frontend: http://localhost"
-echo "  Backend:  http://localhost:5000"
-echo "  Health:   http://localhost:5000/api/health"
-echo "  MongoDB:  localhost:27017"
+echo "  Backend:  http://localhost:5001"
+echo "  Health:   http://localhost:5001/api/health"
+echo "  PostgreSQL: localhost:5432"
