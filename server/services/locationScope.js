@@ -2,18 +2,30 @@ const db = require('../config/db');
 
 const LOCATION_ROLES = ['Manager', 'DGM', 'GM', 'CGM'];
 
-// Role -> (assignment table, node column, node table, node display type)
+// Role -> (assignment table, node column, node table, node display type).
+// DOP corporation assignment is DATA (a dedicated assignment record), stored
+// using the same pattern as the other location roles. DOP is intentionally NOT
+// in LOCATION_ROLES, so its estimate-scope/routing behaviour (board-wide)
+// stays exactly as before — only assignment storage/management covers DOP.
 const ROLE_SCOPE = {
   Manager: { table: 'ManagerCircleAssignment', nodeCol: 'CircleID', nodeTable: 'Circles', nodeType: 'Circle' },
   DGM: { table: 'DGMDivisionAssignment', nodeCol: 'DivisionID', nodeTable: 'Divisions', nodeType: 'Division' },
   GM: { table: 'GMZoneAssignment', nodeCol: 'ZoneID', nodeTable: 'Zones', nodeType: 'Zone' },
   CGM: { table: 'CGMCorporationAssignment', nodeCol: 'RegionID', nodeTable: 'Regions', nodeType: 'Corporation' },
+  DOP: { table: 'DOPCorporationAssignment', nodeCol: 'RegionID', nodeTable: 'Regions', nodeType: 'Corporation' },
 };
+
+// Roles that can hold a location assignment record (Manager/DGM/GM/CGM and DOP).
+const ASSIGNABLE_ROLES = Object.keys(ROLE_SCOPE);
 
 const NODE_TABLE_COL = { Circles: 'CircleID', Divisions: 'DivisionID', Zones: 'ZoneID', Regions: 'RegionID' };
 
 function isLocationRole(designation) {
   return LOCATION_ROLES.includes(designation);
+}
+
+function isAssignableRole(designation) {
+  return ASSIGNABLE_ROLES.includes(designation);
 }
 
 // SQL for the set of CircleIDs inside the user's scope. Every location role
@@ -316,7 +328,7 @@ async function getNodeName(role, nodeId, dbc = db) {
 // Assign (or reassign) a user to a scope node. Throws an error with
 // code=SCOPE_CONFLICT (status 409) when another user already holds the node.
 async function assignUserScope({ userId, role, nodeId, changedBy, notes }) {
-  if (!LOCATION_ROLES.includes(role)) throw new Error('Invalid role: ' + role);
+  if (!isAssignableRole(role)) throw new Error('Invalid role: ' + role);
   const s = ROLE_SCOPE[role];
 
   const client = await db.getClient();
@@ -459,10 +471,132 @@ async function listAllAssignments() {
   return parts.flat();
 }
 
+// Full ancestor location names for one assignment node, resolved straight from
+// the location masters so the UI never invents or trusts submitted hierarchy.
+// nodeNameCol maps a nodeType to its name column in the chain result.
+const ASSIGNMENT_CHAIN_SQL = {
+  Circle: {
+    nodeNameCol: 'CircleName',
+    nodeIdCol: 'CircleID',
+    sql: `SELECT c."CircleID" AS "NodeID", c."Name" AS "CircleName", d."DivisionID", d."Name" AS "DivisionName",
+                 z."ZoneID", z."Name" AS "ZoneName", r."RegionID", r."Name" AS "RegionName"
+          FROM "Circles" c
+          JOIN "Divisions" d ON d."DivisionID" = c."DivisionID"
+          JOIN "Zones" z ON z."ZoneID" = d."ZoneID"
+          JOIN "Regions" r ON r."RegionID" = z."RegionID"
+          WHERE c."CircleID" = $1`,
+  },
+  Division: {
+    nodeNameCol: 'DivisionName',
+    nodeIdCol: 'DivisionID',
+    sql: `SELECT d."DivisionID" AS "NodeID", d."Name" AS "DivisionName", z."ZoneID", z."Name" AS "ZoneName",
+                 r."RegionID", r."Name" AS "RegionName"
+          FROM "Divisions" d
+          JOIN "Zones" z ON z."ZoneID" = d."ZoneID"
+          JOIN "Regions" r ON r."RegionID" = z."RegionID"
+          WHERE d."DivisionID" = $1`,
+  },
+  Zone: {
+    nodeNameCol: 'ZoneName',
+    nodeIdCol: 'ZoneID',
+    sql: `SELECT z."ZoneID" AS "NodeID", z."Name" AS "ZoneName", r."RegionID", r."Name" AS "RegionName"
+          FROM "Zones" z JOIN "Regions" r ON r."RegionID" = z."RegionID"
+          WHERE z."ZoneID" = $1`,
+  },
+  Corporation: {
+    nodeNameCol: 'RegionName',
+    nodeIdCol: 'RegionID',
+    sql: `SELECT r."RegionID" AS "NodeID", r."Name" AS "RegionName" FROM "Regions" r WHERE r."RegionID" = $1`,
+  },
+};
+
+// All ACTIVE assignment records for one user across every assignable role.
+// - deduped at the data level (same role + node appears once, first AssignmentID wins)
+// - each record carries unique AssignmentID + full resolved location chain names
+// - distinct legitimate assignments stay separate rows
+async function getUserAssignments(userId) {
+  const seen = new Set();
+  const out = [];
+  for (const [role, s] of Object.entries(ROLE_SCOPE)) {
+    const rows = (await db.query(
+      `SELECT a."AssignmentID", a."UserID", a."${s.nodeCol}" AS "NodeID", a."AssignedAt", a."AssignedBy", a."Notes", b."Name" AS "AssignedByName"
+       FROM "${s.table}" a LEFT JOIN "Users" b ON b."UserID" = a."AssignedBy"
+       WHERE a."UserID" = $1 AND a."IsActive" = TRUE
+       ORDER BY a."AssignedAt" DESC, a."AssignmentID" DESC`,
+      [userId]
+    )).rows;
+    for (const row of rows) {
+      const key = `${role}:${row.NodeID}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const chainDef = ASSIGNMENT_CHAIN_SQL[s.nodeType];
+      const chain = (await db.query(chainDef.sql, [row.NodeID])).rows[0] || null;
+      out.push({
+        AssignmentID: row.AssignmentID,
+        Role: role,
+        NodeType: s.nodeType,
+        NodeID: row.NodeID,
+        NodeName: chain ? chain[chainDef.nodeNameCol] : null,
+        RegionName: chain ? chain.RegionName : null,
+        ZoneName: chain ? chain.ZoneName : null,
+        DivisionName: chain ? chain.DivisionName : null,
+        CircleName: chain ? chain.CircleName : null,
+        WardName: null,
+        AssignedAt: row.AssignedAt,
+        AssignedBy: row.AssignedBy,
+        AssignedByName: row.AssignedByName,
+        Notes: row.Notes,
+      });
+    }
+  }
+  out.sort((a, b) => a.Role.localeCompare(b.Role) || String(a.NodeName || '').localeCompare(String(b.NodeName || '')));
+  return out;
+}
+
+// Deactivate every active assignment record of a user except the one role being
+// managed. Ensures a designation/location change never leaves a stale active
+// assignment behind in another role table (single transaction).
+async function deactivateStaleScopeAssignments({ userId, keepRole = null, changedBy, notes }) {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    for (const [role, s] of Object.entries(ROLE_SCOPE)) {
+      if (keepRole && role === keepRole) continue;
+      const prior = (await client.query(
+        `SELECT a."${s.nodeCol}" AS "nodeId", t."Name" AS "nodeName"
+         FROM "${s.table}" a JOIN "${s.nodeTable}" t ON t."${s.nodeCol}" = a."${s.nodeCol}"
+         WHERE a."UserID" = $1 AND a."IsActive" = TRUE
+         ORDER BY a."AssignedAt" DESC, a."AssignmentID" DESC LIMIT 1`,
+        [userId]
+      )).rows[0];
+      if (!prior) continue;
+      await client.query(
+        `UPDATE "${s.table}" SET "IsActive" = FALSE, "DeactivatedAt" = now() WHERE "UserID" = $1 AND "IsActive" = TRUE`,
+        [userId]
+      );
+      await client.query(
+        `INSERT INTO "AssignmentAudit" ("UserID","Role","Action","OldScope","NewScope","ChangedBy","Notes")
+         VALUES ($1,$2,'Deactivate',$3,NULL,$4,$5)`,
+        [userId, role,
+         JSON.stringify({ nodeType: s.nodeType, nodeId: prior.nodeId, nodeName: prior.nodeName }),
+         changedBy || null, notes || null]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   LOCATION_ROLES,
   ROLE_SCOPE,
+  ASSIGNABLE_ROLES,
   isLocationRole,
+  isAssignableRole,
   accessibleCirclesSql,
   getAccessibleCircleIds,
   estimateScopeConds,
@@ -478,4 +612,6 @@ module.exports = {
   deactivateUserScope,
   getAssignmentAudit,
   listAllAssignments,
+  getUserAssignments,
+  deactivateStaleScopeAssignments,
 };

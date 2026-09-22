@@ -1,6 +1,6 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
 
-const OtpInput = forwardRef(function OtpInput({ value, onChange, length = 6 }, ref) {
+const OtpInput = forwardRef(function OtpInput({ value, onChange, length = 6, onSubmit }, ref) {
   const inputRefs = useRef([])
 
   useEffect(() => { inputRefs.current[0]?.focus() }, [])
@@ -22,6 +22,14 @@ const OtpInput = forwardRef(function OtpInput({ value, onChange, length = 6 }, r
   }
 
   const handleKeyDown = (idx, e) => {
+    if (e.key === 'Enter') {
+      // Enter works like the primary OTP action but only fires when the OTP
+      // is complete, and never triggers scroll/form navigation.
+      e.preventDefault()
+      e.stopPropagation()
+      if (onSubmit && value.every(d => d !== '') && value.join('').length === length) onSubmit(e)
+      return
+    }
     if (e.key === 'Backspace') {
       if (!value[idx] && idx > 0) focusPrev(idx)
     }

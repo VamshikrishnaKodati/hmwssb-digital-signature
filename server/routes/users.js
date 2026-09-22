@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 
 router.get('/', authenticate, userController.listUsers);
 router.post('/', authenticate, userController.createUser);
+router.get('/:id', authenticate, userController.getUser);
 router.put('/:id', authenticate, userController.updateUser);
 router.put('/:id/status', authenticate, userController.setUserStatus);
 router.post('/:id/scope', authenticate, userController.assignScope);

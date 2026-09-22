@@ -75,17 +75,15 @@ async function sendMail({ to, subject, text, html }) {
   return false;
 }
 
-// Resolves the OTP recipient for a given user.
-// In production returns the user's registered email; in non-production,
-// MAIL_DEV_RECIPIENT env var overrides it so OTPs land in a shared dev inbox.
+// Resolves the OTP/notification recipient for a given user.
+// Always returns the user's own registered email so every user receives
+// OTPs for their own approvals/submissions/recommendations at their own
+// inbox (never a shared override).
 const db = require('../config/db');
 
 async function resolveEmail(userId) {
   const userRes = await db.query('SELECT "Email" FROM "Users" WHERE "UserID" = $1', [userId]);
-  const registeredEmail = userRes.rows[0]?.Email || null;
-  if (process.env.NODE_ENV !== 'production' && process.env.MAIL_DEV_RECIPIENT)
-    return process.env.MAIL_DEV_RECIPIENT;
-  return registeredEmail;
+  return userRes.rows[0]?.Email || null;
 }
 
 module.exports = { sendMail, maskEmail, resolveEmail };

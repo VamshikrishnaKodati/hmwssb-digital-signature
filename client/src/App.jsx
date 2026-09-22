@@ -28,6 +28,7 @@ const BillDetail = lazy(() => import('./pages/BillDetail'))
 const FinanceList = lazy(() => import('./pages/FinanceList'))
 const Reports = lazy(() => import('./pages/Reports'))
 const UserManagement = lazy(() => import('./pages/UserManagement'))
+const UserDetail = lazy(() => import('./pages/UserDetail'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
 const RolePermissions = lazy(() => import('./pages/RolePermissions'))
 const DeletedEstimates = lazy(() => import('./pages/DeletedEstimates'))
@@ -105,6 +106,7 @@ const router = createBrowserRouter(
       <Route path="/reports" element={<ProtectedRoute><LazyPage><Reports /></LazyPage></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute roles={getRouteRoles('/users')}><LazyPage><UserManagement /></LazyPage></ProtectedRoute>} />
       <Route path="/roles" element={<ProtectedRoute roles={getRouteRoles('/roles')}><LazyPage><RolePermissions /></LazyPage></ProtectedRoute>} />
+      <Route path="/users/:id" element={<ProtectedRoute roles={getRouteRoles('/users')}><LazyPage><UserDetail /></LazyPage></ProtectedRoute>} />
       <Route path="/audit-logs" element={<ProtectedRoute roles={getRouteRoles('/audit-logs')}><LazyPage><AuditLogs /></LazyPage></ProtectedRoute>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

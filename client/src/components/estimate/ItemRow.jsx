@@ -29,6 +29,37 @@ function ItemRow({
     }
   }
 
+  const DIM_NEXT = { N: 'L', L: 'B', B: 'D', D: 'Qty' }
+  const DIM_PREV = { L: 'N', B: 'L', D: 'B' }
+
+  // N → L → B → D → Qty forward navigation (Enter) plus backward navigation:
+  // Backspace on an EMPTY field moves focus to the previous dimension. A
+  // non-empty field keeps default Backspace behaviour (delete the value), and
+  // decimals like 3.45 / 10.00 / 0.50 are never touched.
+  const onDimKeyDown = (field) => (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onFocusField?.(item._tempId, DIM_NEXT[field])
+      return
+    }
+    if (e.key === 'Backspace') {
+      const value = item[field]
+      const isEmpty = value === undefined || value === null || value === ''
+      const prev = DIM_PREV[field]
+      if (isEmpty && prev) {
+        e.preventDefault()
+        onFocusField?.(item._tempId, prev)
+      }
+    }
+  }
+
+  const onQtyKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onFocusSearch?.()
+    }
+  }
+
   const actions = !disabled && (
     <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
       <button
@@ -138,12 +169,7 @@ function ItemRow({
             value={item.N ?? ''}
             disabled={disabled}
             onChange={e => onUpdate(item._tempId, 'N', e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                onFocusField?.(item._tempId, 'L')
-              }
-            }}
+            onKeyDown={onDimKeyDown('N')}
             className="ew-dim-input ec-dim-input text-center"
             placeholder="-"
             autoComplete="off"
@@ -166,12 +192,7 @@ function ItemRow({
             value={item.L ?? ''}
             disabled={disabled}
             onChange={e => onUpdate(item._tempId, 'L', e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                onFocusField?.(item._tempId, 'B')
-              }
-            }}
+            onKeyDown={onDimKeyDown('L')}
             className="ew-dim-input ec-dim-input text-center"
             placeholder="-"
             autoComplete="off"
@@ -194,12 +215,7 @@ function ItemRow({
             value={item.B ?? ''}
             disabled={disabled}
             onChange={e => onUpdate(item._tempId, 'B', e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                onFocusField?.(item._tempId, 'D')
-              }
-            }}
+            onKeyDown={onDimKeyDown('B')}
             className="ew-dim-input ec-dim-input text-center"
             placeholder="-"
             autoComplete="off"
@@ -222,12 +238,7 @@ function ItemRow({
             value={item.D ?? ''}
             disabled={disabled}
             onChange={e => onUpdate(item._tempId, 'D', e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                onFocusSearch?.()
-              }
-            }}
+            onKeyDown={onDimKeyDown('D')}
             className="ew-dim-input ec-dim-input text-center"
             placeholder="-"
             autoComplete="off"
@@ -245,9 +256,12 @@ function ItemRow({
           <span className="text-slate-400 text-xs">-</span>
         ) : isEditing ? (
           <NumericInput
+            id={`${item._tempId}_Qty`}
+            ref={el => setFieldRef('Qty')(el)}
             value={item.Qty ?? ''}
             disabled={disabled}
             onChange={e => onUpdate(item._tempId, 'Qty', e.target.value)}
+            onKeyDown={onQtyKeyDown}
             className="ew-dim-input text-center"
             placeholder="0.00"
           />

@@ -1,12 +1,15 @@
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 const {
-  isLocationRole,
+  isAssignableRole,
+  ASSIGNABLE_ROLES,
   assignUserScope,
   deactivateUserScope,
   getAssignmentAudit,
   listAllAssignments,
   getUserScope,
+  getUserAssignments,
+  deactivateStaleScopeAssignments,
 } = require('../services/locationScope');
 
 const DESIGNATIONS = ['SoRAdmin', 'Manager', 'DGM', 'GM', 'CGM', 'TenderOfficer', 'DirectorOfAdministration', 'SiteEngineer', 'BillingOfficer', 'Administrator', 'DOP', 'ED', 'MD', 'FinanceClerk', 'FinanceManager', 'FinanceHead'];
@@ -47,13 +50,35 @@ exports.listUsers = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getUser = async (req, res, next) => {
+  try {
+    if (!canManage(req)) return res.status(403).json({ error: 'Only Administrator or SoRAdmin can view users' });
+    const result = await db.query(
+      `SELECT u."UserID", u."Username", u."Name", u."Designation", u."DesignationTitle", u."EmployeeCode",
+              u."IsActive", u."EffectiveFrom", u."EffectiveTo",
+              u."RegionID", u."ZoneID", u."DivisionID", u."CircleID", u."WardID",
+              u."MobileNumber", u."Email",
+              r."Name" as "RegionName", z."Name" as "ZoneName", d."Name" as "DivisionName",
+              c."Name" as "CircleName", w."Name" as "WardName"
+       FROM "Users" u
+       ${LOCATION_JOINS}
+       WHERE u."UserID" = $1`,
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
+    const user = result.rows[0];
+    const assignments = await getUserAssignments(req.params.id);
+    res.json({ user, assignments });
+  } catch (err) { next(err); }
+};
+
 function assignmentCreateOrUpdate(created) {
   return async (req, res, next) => {
     try {
       if (!canManage(req)) return res.status(403).json({ error: 'Only Administrator or SoRAdmin can manage users' });
       const { AssignedNodeId, AssignedRole } = req.body;
-      if (AssignedRole && !isLocationRole(AssignedRole)) {
-        return res.status(400).json({ error: `AssignedRole must be one of: Manager, DGM, GM, CGM` });
+      if (AssignedRole && !isAssignableRole(AssignedRole)) {
+        return res.status(400).json({ error: `AssignedRole must be one of: ${ASSIGNABLE_ROLES.join(', ')}` });
       }
       if (AssignedNodeId !== undefined && AssignedNodeId !== null && AssignedNodeId !== '') {
         if (!AssignedRole) return res.status(400).json({ error: 'AssignedRole is required when assigning a scope node' });
@@ -99,8 +124,8 @@ exports.createUser = async (req, res, next) => {
       return res.status(400).json({ error: 'Username, Password, Name and Designation are required' });
     if (!DESIGNATIONS.includes(Designation))
       return res.status(400).json({ error: `Designation must be one of: ${DESIGNATIONS.join(', ')}` });
-    if (AssignedRole && !isLocationRole(AssignedRole))
-      return res.status(400).json({ error: `AssignedRole must be one of: Manager, DGM, GM, CGM` });
+    if (AssignedRole && !isAssignableRole(AssignedRole))
+      return res.status(400).json({ error: `AssignedRole must be one of: ${ASSIGNABLE_ROLES.join(', ')}` });
     if (AssignedNodeId !== undefined && AssignedNodeId !== '' && !AssignedRole)
       return res.status(400).json({ error: 'AssignedRole is required when assigning a scope node' });
 
@@ -177,31 +202,62 @@ exports.updateUser = async (req, res, next) => {
       sets.push(`"PasswordHash"=$${i++}`); vals.push(await bcrypt.hash(Password, 10));
     }
 
-    // Location-scope assignment for Manager/DGM/GM/CGM goes through the
-    // dedicated assignment tables (authoritative) and keeps the legacy columns
-    // coherent via assignUserScope.
-    const targetRole = AssignedRole || req.body.Designation;
+    // Location-scope assignment goes through the dedicated assignment tables
+    // (authoritative). A designation/location change never leaves a stale
+    // active assignment behind in another role table.
+    const cur = await db.query('SELECT "Designation" FROM "Users" WHERE "UserID" = $1', [req.params.id]);
+    if (!cur.rows.length) return res.status(404).json({ error: 'User not found' });
+    const oldDesignation = cur.rows[0].Designation;
+    const targetRole = AssignedRole || req.body.Designation || oldDesignation;
     let scopeUpdated = false;
-    if (AssignedRole && !isLocationRole(AssignedRole))
-      return res.status(400).json({ error: `AssignedRole must be one of: Manager, DGM, GM, CGM` });
-    if (isLocationRole(targetRole)) {
-      if (AssignedNodeId !== undefined && AssignedNodeId !== null && AssignedNodeId !== '') {
-        try {
-          await assignUserScope({
-            userId: req.params.id,
-            role: targetRole,
-            nodeId: Number(AssignedNodeId),
-            changedBy: req.user.UserID,
-            notes: AssignmentNotes || 'Scope updated from User Management',
-          });
-        } catch (err) { return handleScopeError(err, res, next); }
-        scopeUpdated = true;
-      } else if (AssignedNodeId === null && AssignedRole) {
-        await deactivateUserScope({
+
+    if (AssignedRole !== undefined && AssignedRole !== null && !isAssignableRole(AssignedRole)) {
+      return res.status(400).json({ error: `AssignedRole must be one of: ${ASSIGNABLE_ROLES.join(', ')}` });
+    }
+
+    const nodeGiven = AssignedNodeId !== undefined && AssignedNodeId !== null && AssignedNodeId !== '';
+    if (nodeGiven) {
+      if (!isAssignableRole(targetRole)) {
+        return res.status(400).json({ error: `AssignedRole must be one of: ${ASSIGNABLE_ROLES.join(', ')} when assigning a scope node` });
+      }
+      await deactivateStaleScopeAssignments({
+        userId: req.params.id, keepRole: targetRole,
+        changedBy: req.user.UserID,
+        notes: AssignmentNotes || 'Stale scope cleared before reassignment',
+      });
+      try {
+        await assignUserScope({
           userId: req.params.id,
-          role: AssignedRole,
+          role: targetRole,
+          nodeId: Number(AssignedNodeId),
           changedBy: req.user.UserID,
-          notes: AssignmentNotes || null,
+          notes: AssignmentNotes || 'Scope updated from User Management',
+        });
+      } catch (err) { return handleScopeError(err, res, next); }
+      scopeUpdated = true;
+    } else if (AssignedNodeId === null && AssignedRole) {
+      await deactivateUserScope({
+        userId: req.params.id,
+        role: AssignedRole,
+        changedBy: req.user.UserID,
+        notes: AssignmentNotes || null,
+      });
+      scopeUpdated = true;
+    } else if (Designation !== undefined && Designation !== oldDesignation) {
+      if (isAssignableRole(oldDesignation) && isAssignableRole(Designation)) {
+        if (oldDesignation !== Designation) {
+          await deactivateStaleScopeAssignments({
+            userId: req.params.id, keepRole: Designation,
+            changedBy: req.user.UserID,
+            notes: AssignmentNotes || `Scope cleared on designation change ${oldDesignation} -> ${Designation}`,
+          });
+          scopeUpdated = true;
+        }
+      } else if (isAssignableRole(oldDesignation)) {
+        await deactivateStaleScopeAssignments({
+          userId: req.params.id, keepRole: null,
+          changedBy: req.user.UserID,
+          notes: AssignmentNotes || `Scope cleared on designation change ${oldDesignation} -> ${Designation}`,
         });
         scopeUpdated = true;
       }
@@ -249,8 +305,8 @@ exports.removeScope = async (req, res, next) => {
   try {
     if (!canManage(req)) return res.status(403).json({ error: 'Only Administrator or SoRAdmin can manage users' });
     const { role, notes } = req.body;
-    if (!role || !isLocationRole(role)) {
-      return res.status(400).json({ error: `role must be one of: Manager, DGM, GM, CGM` });
+    if (!role || !isAssignableRole(role)) {
+      return res.status(400).json({ error: `role must be one of: ${ASSIGNABLE_ROLES.join(', ')}` });
     }
     await deactivateUserScope({ userId: req.params.id, role, changedBy: req.user.UserID, notes: notes || null });
     res.json({ message: 'Scope assignment deactivated' });

@@ -1216,6 +1216,29 @@
     align-items: center;
   }
 
+  /* Ghost action buttons in the estimate action bar (Preview / Upload /
+     Reset / My Estimates). Light mode keeps the transparent slate design;
+     dark mode flips them to a dark, contrasty surface with light text. */
+  .ew-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    color: #334155;
+    background: transparent;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out,
+      box-shadow 0.15s ease-in-out;
+    outline: none;
+  }
+  .ew-action-btn svg { color: #64748b; }
+  .ew-action-btn:hover { background-color: #f1f5f9; color: #0f172a; }
+  .ew-action-btn:focus-visible { box-shadow: 0 0 0 2px #2563eb; }
+  .ew-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
   /* Mobile item cards */
   .ew-mobile-item {
     @apply bg-white rounded-lg border border-[#CBD5E1] p-3 mb-2;
@@ -1730,11 +1753,80 @@ html.dark .ew-dim-input {
 }
 html.dark .ew-items-search::placeholder,
 html.dark .ew-dim-input::placeholder { color: #64748b; }
+/* Estimate Items — section header, count chip and empty state must stay
+   contrasty on the dark panel (no light-on-white). */
+html.dark .ew-items-headerbar { background-color: rgba(30, 41, 59, 0.6); border-color: #334155; }
+html.dark .ew-items-headerbar .ew-items-count { background-color: #334155; color: #E2E8F0; }
+html.dark .ew-items-empty { border-color: #334155; }
+/* Add Estimate Item button — dark/contrasting chip with readable light text. */
+html.dark .ew-add-item-btn {
+  background-color: #1E3A5F;
+  border-color: #60A5FA;
+  color: #EFF6FF;
+}
+html.dark .ew-add-item-btn:hover { background-color: #2563EB; color: #FFFFFF; }
+html.dark .ew-add-item-btn:disabled { opacity: 0.5; }
+/* Item row — action icons tone-shift to bright variants and their hover
+   chips flip to dark surfaces so icons never vanish. */
+html.dark .ew-th,
+html.dark .ew-cell-sno { color: #94a3b8; }
+html.dark .ew-item-table button[class~="text-blue-600"] { color: #60A5FA; }
+html.dark .ew-item-table button[class~="text-blue-600"]:hover { color: #93C5FD; background-color: #1E3A5F; }
+html.dark .ew-item-table button[class~="text-emerald-600"] { color: #34D399; }
+html.dark .ew-item-table button[class~="text-emerald-600"]:hover { color: #6EE7B7; background-color: #064E3B; }
+html.dark .ew-item-table button[class~="bg-emerald-50"] { background-color: #064E3B; }
+html.dark .ew-item-table button[class~="hover:bg-emerald-50"]:hover { background-color: #064E3B; }
+html.dark .ew-item-table button[class~="text-red-500"] { color: #F87171; }
+html.dark .ew-item-table button[class~="text-red-500"]:hover { color: #FCA5A5; background-color: #450A0A; }
+html.dark .ew-item-table button[class~="hover:bg-red-50"]:hover { background-color: #450A0A; }
+/* Editing row highlight + rows that open expanded sections keep dark tones. */
+html.dark .ew-grid-row[class~="bg-blue-50/40"] { background-color: rgba(30, 58, 138, 0.4); }
+html.dark .ew-grid-row:has(+ .ew-detail-row) {
+  background-color: #1E3A5F;
+  box-shadow: inset 3px 0 0 #3B82F6;
+}
+/* Location / Work Category / Work Name bar — the translucent light surface
+   flips to a dark one, inputs get a dark fill with light readable text, so
+   labels, values, placeholders, borders and dropdown arrows never vanish. */
+html.dark .ew-loc-bar {
+  background-color: rgba(30, 41, 59, 0.72);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+html.dark .ew-loc-label { color: #CBD5E1; }
+html.dark .ew-loc-input {
+  background-color: #0F172A;
+  border-color: #334155;
+  color: #F8FAFC;
+}
+html.dark .ew-loc-input::placeholder { color: #94A3B8; }
+html.dark .ew-loc-input:hover:not(:disabled) { border-color: #475569; }
+html.dark .ew-loc-input:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+}
+html.dark .ew-loc-input:disabled {
+  background-color: #1E293B;
+  color: #94A3B8;
+  border-color: #334155;
+  opacity: 0.75;
+}
+html.dark .ew-loc-input[class~="border-red-500"] { border-color: #EF4444; }
 /* Part popup list and its rows — separate surfaces so lines don't vanish. */
 html.dark .ew-partlist-pop { background-color: #263447; border-color: #475569; }
 html.dark .ew-partlist-pop .ec-ai-item { background-color: #1E293B; border-color: #334155; }
 html.dark .ec-ai-count-btn[aria-expanded='true'] { background-color: #1E3A5F; border-color: #60A5FA; }
 html.dark [class~="border-[#2563EB]"] { border-color: #3B82F6; }
+/* Action bar (Save / Preview / Upload / Reset / My Estimates) — the light
+   translucent bar must flip to a dark surface so the white labels stay
+   readable (no white-on-white). */
+html.dark .ew-action-wrap {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+html.dark .ew-action-btn { color: #F8FAFC; }
+html.dark .ew-action-btn svg { color: #CBD5E1; }
+html.dark .ew-action-btn:hover { background-color: #334155; color: #F8FAFC; }
+html.dark .ew-action-btn:disabled { color: #64748b; opacity: 1; }
 
 /* Metric-card sheen: keep the accent gradient, just soften the card so
    the dark canvas doesn't fight it — desaturate the vivid solid fills. */

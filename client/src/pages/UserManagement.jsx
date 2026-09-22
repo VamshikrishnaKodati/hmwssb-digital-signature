@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, X, Edit3, Users, ShieldCheck, RefreshCw, Power, History } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { roleLabel } from '../config/navConfig'
 
 const DESIGNATIONS = ['Manager', 'DGM', 'GM', 'CGM', 'TenderOfficer', 'DirectorOfAdministration', 'SiteEngineer', 'BillingOfficer', 'Administrator', 'SoRAdmin', 'DOP', 'ED', 'MD', 'FinanceClerk', 'FinanceManager', 'FinanceHead']
-const LOCATION_ROLES = ['Manager', 'DGM', 'GM', 'CGM']
 const SCOPE_LEVEL = {
   Manager: { key: 'CircleID', node: 'Circle' },
   DGM: { key: 'DivisionID', node: 'Division' },
   GM: { key: 'ZoneID', node: 'Zone' },
   CGM: { key: 'RegionID', node: 'Corporation' },
+  DOP: { key: 'RegionID', node: 'Corporation' },
 }
 
 const emptyForm = {
@@ -21,10 +22,10 @@ const emptyForm = {
 }
 
 export default function UserManagement() {
+  const navigate = useNavigate()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [editId, setEditId] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [busy, setBusy] = useState(false)
   const [assignments, setAssignments] = useState({})
@@ -42,10 +43,14 @@ export default function UserManagement() {
     try {
       const [uRes, aRes] = await Promise.all([api.get('/users'), api.get('/users/admin/assignments')])
       setUsers(uRes.data || [])
+      // All ACTIVE assignments per user, deduped at the data level (same
+      // role + node appears once). Distinct valid assignments stay separate.
       const map = {}
       for (const a of (aRes.data || [])) {
         if (!a.IsActive) continue
-        if (!map[a.UserID]) map[a.UserID] = a
+        const list = map[a.UserID] || []
+        if (!list.some(x => x.Role === a.Role && x.NodeID === a.NodeID)) list.push(a)
+        map[a.UserID] = list
       }
       setAssignments(map)
     } catch (_) { toast.error('Failed to load users') }
@@ -74,31 +79,17 @@ export default function UserManagement() {
     return (list || []).map(n => ({ NodeID: n[key], Name: n.Name })).sort((a, b) => String(a.NodeID).localeCompare(String(b.NodeID), undefined, { numeric: true }))
   })()
 
-  const assignmentOf = (u) => assignments[u.UserID] || null
+  const assignmentsOf = (u) => assignments[u.UserID] || []
 
-  const openNew = () => { setEditId(null); setForm(emptyForm); setShowForm(true) }
-  const openEdit = (u) => {
-    setEditId(u.UserID)
-    const scope = assignmentOf(u)
-    setForm({
-      Username: u.Username, Password: '', Name: u.Name, Designation: u.Designation,
-      DesignationTitle: u.DesignationTitle || '', EmployeeCode: u.EmployeeCode || '',
-      EffectiveFrom: (u.EffectiveFrom || '').slice(0, 10), EffectiveTo: (u.EffectiveTo || '').slice(0, 10),
-      RegionID: u.RegionID || '', ZoneID: u.ZoneID || '', DivisionID: u.DivisionID || '',
-      CircleID: u.CircleID || '', WardID: u.WardID || '',
-      MobileNumber: u.MobileNumber || '', Email: u.Email || '',
-      AssignedNodeId: scope && scope.Role === u.Designation ? String(scope.NodeID) : '',
-    })
-    setShowForm(true)
-  }
+  const openNew = () => { setForm(emptyForm); setShowForm(true) }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setBusy(true)
     try {
       const payload = { ...form }
-      if (!payload.Password) delete payload.Password
-      if (LOCATION_ROLES.includes(payload.Designation)) {
+      if (!payload.Password) { toast.error('Password is required'); setBusy(false); return }
+      if (SCOPE_LEVEL[payload.Designation]) {
         payload.AssignedRole = payload.Designation
         payload.AssignedNodeId = payload.AssignedNodeId === '' ? null : Number(payload.AssignedNodeId)
         for (const k of ['RegionID', 'ZoneID', 'DivisionID', 'CircleID', 'WardID']) delete payload[k]
@@ -106,14 +97,9 @@ export default function UserManagement() {
         delete payload.AssignedNodeId
         delete payload.AssignedRole
       }
-      if (editId) {
-        await api.put(`/users/${editId}`, payload)
-        toast.success('User updated')
-      } else {
-        await api.post('/users', payload)
-        toast.success('User created')
-      }
-      setShowForm(false); setForm(emptyForm); setEditId(null); load()
+      await api.post('/users', payload)
+      toast.success('User created')
+      setShowForm(false); setForm(emptyForm); load()
     } catch (err) { toast.error(err.response?.data?.error || 'Save failed') }
     setBusy(false)
   }
@@ -139,9 +125,9 @@ export default function UserManagement() {
     [u.RegionName, u.ZoneName, u.DivisionName, u.CircleName, u.WardName].filter(Boolean).join(' → ') || '—'
 
   const scopeOf = (u) => {
-    const a = assignmentOf(u)
-    if (a) return `${a.Role} → ${a.NodeName}`
-    return LOCATION_ROLES.includes(u.Designation) ? 'No scope assigned' : locationOf(u)
+    const list = assignmentsOf(u)
+    if (list.length) return list.map(a => `${a.Role} → ${a.NodeName}`).join(' · ')
+    return SCOPE_LEVEL[u.Designation] ? 'No scope assigned' : locationOf(u)
   }
 
   const fmtAuditScope = (s) => {
@@ -170,20 +156,20 @@ export default function UserManagement() {
         <form onSubmit={handleSubmit} className="ec-card mb-5">
           <div className="ec-card-header">
             <ShieldCheck className="w-4 h-4 text-[#2563EB]" />
-            <span className="ec-card-title">{editId ? `Edit — ${form.Name}` : 'New User'}</span>
+            <span className="ec-card-title">New User</span>
           </div>
           <div className="ec-card-body">
             <div className="ec-grid-4">
               <div className="ec-form-group">
                 <label className="ec-label">Username *</label>
-                <input className="ec-input" value={form.Username} disabled={!!editId}
+                <input className="ec-input" value={form.Username}
                   onChange={e => setForm({ ...form, Username: e.target.value.trim() })} required autoComplete="off" />
               </div>
               <div className="ec-form-group">
-                <label className="ec-label">{editId ? 'Reset Password (blank = keep)' : 'Password *'}</label>
+                <label className="ec-label">Password *</label>
                 <input className="ec-input" type="password" value={form.Password} autoComplete="new-password"
                   onChange={e => setForm({ ...form, Password: e.target.value })}
-                  required={!editId} minLength={6} />
+                  required minLength={6} />
               </div>
               <div className="ec-form-group">
                 <label className="ec-label">Name *</label>
@@ -222,12 +208,12 @@ export default function UserManagement() {
               </div>
             </div>
 
-            {LOCATION_ROLES.includes(form.Designation) ? (
+            {SCOPE_LEVEL[form.Designation] ? (
               <div className="mt-4">
                 <p className="ec-label mb-1">Location Scope</p>
                 <div className="ec-grid-2">
                   <div className="ec-form-group">
-                    <label className="ec-label">{SCOPE_LEVEL[form.Designation].node} Node *</label>
+                    <label className="ec-label">{SCOPE_LEVEL[form.Designation].node} *</label>
                     <select className="ec-select ec-input" value={form.AssignedNodeId}
                       onChange={e => setForm({ ...form, AssignedNodeId: e.target.value })}>
                       <option value="">— No scope —</option>
@@ -237,13 +223,12 @@ export default function UserManagement() {
                 </div>
                 <p className="text-[10px] text-[#94A3B8]">
                   {form.Designation} scope is one {SCOPE_LEVEL[form.Designation].node.toLowerCase()} ('{SCOPE_LEVEL[form.Designation].node}' ={' '}
-                  {form.Designation === 'Manager' ? 'its Circles' : form.Designation === 'DGM' ? 'its Divisions' : form.Designation === 'GM' ? 'its Zones' : 'its Corporations'}).
-                  Expected forms routed through this user are automatically handled.
+                  {form.Designation === 'Manager' ? 'its Circles' : form.Designation === 'DGM' ? 'its Divisions' : form.Designation === 'GM' ? 'its Zones' : 'Corporation + descendant Zones/Divisions/Circles/Wards'}).
                 </p>
               </div>
             ) : (
               <div>
-                <p className="ec-label mt-4 mb-1">Location</p>
+                <p className="ec-label mt-4 mb-1">Location (duty station)</p>
                 <div className="ec-grid-5">
                   <div className="ec-form-group">
                     <label className="ec-label">Region</label>
@@ -284,7 +269,7 @@ export default function UserManagement() {
               </div>
             )}
 
-            <div className="flex items-end mt-4"><button type="submit" className="ec-btn-primary ec-btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Save User'}</button></div>
+            <div className="flex items-end mt-4"><button type="submit" className="ec-btn-primary ec-btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Create User'}</button></div>
           </div>
         </form>
       )}
@@ -305,7 +290,7 @@ export default function UserManagement() {
                     expandedAudit={auditOpen === u.UserID}
                     auditRows={auditOpen === u.UserID ? auditRows : []}
                     scopeOf={scopeOf}
-                    onEdit={() => openEdit(u)}
+                    onView={() => navigate(`/users/${u.UserID}`)}
                     onToggleStatus={() => toggleStatus(u)}
                     onAudit={() => showAudit(u)}
                     fmtAuditScope={fmtAuditScope}
@@ -321,12 +306,14 @@ export default function UserManagement() {
   )
 }
 
-function FragmentRow({ u, expandedAudit, auditRows, scopeOf, onEdit, onToggleStatus, onAudit, fmtAuditScope }) {
+function FragmentRow({ u, expandedAudit, auditRows, scopeOf, onView, onToggleStatus, onAudit, fmtAuditScope }) {
   return (
     <>
       <tr>
         <td className="text-xs font-medium">
-          {u.Name}
+          <button onClick={onView} className="text-[#2563EB] hover:underline text-left" title="View / edit user details">
+            {u.Name}
+          </button>
           {u.EmployeeCode && <span className="block font-mono text-[10px] text-[#94A3B8]">{u.EmployeeCode}</span>}
         </td>
         <td className="font-mono text-xs">{u.Username}</td>
@@ -344,7 +331,7 @@ function FragmentRow({ u, expandedAudit, auditRows, scopeOf, onEdit, onToggleSta
         </td>
         <td>
           <div className="flex items-center gap-2">
-            <button onClick={onEdit} className="text-[#2563EB] hover:opacity-70" title="Edit user">
+            <button onClick={onView} className="text-[#2563EB] hover:opacity-70" title="View / edit user">
               <Edit3 className="w-4 h-4" />
             </button>
             <button onClick={onToggleStatus} className={u.IsActive === false ? 'text-[#16A34A] hover:opacity-70' : 'text-[#DC2626] hover:opacity-70'}

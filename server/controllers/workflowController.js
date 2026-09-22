@@ -4,7 +4,7 @@ const { createVersion } = require('./estimateController');
 const { generateOtp, hashOtp } = require('../utils/otp');
 const { sendMail, maskEmail, resolveEmail } = require('../utils/mailer');
 const { generateTenderNo } = require('../utils/tenderNo');
-const { generateTsNo } = require('../utils/tsNo');
+const { generateSanctionNo } = require('../utils/sanctionNo');
 const { generateFcnNo } = require('../utils/fcnNo');
 const { buildOtpEmailHtml, buildOtpEmailText, buildWorkflowEmailHtml, buildWorkflowEmailText } = require('../utils/emailTemplate');
 const { startSla, stopSla } = require('../utils/sla');
@@ -1222,23 +1222,6 @@ exports.verifyMdFinal = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
     }
 
-    const claim = await db.query(
-      `UPDATE "SignatureOTP" SET "Verified" = TRUE
-       WHERE "OTPID" = $1 AND "Verified" = FALSE AND "ExpiresAt" > now()
-       RETURNING "OTPID"`,
-      [otpRow.OTPID]
-    );
-    if (claim.rowCount === 0)
-      return res.status(409).json({ error: 'OTP has already been used. Request a new OTP.' });
-
-    // Re-read for race safety
-    const fresh = await db.query('SELECT * FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId]);
-    const freshEst = fresh.rows[0];
-    if (freshEst.CurrentOwner !== userId)
-      return res.status(409).json({ error: 'Estimate ownership has changed. Refresh and try again.' });
-    if (freshEst.Status !== 'ED_Approved')
-      return res.status(409).json({ error: 'Estimate is no longer in ED_Approved status. Refresh and try again.' });
-
     const fcnAuthorityRole = req.body.fcnAuthorityRole || 'DirectorOfAdministration';
     if (fcnAuthorityRole !== 'DirectorOfAdministration')
       return res.status(400).json({ error: 'FCN authority must be DirectorOfAdministration' });
@@ -1262,6 +1245,39 @@ exports.verifyMdFinal = async (req, res, next) => {
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
+
+      // Lock the estimate row so ownership/status cannot change underneath us
+      // between the checks and the update.
+      const lock = await client.query(
+        'SELECT "Status", "CurrentOwner" FROM "EstimateHeader" WHERE "EstimateID" = $1 FOR UPDATE',
+        [estimateId]
+      );
+      if (lock.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Estimate not found' });
+      }
+      if (lock.rows[0].CurrentOwner !== userId) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Estimate ownership has changed. Refresh and try again.' });
+      }
+      if (lock.rows[0].Status !== 'ED_Approved') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Estimate is no longer in ED_Approved status. Refresh and try again.' });
+      }
+
+      // Claim the OTP inside the transaction. If any later step fails the whole
+      // transaction rolls back, so a server/DB error never consumes the OTP.
+      const claim = await client.query(
+        `UPDATE "SignatureOTP" SET "Verified" = TRUE
+         WHERE "OTPID" = $1 AND "Verified" = FALSE AND "ExpiresAt" > now()
+         RETURNING "OTPID"`,
+        [otpRow.OTPID]
+      );
+      if (claim.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'OTP has already been used. Request a new OTP.' });
+      }
+
       const upd = await client.query(
         `UPDATE "EstimateHeader"
          SET "Status" = 'FinalApproved', "CurrentOwner" = $1,
@@ -1278,16 +1294,35 @@ exports.verifyMdFinal = async (req, res, next) => {
         return res.status(409).json({ error: 'Estimate has already been processed or is not in an approvable state' });
       }
 
-      // Auto-create tender at final approval. The tender number is computed and
-      // INSERTED under the same advisory lock (generateTenderNo runs on this
-      // transaction's connection and holds the lock until commit), so concurrent
-      // final-approvals can never mint the same number.
-      tenderNo = await generateTenderNo(est.FinancialYear, client);
-      await client.query(
-        `INSERT INTO "Tender" ("EstimateID","TenderNo","TenderDate","EstimatedCost","Status")
-         VALUES ($1,$2,CURRENT_DATE,$3,'Draft') RETURNING *`,
-        [estimateId, tenderNo, grandTotal]
+      // Auto-create tender at final approval. If a Tender already exists for the
+      // estimate (e.g. created by an earlier flow) it is reused instead of
+      // failing on the one-tender-per-estimate unique constraint. The tender
+      // number is computed and INSERTED under the same advisory lock
+      // (generateTenderNo runs on this transaction's connection and holds the
+      // lock until commit), so concurrent final-approvals cannot mint the same
+      // number.
+      const existingTender = await client.query(
+        'SELECT "TenderNo" FROM "Tender" WHERE "EstimateID" = $1 FOR UPDATE',
+        [estimateId]
       );
+      if (existingTender.rows.length > 0) {
+        tenderNo = existingTender.rows[0].TenderNo;
+      } else {
+        tenderNo = await generateTenderNo(est.FinancialYear, client);
+        const ins = await client.query(
+          `INSERT INTO "Tender" ("EstimateID","TenderNo","TenderDate","EstimatedCost","Status")
+           VALUES ($1,$2,CURRENT_DATE,$3,'Draft')
+           ON CONFLICT ("EstimateID") DO NOTHING
+           RETURNING "TenderNo"`,
+          [estimateId, tenderNo, grandTotal]
+        );
+        if (ins.rows.length > 0) {
+          tenderNo = ins.rows[0].TenderNo;
+        } else {
+          const again = await client.query('SELECT "TenderNo" FROM "Tender" WHERE "EstimateID" = $1', [estimateId]);
+          tenderNo = again.rows[0]?.TenderNo || tenderNo;
+        }
+      }
 
       await client.query(
         `INSERT INTO "Workflow" ("EstimateID","FromUserID","ToUserID","Action","Version","OTPVerified","Remarks")
@@ -1311,9 +1346,14 @@ exports.verifyMdFinal = async (req, res, next) => {
       try { client.release(); } catch (_) {}
     }
 
-    // Stop SLA for MD stage, start FCN SLA
-    await stopSla(estimateId, 'EstimateHeader', 'actioned');
-    await startSla('Estimate', 'FCN', estimateId);
+    // Stop SLA for MD stage, start FCN SLA. Best-effort: the approval is already
+    // committed, so a late SLA/DB hiccup must not surface as a 500.
+    try {
+      await stopSla(estimateId, 'EstimateHeader', 'actioned');
+      await startSla('Estimate', 'FCN', estimateId);
+    } catch (slaErr) {
+      console.error('MD final approval SLA update failed:', slaErr.message);
+    }
 
     res.json({
       message: `MD final approved. OTP verified. Digitally signed. FCN authority: ${fcnAuthorityRole}.`,
@@ -1792,7 +1832,7 @@ exports.generateFCN = async (req, res, next) => {
 exports.generateAdminSanction = async (req, res, next) => {
   try {
     const estimateId = req.params.id;
-    const { sanctionNo, remarks } = req.body;
+    const { remarks } = req.body;
     const userId = req.user.UserID;
 
     const header = await db.query('SELECT * FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId]);
@@ -1806,32 +1846,37 @@ exports.generateAdminSanction = async (req, res, next) => {
     if (est.Status !== 'FCNGenerated')
       return res.status(400).json({ error: 'Only FCNGenerated estimates can have Administrative Sanction generated' });
 
-    if (!sanctionNo || !String(sanctionNo).trim())
-      return res.status(400).json({ error: 'Sanction number is required' });
-
     const currentVersion = await getOrCreateVersion(estimateId);
     const client = await db.getClient();
+    let sanctionNo;
     try {
       await client.query('BEGIN');
 
       // Reuse an existing AS row (e.g. after ReturnToFCN) — never re-insert,
-      // "AdminSanction_EstimateID_unique" would make a second row throw.
+      // "AdminSanction_EstimateID_unique" would make a second row throw. When
+      // re-pointing an existing estimate, its permanent sanction number is kept.
       const existingAs = (await client.query(
-        'SELECT "SanctionID" FROM "AdministrativeSanction" WHERE "EstimateID" = $1', [estimateId])).rows[0];
+        'SELECT "SanctionID", "SanctionNo" FROM "AdministrativeSanction" WHERE "EstimateID" = $1', [estimateId])).rows[0];
       let sanctionId;
       if (existingAs) {
+        sanctionNo = existingAs.SanctionNo;
         await client.query(
-          `UPDATE "AdministrativeSanction" SET "SanctionNo" = $1, "SanctionDate" = CURRENT_DATE,
+          `UPDATE "AdministrativeSanction" SET "SanctionDate" = CURRENT_DATE,
            "GeneratedBy" = $2, "Status" = 'Generated', "Remarks" = $3
            WHERE "SanctionID" = $4`,
-          [String(sanctionNo).trim(), userId, remarks || 'Administrative sanction generated', existingAs.SanctionID]);
+          [userId, remarks || 'Administrative sanction generated', existingAs.SanctionID]);
         sanctionId = existingAs.SanctionID;
       } else {
+        // Claim the next AS number inside this transaction so it is persisted
+        // atomically with the sanction; the per-(Type, FY) counter is never
+        // decremented, so numbers are unique and never reused.
+        const claimed = await generateSanctionNo(client, 'AS', est.FinancialYear);
+        sanctionNo = claimed.sanctionNo;
         const sanRes = await client.query(
           `INSERT INTO "AdministrativeSanction" ("EstimateID", "SanctionNo", "SanctionDate", "GeneratedBy", "Status", "Remarks")
            VALUES ($1, $2, CURRENT_DATE, $3, 'Generated', $4)
            RETURNING *`,
-          [estimateId, String(sanctionNo).trim(), userId, remarks || 'Administrative sanction generated']
+          [estimateId, sanctionNo, userId, remarks || 'Administrative sanction generated']
         );
         sanctionId = sanRes.rows[0].SanctionID;
       }
@@ -2014,7 +2059,8 @@ exports.approveTs = async (req, res, next) => {
     if (req.user.Designation !== ts.AuthorityRole)
       return res.status(403).json({ error: `Only ${ts.AuthorityRole} can approve this TS` });
 
-    const tsNo = await generateTsNo();
+    let tsNo;
+    let tsDate;
     const currentVersion = await getOrCreateVersion(estimateId);
 
     const tenderOfficer = await findUserByDesignation('TenderOfficer');
@@ -2024,12 +2070,25 @@ exports.approveTs = async (req, res, next) => {
     try {
       await client.query('BEGIN');
 
-      await client.query(
+      // Claim the next TS number inside this transaction so it is persisted
+      // atomically with the approval and never reused. The row-lock on the
+      // counter serializes concurrent approvals, even for the same estimate.
+      const claimed = await generateSanctionNo(client, 'TS', est.FinancialYear);
+      tsNo = claimed.sanctionNo;
+
+      const tsUpdate = await client.query(
         `UPDATE "TechnicalSanction" SET "Status" = 'Approved', "TSNo" = $1, "TSDate" = CURRENT_DATE,
          "ApprovedBy" = $2, "ApprovedAt" = now(), "Remarks" = $3
-         WHERE "TSID" = $4`,
+         WHERE "TSID" = $4 AND "Status" = 'Pending'
+         RETURNING "TSNo", "TSDate"`,
         [tsNo, userId, remarks || 'TS approved', ts.TSID]
       );
+      if (!tsUpdate.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Technical Sanction is not in Pending state anymore' });
+      }
+      tsNo = tsUpdate.rows[0].TSNo;
+      tsDate = tsUpdate.rows[0].TSDate;
 
       await client.query(
         `UPDATE "EstimateHeader" SET "Status" = 'TSApproved', "CurrentOwner" = $1
@@ -2062,7 +2121,7 @@ exports.approveTs = async (req, res, next) => {
     await stopSla(estimateId, 'EstimateHeader', 'actioned');
     await startSla('Estimate', 'TenderPreparation', estimateId);
 
-    res.json({ message: `TS ${tsNo} approved. Forwarded to Tender Officer.`, tsNo });
+    res.json({ message: `TS ${tsNo} approved. Forwarded to Tender Officer.`, tsNo, tsDate });
 
     try {
       await sendNotification(estimateId, tenderOfficer.UserID, 'ApproveTS',

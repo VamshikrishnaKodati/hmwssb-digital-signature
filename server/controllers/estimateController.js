@@ -507,7 +507,9 @@ async function getFullEstimate(estimateId) {
        d."Name" AS "DivisionName", c."Name" AS "CircleName", w."Name" AS "WardName",
        cb."Name" AS "CompletedByName", sb."Name" AS "StartedByName",
        crb."Name" AS "CreatedByName", crb."Designation" AS "CreatedByDesignation",
-       cu."Name" AS "CurrentOwnerName", cu."Designation" AS "CurrentOwnerDesignation"
+       cu."Name" AS "CurrentOwnerName", cu."Designation" AS "CurrentOwnerDesignation",
+       fcn."FCNNo", sa."SanctionNo" AS "ASNo", sa."SanctionDate" AS "ASDate",
+       stech."TSNo", stech."TSDate"
      FROM "EstimateHeader" eh
      LEFT JOIN "Regions" r ON r."RegionID" = eh."RegionID"
      LEFT JOIN "Zones" z ON z."ZoneID" = eh."ZoneID"
@@ -518,7 +520,11 @@ async function getFullEstimate(estimateId) {
      LEFT JOIN "Users" sb ON sb."UserID" = eh."StartedBy"
      LEFT JOIN "Users" crb ON crb."UserID" = eh."CreatedBy"
      LEFT JOIN "Users" cu ON cu."UserID" = eh."CurrentOwner"
+     LEFT JOIN "FCN" fcn ON fcn."EstimateID" = eh."EstimateID"
+     LEFT JOIN "AdministrativeSanction" sa ON sa."EstimateID" = eh."EstimateID"
+     LEFT JOIN "TechnicalSanction" stech ON stech."EstimateID" = eh."EstimateID"
      WHERE eh."EstimateID" = $1`,
+
     [estimateId]
   );
   const details = await db.query(

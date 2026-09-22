@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import StatusBadge from '../components/shared/StatusBadge'
 import OtpInput from '../components/shared/OtpInput'
 import ActionPanel from '../components/estimate/ActionPanel'
+import WorkProgressPhotos from '../components/estimate/WorkProgressPhotos'
 import { canPerform, hasPermission } from '../utils/permissions'
 import useCurrentUser from '../utils/useCurrentUser'
 
@@ -37,6 +38,120 @@ import WorkflowProgress from '../components/shared/WorkflowProgress'
 import { getStatusInfo, getStatusLabel, getStatusKeyForStage, resolveWorkflowPosition } from '../utils/workflowMapping'
 import { downloadExport } from '../utils/download'
 
+function OTPVerifyModal({
+  open, icon: Icon, iconClass = 'text-[#2563EB]', title, submitted, verified,
+  sentTo, digits, setDigits, resendIn, sending, verifying, verifyLabel, verifyingLabel,
+  onResend, onClose, onVerify, buttonClass = '',
+  showCertificate, certificateId, setCertificateId,
+  remarkValue, successTitle, successText,
+  nonce = 0, expiresIn = 300,
+}) {
+  const [secondsLeft, setSecondsLeft] = useState(expiresIn)
+  useEffect(() => {
+    if (!open || !submitted) return
+    setSecondsLeft(expiresIn)
+  }, [open, submitted, nonce, expiresIn])
+  useEffect(() => {
+    if (!open || !submitted || secondsLeft <= 0) return
+    const timer = setTimeout(() => setSecondsLeft(s => s - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [open, submitted, secondsLeft])
+
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => !verifying && onClose()}>
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-1">
+          <Icon className={`w-5 h-5 ${iconClass}`} />
+          <h3 className="font-semibold text-[#0F172A]">{title}</h3>
+        </div>
+
+        {verified ? (
+          <div className="py-8 flex flex-col items-center gap-2">
+            <CheckCircle className="w-10 h-10 text-[#059669]" />
+            <p className="text-sm font-semibold text-[#0F172A]">{successTitle}</p>
+            <p className="text-xs text-[#475569]">{successText}</p>
+          </div>
+        ) : !submitted ? (
+          <>
+            <p className="text-xs font-semibold text-[#059669] mb-1">Verify OTP</p>
+            <p className="text-xs text-[#475569] mb-4">
+              {sending
+                ? 'An OTP is being sent to your registered contact. Please wait...'
+                : 'Enter the 6-digit OTP sent to your registered contact.'}
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={onClose} disabled={sending} className="ec-btn-secondary flex-1">Cancel</button>
+              <button onClick={onResend} disabled={sending} className="ec-btn-primary flex-1">
+                {sending ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {sending ? 'Sending OTP...' : 'Send OTP'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
+            <p className="text-xs text-[#475569] mb-1">
+              Enter the 6-digit OTP sent to {sentTo ? (
+                <span className="font-medium text-[#0F172A]">{sentTo}</span>
+              ) : 'your registered contact'}.
+            </p>
+            <p className="text-xs text-[#475569] mb-3">
+              {secondsLeft > 0 ? (
+                <>OTP expires in <span className="font-medium text-[#0F172A]">{String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:{String(secondsLeft % 60).padStart(2, '0')}</span></>
+              ) : (
+                <span className="font-medium text-red-600">OTP expired. Please resend a new OTP.</span>
+              )}
+            </p>
+
+            {showCertificate && (
+              <>
+                <label htmlFor="certificateId" className="ec-label">Certificate ID</label>
+                <input id="certificateId" type="text" value={certificateId}
+                  onChange={e => setCertificateId(e.target.value)}
+                  placeholder="HMWSSB-DSC-000000" className="ec-input mb-3" />
+              </>
+            )}
+
+            {remarkValue && (
+              <div className="w-full mb-3 p-2 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1]">
+                <p className="text-[10px] font-medium text-[#475569]">Remarks</p>
+                <p className="text-xs text-[#0F172A]">{remarkValue}</p>
+              </div>
+            )}
+
+            <label className="ec-label">Enter OTP</label>
+            <div className="mb-3">
+              <OtpInput
+                value={digits}
+                onChange={setDigits}
+                onSubmit={e => { if (digits.join('').length === 6 && !verifying) onVerify(e) }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] text-[#94A3B8]">5 attempts</span>
+              <button type="button" onClick={onResend} disabled={sending || resendIn > 0}
+                className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
+                {sending ? 'Sending...' : resendIn > 0 ? `Resend OTP (${resendIn}s)` : 'Resend OTP'}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button onClick={onClose} disabled={verifying} className="ec-btn-secondary flex-1">Cancel</button>
+              <button onClick={onVerify} disabled={verifying || digits.join('').length !== 6 || secondsLeft <= 0}
+                className={`ec-btn-primary flex-1 ${buttonClass}`}>
+                {verifying ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                {verifying ? verifyingLabel : verifyLabel}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function EstimateDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -52,7 +167,6 @@ export default function EstimateDetail() {
   const [docs, setDocs] = useState([])
   const [docsLoading, setDocsLoading] = useState(false)
   const [openingDoc, setOpeningDoc] = useState(null)
-  const [procurementNo, setProcurementNo] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [tsAuthority, setTsAuthority] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -114,6 +228,14 @@ export default function EstimateDetail() {
   const [finalizingMd, setFinalizingMd] = useState(false)
   const [mdResendIn, setMdResendIn] = useState(0)
   const [mdVerified, setMdVerified] = useState(false)
+  const [otpNonce, setOtpNonce] = useState(0)
+  const submitLockRef = useRef(false)
+  const signLockRef = useRef(false)
+  const dgmLockRef = useRef(false)
+  const cgmLockRef = useRef(false)
+  const dopLockRef = useRef(false)
+  const edLockRef = useRef(false)
+  const mdLockRef = useRef(false)
   const [stepKey, setStepKey] = useState(null)
   const [tenders, setTenders] = useState([])
   const [agencies, setAgencies] = useState([])
@@ -267,16 +389,19 @@ export default function EstimateDetail() {
     setProcessing(true)
     try {
       const payload = { remarks: remarks || undefined }
-      if (actionType === 'generate-admin-sanction') payload.sanctionNo = procurementNo
       if (actionType === 'assign-ts-authority') {
         payload.AuthorityRole = tsAuthority
         delete payload.remarks
       }
-      await api.post(`/workflow/${id}/${actionType}`, payload)
-      toast.success(ACTION_SUCCESS[actionType] || 'Action completed')
+      const res = await api.post(`/workflow/${id}/${actionType}`, payload)
+      const sanctionNo = res.data?.sanctionNo
+      const tsNo = res.data?.tsNo
+      let message = ACTION_SUCCESS[actionType] || 'Action completed'
+      if (actionType === 'generate-admin-sanction' && sanctionNo) message = `Administrative Sanction ${sanctionNo} generated. Ready for Technical Sanction assignment.`
+      if (actionType === 'approve-ts' && tsNo) message = `Technical Sanction ${tsNo} approved. Forwarded to Tender Officer.`
+      toast.success(message)
       setShowConfirm(false)
       setRemarks('')
-      setProcurementNo('')
       setAction('')
       load()
     } catch (err) {
@@ -289,7 +414,6 @@ export default function EstimateDetail() {
 
   const confirmAction = (actionType) => {
     setAction(actionType)
-    setProcurementNo('')
     setTsAuthority('')
     setShowConfirm(true)
   }
@@ -303,6 +427,7 @@ export default function EstimateDetail() {
       setOtpSentTo(res.data.sentTo || '')
       setResendIn(res.data.resendIn || 30)
       setOtpDigits(Array(6).fill(''))
+      setOtpNonce(n => n + 1)
       toast.success(res.data.message || 'OTP sent')
     } catch (err) {
       if (err.response?.status === 429 && err.response.data?.resendIn) {
@@ -316,6 +441,8 @@ export default function EstimateDetail() {
   }
 
   const verifyAndSign = async () => {
+    if (signLockRef.current) return
+    signLockRef.current = true
     setSigning(true)
     try {
       const res = await api.post(`/workflow/${id}/sign`, {
@@ -335,20 +462,25 @@ export default function EstimateDetail() {
       toast.error(err.response?.data?.error || 'Verification failed')
     }
     setSigning(false)
+    signLockRef.current = false
   }
 
-  const openSignModal = () => {
+  const openSignOtp = async () => {
+    if (signLockRef.current) return
+    signLockRef.current = true
     setOtpSent(false); setOtpSentTo('')
     setOtpDigits(Array(6).fill('')); setCertificateId(''); setResendIn(0); setVerified(false)
     setShowSign(true)
-    sendOtp()
+    try { await sendOtp() } finally { signLockRef.current = false }
   }
 
-  const openSubmitOtpModal = () => {
+  const openSubmitOtp = async () => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
     setSubmitOtpSent(false); setSubmitOtpSentTo('')
     setSubmitOtpDigits(Array(6).fill('')); setSubmitResendIn(0); setSubmitVerified(false)
     setShowSubmitOtp(true)
-    sendSubmitOtp()
+    try { await sendSubmitOtp() } finally { submitLockRef.current = false }
   }
 
   const sendSubmitOtp = async () => {
@@ -360,6 +492,7 @@ export default function EstimateDetail() {
       setSubmitOtpSentTo(res.data.sentTo || '')
       setSubmitResendIn(res.data.resendIn || 30)
       setSubmitOtpDigits(Array(6).fill(''))
+      setOtpNonce(n => n + 1)
       toast.success(res.data.message || 'OTP sent')
     } catch (err) {
       if (err.response?.status === 429 && err.response.data?.resendIn) {
@@ -373,6 +506,8 @@ export default function EstimateDetail() {
   }
 
   const verifySubmitOtp = async () => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
     setSubmitting(true)
     try {
       const payload = {
@@ -394,13 +529,16 @@ export default function EstimateDetail() {
       toast.error(err.response?.data?.error || 'Submission failed')
     }
     setSubmitting(false)
+    submitLockRef.current = false
   }
 
-  const openDgmApproveModal = () => {
+  const openDgmApproveOtp = async () => {
+    if (dgmLockRef.current) return
+    dgmLockRef.current = true
     setDgmOtpSent(false); setDgmOtpSentTo('')
     setDgmOtpDigits(Array(6).fill('')); setDgmResendIn(0); setDgmVerified(false)
     setShowDgmApprove(true)
-    sendDgmOtp()
+    try { await sendDgmOtp() } finally { dgmLockRef.current = false }
   }
 
   const sendDgmOtp = async () => {
@@ -412,6 +550,7 @@ export default function EstimateDetail() {
       setDgmOtpSentTo(res.data.sentTo || '')
       setDgmResendIn(res.data.resendIn || 30)
       setDgmOtpDigits(Array(6).fill(''))
+      setOtpNonce(n => n + 1)
       toast.success(res.data.message || 'OTP sent')
     } catch (err) {
       if (err.response?.status === 429 && err.response.data?.resendIn) {
@@ -425,6 +564,8 @@ export default function EstimateDetail() {
   }
 
   const verifyDgmApprove = async () => {
+    if (dgmLockRef.current) return
+    dgmLockRef.current = true
     setApproving(true)
     try {
       const res = await api.post(`/workflow/${id}/approve`, {
@@ -445,13 +586,16 @@ export default function EstimateDetail() {
       toast.error(err.response?.data?.error || 'Approval failed')
     }
     setApproving(false)
+    dgmLockRef.current = false
   }
 
-  const openCgmSubmitModal = () => {
+  const openCgmSubmitOtp = async () => {
+    if (cgmLockRef.current) return
+    cgmLockRef.current = true
     setCgmOtpSent(false); setCgmOtpSentTo('')
     setCgmOtpDigits(Array(6).fill('')); setCgmResendIn(0); setCgmVerified(false)
     setShowCgmSubmit(true)
-    sendCgmOtp()
+    try { await sendCgmOtp() } finally { cgmLockRef.current = false }
   }
 
   const sendCgmOtp = async () => {
@@ -461,6 +605,7 @@ export default function EstimateDetail() {
       const res = await api.post(`/workflow/${id}/cgm-submit/request-otp`)
       setCgmOtpSent(true); setCgmOtpSentTo(res.data.sentTo || '')
       setCgmResendIn(res.data.resendIn || 30); setCgmOtpDigits(Array(6).fill(''))
+      setOtpNonce(n => n + 1)
       toast.success(res.data.message || 'OTP sent')
     } catch (err) {
       if (err.response?.status === 429 && err.response.data?.resendIn) {
@@ -471,6 +616,8 @@ export default function EstimateDetail() {
   }
 
   const verifyCgmSubmit = async () => {
+    if (cgmLockRef.current) return
+    cgmLockRef.current = true
     setSubmittingCgm(true)
     try {
       const res = await api.post(`/workflow/${id}/cgm-submit`, {
@@ -485,13 +632,16 @@ export default function EstimateDetail() {
       }, 1200)
     } catch (err) { toast.error(err.response?.data?.error || 'Submission failed') }
     setSubmittingCgm(false)
+    cgmLockRef.current = false
   }
 
-  const openDopApproveModal = () => {
+  const openDopApproveOtp = async () => {
+    if (dopLockRef.current) return
+    dopLockRef.current = true
     setDopOtpSent(false); setDopOtpSentTo('')
     setDopOtpDigits(Array(6).fill('')); setDopResendIn(0); setDopVerified(false)
     setShowDopApprove(true)
-    sendDopOtp()
+    try { await sendDopOtp() } finally { dopLockRef.current = false }
   }
 
   const sendDopOtp = async () => {
@@ -501,6 +651,7 @@ export default function EstimateDetail() {
       const res = await api.post(`/workflow/${id}/dop-approve/request-otp`)
       setDopOtpSent(true); setDopOtpSentTo(res.data.sentTo || '')
       setDopResendIn(res.data.resendIn || 30); setDopOtpDigits(Array(6).fill(''))
+      setOtpNonce(n => n + 1)
       toast.success(res.data.message || 'OTP sent')
     } catch (err) {
       if (err.response?.status === 429 && err.response.data?.resendIn) {
@@ -511,6 +662,8 @@ export default function EstimateDetail() {
   }
 
   const verifyDopApprove = async () => {
+    if (dopLockRef.current) return
+    dopLockRef.current = true
     setApprovingDop(true)
     try {
       const res = await api.post(`/workflow/${id}/dop-approve`, {
@@ -525,13 +678,16 @@ export default function EstimateDetail() {
       }, 1200)
     } catch (err) { toast.error(err.response?.data?.error || 'Approval failed') }
     setApprovingDop(false)
+    dopLockRef.current = false
   }
 
-  const openEdApproveModal = () => {
+  const openEdApproveOtp = async () => {
+    if (edLockRef.current) return
+    edLockRef.current = true
     setEdOtpSent(false); setEdOtpSentTo('')
     setEdOtpDigits(Array(6).fill('')); setEdResendIn(0); setEdVerified(false)
     setShowEdApprove(true)
-    sendEdOtp()
+    try { await sendEdOtp() } finally { edLockRef.current = false }
   }
 
   const sendEdOtp = async () => {
@@ -541,6 +697,7 @@ export default function EstimateDetail() {
       const res = await api.post(`/workflow/${id}/ed-approve/request-otp`)
       setEdOtpSent(true); setEdOtpSentTo(res.data.sentTo || '')
       setEdResendIn(res.data.resendIn || 30); setEdOtpDigits(Array(6).fill(''))
+      setOtpNonce(n => n + 1)
       toast.success(res.data.message || 'OTP sent')
     } catch (err) {
       if (err.response?.status === 429 && err.response.data?.resendIn) {
@@ -551,6 +708,8 @@ export default function EstimateDetail() {
   }
 
   const verifyEdApprove = async () => {
+    if (edLockRef.current) return
+    edLockRef.current = true
     setApprovingEd(true)
     try {
       const res = await api.post(`/workflow/${id}/ed-approve`, {
@@ -565,13 +724,16 @@ export default function EstimateDetail() {
       }, 1200)
     } catch (err) { toast.error(err.response?.data?.error || 'Approval failed') }
     setApprovingEd(false)
+    edLockRef.current = false
   }
 
-  const openMdFinalModal = () => {
+  const openMdFinalOtp = async () => {
+    if (mdLockRef.current) return
+    mdLockRef.current = true
     setMdOtpSent(false); setMdOtpSentTo('')
     setMdOtpDigits(Array(6).fill('')); setMdResendIn(0); setMdVerified(false)
     setShowMdFinal(true)
-    sendMdOtp()
+    try { await sendMdOtp() } finally { mdLockRef.current = false }
   }
 
   const sendMdOtp = async () => {
@@ -581,6 +743,7 @@ export default function EstimateDetail() {
       const res = await api.post(`/workflow/${id}/md-final/request-otp`)
       setMdOtpSent(true); setMdOtpSentTo(res.data.sentTo || '')
       setMdResendIn(res.data.resendIn || 30); setMdOtpDigits(Array(6).fill(''))
+      setOtpNonce(n => n + 1)
       toast.success(res.data.message || 'OTP sent')
     } catch (err) {
       if (err.response?.status === 429 && err.response.data?.resendIn) {
@@ -591,6 +754,8 @@ export default function EstimateDetail() {
   }
 
   const verifyMdFinal = async () => {
+    if (mdLockRef.current) return
+    mdLockRef.current = true
     setFinalizingMd(true)
     try {
       const res = await api.post(`/workflow/${id}/md-final`, {
@@ -605,6 +770,7 @@ export default function EstimateDetail() {
       }, 1200)
     } catch (err) { toast.error(err.response?.data?.error || 'Final approval failed') }
     setFinalizingMd(false)
+    mdLockRef.current = false
   }
 
   const maskEmail = (email) => {
@@ -771,13 +937,13 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
   // Single source of truth for every action — reused by header, More Actions and ActionPanel.
   const allActions = [
     { key: 'edit', label: 'Edit Estimate', icon: Edit3, tone: 'secondary', show: canEdit, onClick: () => navigate(`/estimates/${id}/edit`) },
-    { key: 'submit', label: wfPos?.nextStage?.owner === 'DGM' ? 'Submit to DGM' : `Forward to ${DESIGNATION_FULL[wfPos?.nextStage?.owner] || wfPos?.nextStage?.owner || 'DGM'}`, icon: Send, tone: 'primary', show: canSubmit, onClick: openSubmitOtpModal },
-    { key: 'approve', label: 'Forward to GM', icon: CheckCircle, tone: 'primary', show: canApprove, onClick: openDgmApproveModal },
-    { key: 'sign', label: 'Recommend to CGM', icon: PenSquare, tone: 'primary', show: canSign, onClick: openSignModal },
-    { key: 'cgm', label: 'Forward to DOP', icon: Send, tone: 'primary', show: canCgmSubmit, onClick: openCgmSubmitModal },
-    { key: 'dop', label: 'Approve & Forward to ED', icon: CheckCircle, tone: 'primary', show: canDopApprove, onClick: openDopApproveModal },
-    { key: 'ed', label: 'Approve & Forward to MD', icon: CheckCircle, tone: 'primary', show: canEdApprove, onClick: openEdApproveModal },
-    { key: 'md', label: 'Final Approve', icon: PenSquare, tone: 'primary', show: canMdFinal, onClick: openMdFinalModal },
+{ key: 'submit', label: wfPos?.nextStage?.owner === 'DGM' ? 'Submit to DGM' : `Forward to ${DESIGNATION_FULL[wfPos?.nextStage?.owner] || wfPos?.nextStage?.owner || 'DGM'}`, icon: Send, tone: 'primary', show: canSubmit, onClick: openSubmitOtp },
+    { key: 'approve', label: 'Forward to GM', icon: CheckCircle, tone: 'primary', show: canApprove, onClick: openDgmApproveOtp },
+    { key: 'sign', label: 'Recommend to CGM', icon: PenSquare, tone: 'primary', show: canSign, onClick: openSignOtp },
+    { key: 'cgm', label: 'Forward to DOP', icon: Send, tone: 'primary', show: canCgmSubmit, onClick: openCgmSubmitOtp },
+    { key: 'dop', label: 'Approve & Forward to ED', icon: CheckCircle, tone: 'primary', show: canDopApprove, onClick: openDopApproveOtp },
+    { key: 'ed', label: 'Approve & Forward to MD', icon: CheckCircle, tone: 'primary', show: canEdApprove, onClick: openEdApproveOtp },
+    { key: 'md', label: 'Final Approve', icon: PenSquare, tone: 'primary', show: canMdFinal, onClick: openMdFinalOtp },
     { key: 'fcn', label: 'Generate FCN', icon: FileCheck, tone: 'primary', show: canGenerateFcn, onClick: () => confirmAction('generate-fcn') },
     { key: 'sanction', label: 'Generate Admin Sanction', icon: Landmark, tone: 'primary', show: canGenerateSanction, onClick: () => confirmAction('generate-admin-sanction') },
     { key: 'assign-ts', label: 'Assign TS Authority', icon: ClipboardList, tone: 'primary', show: canAssignTs, onClick: () => confirmAction('assign-ts-authority') },
@@ -1037,6 +1203,11 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
                 ['Created By', estimate.CreatedByName || user.Name],
                 ['Created Date', fmtDate(estimate.CreatedDate)],
                 ['Submitted Date', fmtDate(estimate.SubmissionDate)],
+                ['FCN No', estimate.FCNNo || 'Pending'],
+                ['AS No', estimate.ASNo || 'Pending'],
+                ['AS Date', estimate.ASDate ? fmtDate(estimate.ASDate) : 'Pending'],
+                ['TS No', estimate.TSNo || 'Pending'],
+                ['TS Date', estimate.TSDate ? fmtDate(estimate.TSDate) : 'Pending'],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-start justify-between gap-2">
                   <span className="text-[#475569]">{k}</span>
@@ -1376,6 +1547,9 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
                     ['Created Date', fmtDate(estimate.CreatedDate)],
                     ['Current Status', getStatusLabel(estimate.Status)],
                     ['Submitted Date', fmtDate(estimate.SubmissionDate)],
+                    ['FCN No', estimate.FCNNo || 'Pending'],
+                    ['AS No / Date', estimate.ASNo ? `${estimate.ASNo}${estimate.ASDate ? ` · ${fmtDate(estimate.ASDate)}` : ''}` : 'Pending'],
+                    ['TS No / Date', estimate.TSNo ? `${estimate.TSNo}${estimate.TSDate ? ` · ${fmtDate(estimate.TSDate)}` : ''}` : 'Pending'],
                     ['Signed Date', estimate.IsDigitallySigned ? fmtDateTime(estimate.DigitallySignedDate) : 'Not signed'],
                     ['Certificate ID', estimate.CertificateID || '—'],
                   ].map(([k, v]) => (
@@ -1617,6 +1791,10 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
                   </div>
                 )}
 
+                {['WorkStarted', 'WorkCompleted'].includes(stepKey) && (estimate.StartedDate || progressList.length > 0) && (
+                  <WorkProgressPhotos estimateId={id} />
+                )}
+
                 {stepKey === 'Billing' && bills.length > 0 && (
                   <div className="rounded-lg border border-[#CBD5E1]">
                     <p className="px-3 py-2 text-xs font-semibold text-[#2563EB] border-b border-[#CBD5E1] bg-[#F8FAFC]">Bills</p>
@@ -1663,22 +1841,11 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
             <h3 className="font-semibold text-[#0F172A] mb-2">Confirm {action.replace('-', ' ')}</h3>
             <p className="text-xs text-[#475569] mb-4">
               {action === 'generate-fcn' ? 'The FCN number will be generated automatically from the system sequence. The estimate stays with the Director of Administration for Administrative Sanction.'
-                : action === 'generate-admin-sanction' ? 'Enter the Administrative Sanction number. The estimate is then ready for Technical Sanction assignment.'
+                : action === 'generate-admin-sanction' ? 'The Administrative Sanction number will be generated automatically from the system sequence and shown here after approval. The estimate is then ready for Technical Sanction assignment.'
                 : action === 'assign-ts-authority' ? 'Choose ONE competent technical authority for this estimate. They alone will approve the Technical Sanction.'
                 : action === 'return-ts' ? 'Returning will send the estimate back to the Director for re-assignment. Add remarks.'
                 : 'Proceed with this action?'}
             </p>
-            {action === 'generate-admin-sanction' && (
-              <label htmlFor="procurementNo" className="block mb-1 text-xs font-medium text-[#0F172A]">
-                Sanction No. *
-              </label>
-            )}
-            {action === 'generate-admin-sanction' && (
-              <input id="procurementNo" name="procurementNo" value={procurementNo}
-                onChange={e => setProcurementNo(e.target.value)} autoFocus
-                placeholder="e.g. AS/2026-27/001"
-                className="ec-input w-full text-sm mb-3" />
-            )}
             {action === 'assign-ts-authority' && (
               <>
                 <label htmlFor="tsAuthority" className="block mb-1 text-xs font-medium text-[#0F172A]">Technical Sanction Authority *</label>
@@ -1697,10 +1864,9 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
               className="ec-input w-full text-sm mb-3" rows={2}
               placeholder={`Remarks for ${action} (optional)`} />
             <div className="flex items-center gap-2">
-              <button onClick={() => { setShowConfirm(false); setAction(''); setProcurementNo(''); setTsAuthority('') }}
+              <button onClick={() => { setShowConfirm(false); setAction(''); setTsAuthority('') }}
                 className="ec-btn-secondary flex-1">Cancel</button>
               <button onClick={() => handleAction(action)} disabled={processing ||
-                  (action === 'generate-admin-sanction' && !procurementNo.trim()) ||
                   (action === 'assign-ts-authority' && !tsAuthority)}
                 className="ec-btn-primary flex-1">
                 {processing ? 'Processing...' : 'Confirm'}
@@ -1710,527 +1876,179 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
         </div>
       )}
 
-      {/* Digital Signature + OTP Modal */}
-      {showSign && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowSign(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-indigo-600" />
-              <h3 className="font-semibold text-[#0F172A]">Digital Signature</h3>
-            </div>
+      <OTPVerifyModal
+        open={showSign}
+        icon={ShieldCheck}
+        iconClass="text-indigo-600"
+        title="Digital Signature"
+        submitted={otpSent}
+        verified={verified}
+        sentTo={otpSentTo ? maskEmail(otpSentTo) : ''}
+        digits={otpDigits}
+        setDigits={setOtpDigits}
+        resendIn={resendIn}
+        nonce={otpNonce}
+        sending={sendingOtp}
+        verifying={signing}
+        verifyLabel="Verify OTP"
+        verifyingLabel="Forwarding..."
+        onResend={sendOtp}
+        onClose={() => setShowSign(false)}
+        onVerify={verifyAndSign}
+        showCertificate
+        certificateId={certificateId}
+        setCertificateId={setCertificateId}
+        successTitle="OTP Verified Successfully"
+        successText="Forwarding estimate to the Tender Officer..."
+      />
 
-            {!otpSent && !verified ? (
-              <>
-                <p className="text-xs text-[#475569] mb-4">
-                  This is the final authorization step. Apply your digital signature and an OTP will be
-                  sent to your registered email to complete verification.
-                </p>
-                <button type="button" onClick={sendOtp} disabled={sendingOtp}
-                  className="ec-btn-primary w-full justify-center">
-                  {sendingOtp ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <PenSquare className="w-3.5 h-3.5" />}
-                  {sendingOtp ? 'Signing...' : 'Digital Sign'}
-                </button>
-              </>
-            ) : verified ? (
-              <div className="py-8 flex flex-col items-center gap-2">
-                <CheckCircle className="w-10 h-10 text-[#059669]" />
-                <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#475569]">Forwarding estimate to the Tender Officer...</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#059669] mb-1">Digital Signature Completed</p>
-                <p className="text-xs text-[#475569] mb-1">
-                  An OTP has been sent to {otpSentTo ? (
-                    <span className="font-medium text-[#0F172A]">{maskEmail(otpSentTo)}</span>
-                  ) : 'your email'}.
-                </p>
-                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
+      {/* Submit Estimate: OTP opens automatically */}
+      <OTPVerifyModal
+        open={showSubmitOtp}
+        icon={ShieldCheck}
+        iconClass="text-indigo-600"
+        title="Verify OTP"
+        submitted={submitOtpSent}
+        verified={submitVerified}
+        sentTo={submitOtpSentTo ? maskEmail(submitOtpSentTo) : ''}
+        digits={submitOtpDigits}
+        setDigits={setSubmitOtpDigits}
+        resendIn={submitResendIn}
+        nonce={otpNonce}
+        sending={sendingSubmitOtp}
+        verifying={submitting}
+        verifyLabel="Verify & Submit"
+        verifyingLabel="Submitting..."
+        onResend={sendSubmitOtp}
+        onClose={() => setShowSubmitOtp(false)}
+        onVerify={verifySubmitOtp}
+        remarkValue={remarks}
+        successTitle="OTP Verified Successfully"
+        successText={`Submitting estimate to ${DESIGNATION_FULL[wfPos?.nextStage?.owner] || 'next authority'}...`}
+      />
 
-                <label htmlFor="certificateId" className="ec-label">Certificate ID</label>
-                <input id="certificateId" type="text" value={certificateId}
-                  onChange={e => setCertificateId(e.target.value)}
-                  placeholder={`HMWSSB-DSC-${String(id).padStart(6, '0')}`} className="ec-input mb-3" />
+      <OTPVerifyModal
+        open={showDgmApprove}
+        icon={ShieldCheck}
+        iconClass="text-purple-600"
+        title="Confirm DGM Approval"
+        submitted={dgmOtpSent}
+        verified={dgmVerified}
+        sentTo={dgmOtpSentTo ? maskEmail(dgmOtpSentTo) : ''}
+        digits={dgmOtpDigits}
+        setDigits={setDgmOtpDigits}
+        resendIn={dgmResendIn}
+        nonce={otpNonce}
+        sending={sendingDgmOtp}
+        verifying={approving}
+        verifyLabel="Verify & Approve"
+        verifyingLabel="Approving..."
+        onResend={sendDgmOtp}
+        onClose={() => setShowDgmApprove(false)}
+        onVerify={verifyDgmApprove}
+        buttonClass="bg-purple-600 hover:bg-purple-700"
+        remarkValue={remarks}
+        successTitle="OTP Verified Successfully"
+        successText="Approving estimate and forwarding to GM..."
+      />
+      <OTPVerifyModal
+        open={showCgmSubmit}
+        icon={ShieldCheck}
+        iconClass="text-violet-600"
+        title="Submit to DOP"
+        submitted={cgmOtpSent}
+        verified={cgmVerified}
+        sentTo={cgmOtpSentTo ? maskEmail(cgmOtpSentTo) : ''}
+        digits={cgmOtpDigits}
+        setDigits={setCgmOtpDigits}
+        resendIn={cgmResendIn}
+        nonce={otpNonce}
+        sending={sendingCgmOtp}
+        verifying={submittingCgm}
+        verifyLabel="Verify & Submit"
+        verifyingLabel="Submitting..."
+        onResend={sendCgmOtp}
+        onClose={() => setShowCgmSubmit(false)}
+        onVerify={verifyCgmSubmit}
+        buttonClass="bg-violet-600 hover:bg-violet-700"
+        remarkValue={remarks}
+        successTitle="OTP Verified Successfully"
+        successText="Forwarding estimate to DOP..."
+      />
 
-                <p className="ec-label">Enter OTP</p>
-                <div className="mb-3">
-                  <OtpInput value={otpDigits} onChange={setOtpDigits} />
-                </div>
+      <OTPVerifyModal
+        open={showDopApprove}
+        icon={ShieldCheck}
+        iconClass="text-purple-600"
+        title="Approve & Forward to ED"
+        submitted={dopOtpSent}
+        verified={dopVerified}
+        sentTo={dopOtpSentTo ? maskEmail(dopOtpSentTo) : ''}
+        digits={dopOtpDigits}
+        setDigits={setDopOtpDigits}
+        resendIn={dopResendIn}
+        nonce={otpNonce}
+        sending={sendingDopOtp}
+        verifying={approvingDop}
+        verifyLabel="Verify & Approve"
+        verifyingLabel="Approving..."
+        onResend={sendDopOtp}
+        onClose={() => setShowDopApprove(false)}
+        onVerify={verifyDopApprove}
+        buttonClass="bg-purple-600 hover:bg-purple-700"
+        remarkValue={remarks}
+        successTitle="OTP Verified Successfully"
+        successText="Approving estimate and forwarding to ED..."
+      />
+      <OTPVerifyModal
+        open={showEdApprove}
+        icon={ShieldCheck}
+        iconClass="text-fuchsia-600"
+        title="Approve & Forward to MD"
+        submitted={edOtpSent}
+        verified={edVerified}
+        sentTo={edOtpSentTo ? maskEmail(edOtpSentTo) : ''}
+        digits={edOtpDigits}
+        setDigits={setEdOtpDigits}
+        resendIn={edResendIn}
+        nonce={otpNonce}
+        sending={sendingEdOtp}
+        verifying={approvingEd}
+        verifyLabel="Verify & Approve"
+        verifyingLabel="Approving..."
+        onResend={sendEdOtp}
+        onClose={() => setShowEdApprove(false)}
+        onVerify={verifyEdApprove}
+        buttonClass="bg-fuchsia-600 hover:bg-fuchsia-700"
+        remarkValue={remarks}
+        successTitle="OTP Verified Successfully"
+        successText="Approving estimate and forwarding to MD..."
+      />
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
-                  <button type="button" onClick={sendOtp} disabled={sendingOtp || resendIn > 0}
-                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
-                    {sendingOtp ? 'Sending...' : resendIn > 0 ? `Resend OTP (${resendIn}s)` : 'Resend OTP'}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowSign(false)} className="ec-btn-secondary flex-1">Cancel</button>
-                  <button onClick={verifyAndSign} disabled={signing || otpDigits.join('').length !== 6}
-                    className="ec-btn-primary flex-1">
-                    {signing ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {signing ? 'Forwarding...' : 'Verify OTP'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Submit Estimate OTP Modal */}
-      {showSubmitOtp && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowSubmitOtp(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-indigo-600" />
-              <h3 className="font-semibold text-[#0F172A]">Confirm Submission</h3>
-            </div>
-
-            {!submitOtpSent && !submitVerified ? (
-              <>
-                <p className="text-xs text-[#475569] mb-4">
-                  An OTP will be sent to your registered email to verify this submission.
-                  The estimate will be forwarded to {DESIGNATION_FULL[wfPos?.nextStage?.owner] || 'the next authority'} for review.
-                </p>
-                <label htmlFor="submitRemarks" className="ec-label">Remarks</label>
-                <textarea id="submitRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-4" rows={2}
-                  placeholder="Remarks for submission (optional)" />
-                <button type="button" onClick={sendSubmitOtp} disabled={sendingSubmitOtp}
-                  className="ec-btn-primary w-full justify-center">
-                  {sendingSubmitOtp ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  {sendingSubmitOtp ? 'Sending OTP...' : 'Send OTP to Submit'}
-                </button>
-              </>
-            ) : submitVerified ? (
-              <div className="py-8 flex flex-col items-center gap-2">
-                <CheckCircle className="w-10 h-10 text-[#059669]" />
-                <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#475569]">Submitting estimate to {DESIGNATION_FULL[wfPos?.nextStage?.owner] || 'next authority'}...</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#475569] mb-1">
-                  An OTP has been sent to {submitOtpSentTo ? (
-                    <span className="font-medium text-[#0F172A]">{maskEmail(submitOtpSentTo)}</span>
-                  ) : 'your email'}.
-                </p>
-                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-
-                <label htmlFor="submitModalRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="submitModalRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for submission (optional)" />
-
-                <label className="ec-label">Enter OTP</label>
-                <div className="mb-3">
-                  <OtpInput value={submitOtpDigits} onChange={setSubmitOtpDigits} />
-                </div>
-
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
-                  <button type="button" onClick={sendSubmitOtp} disabled={sendingSubmitOtp || submitResendIn > 0}
-                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
-                    {sendingSubmitOtp ? 'Sending...' : submitResendIn > 0 ? `Resend OTP (${submitResendIn}s)` : 'Resend OTP'}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowSubmitOtp(false)} className="ec-btn-secondary flex-1">Cancel</button>
-                  <button onClick={verifySubmitOtp} disabled={submitting || submitOtpDigits.join('').length !== 6}
-                    className="ec-btn-primary flex-1">
-                    {submitting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    {submitting ? 'Submitting...' : 'Verify & Submit'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* DGM Approve OTP Modal */}
-      {showDgmApprove && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowDgmApprove(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-purple-600" />
-              <h3 className="font-semibold text-[#0F172A]">Confirm DGM Approval</h3>
-            </div>
-
-            {!dgmOtpSent && !dgmVerified ? (
-              <>
-                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Estimate</span>
-                    <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Work</span>
-                    <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Version</span>
-                    <span className="font-medium text-[#0F172A]">v{estimate.Version}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Grand Total</span>
-                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-[#475569] mb-4">
-                  You are approving this estimate and recommending it to the General Manager.
-                  An OTP will be sent to your registered email for verification.
-                </p>
-                <label htmlFor="dgmApproveRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="dgmApproveRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-4" rows={2}
-                  placeholder="Remarks for approval (optional)" />
-                <button type="button" onClick={sendDgmOtp} disabled={sendingDgmOtp}
-                  className="ec-btn-primary w-full justify-center bg-purple-600 hover:bg-purple-700">
-                  {sendingDgmOtp ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  {sendingDgmOtp ? 'Sending OTP...' : 'Send OTP'}
-                </button>
-              </>
-            ) : dgmVerified ? (
-              <div className="py-8 flex flex-col items-center gap-2">
-                <CheckCircle className="w-10 h-10 text-[#059669]" />
-                <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#475569]">Approving estimate and forwarding to GM...</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#475569] mb-1">
-                  Enter the 6-digit OTP sent to {dgmOtpSentTo ? (
-                    <span className="font-medium text-[#0F172A]">{maskEmail(dgmOtpSentTo)}</span>
-                  ) : 'your registered email'}.
-                </p>
-                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-
-                <label htmlFor="dgmModalRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="dgmModalRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for approval (optional)" />
-
-                <label className="ec-label">Enter OTP</label>
-                <div className="mb-3">
-                  <OtpInput value={dgmOtpDigits} onChange={setDgmOtpDigits} />
-                </div>
-
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
-                  <button type="button" onClick={sendDgmOtp} disabled={sendingDgmOtp || dgmResendIn > 0}
-                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
-                    {sendingDgmOtp ? 'Sending...' : dgmResendIn > 0 ? `Resend OTP (${dgmResendIn}s)` : 'Resend OTP'}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowDgmApprove(false)} className="ec-btn-secondary flex-1">Cancel</button>
-                  <button onClick={verifyDgmApprove} disabled={approving || dgmOtpDigits.join('').length !== 6}
-                    className="ec-btn-primary flex-1 bg-purple-600 hover:bg-purple-700">
-                    {approving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {approving ? 'Approving...' : 'Verify & Approve'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      {/* CGM Submit OTP Modal */}
-      {showCgmSubmit && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowCgmSubmit(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-violet-600" />
-              <h3 className="font-semibold text-[#0F172A]">Submit to DOP</h3>
-            </div>
-            {!cgmOtpSent && !cgmVerified ? (
-              <>
-                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Estimate</span>
-                    <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Work</span>
-                    <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Grand Total</span>
-                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-[#475569] mb-4">You are submitting this estimate for DOP approval. An OTP will be sent to your registered email.</p>
-                <label htmlFor="cgmRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="cgmRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for submission" />
-                <button type="button" onClick={sendCgmOtp} disabled={sendingCgmOtp}
-                  className="ec-btn-primary w-full justify-center bg-violet-600 hover:bg-violet-700">
-                  {sendingCgmOtp ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  {sendingCgmOtp ? 'Sending OTP...' : 'Send OTP'}
-                </button>
-              </>
-            ) : cgmVerified ? (
-              <div className="py-8 flex flex-col items-center gap-2">
-                <CheckCircle className="w-10 h-10 text-[#059669]" />
-                <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#475569]">Forwarding estimate to DOP...</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {cgmOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(cgmOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                <label htmlFor="cgmModalRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="cgmModalRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for submission" />
-                <label className="ec-label">Enter OTP</label>
-                <div className="mb-3"><OtpInput value={cgmOtpDigits} onChange={setCgmOtpDigits} /></div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
-                  <button type="button" onClick={sendCgmOtp} disabled={sendingCgmOtp || cgmResendIn > 0}
-                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
-                    {sendingCgmOtp ? 'Sending...' : cgmResendIn > 0 ? `Resend OTP (${cgmResendIn}s)` : 'Resend OTP'}
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowCgmSubmit(false)} className="ec-btn-secondary flex-1">Cancel</button>
-                  <button onClick={verifyCgmSubmit} disabled={submittingCgm || cgmOtpDigits.join('').length !== 6}
-                    className="ec-btn-primary flex-1 bg-violet-600 hover:bg-violet-700">
-                    {submittingCgm ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {submittingCgm ? 'Submitting...' : 'Verify & Submit'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* DOP Approve OTP Modal */}
-      {showDopApprove && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowDopApprove(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-purple-600" />
-              <h3 className="font-semibold text-[#0F172A]">Approve & Forward to ED</h3>
-            </div>
-            {!dopOtpSent && !dopVerified ? (
-              <>
-                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Estimate</span>
-                    <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Work</span>
-                    <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Grand Total</span>
-                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-[#475569] mb-4">You are approving this estimate and forwarding it to the ED. An OTP will be sent to your registered email.</p>
-                <label htmlFor="dopRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="dopRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for approval" />
-                <button type="button" onClick={sendDopOtp} disabled={sendingDopOtp}
-                  className="ec-btn-primary w-full justify-center bg-purple-600 hover:bg-purple-700">
-                  {sendingDopOtp ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  {sendingDopOtp ? 'Sending OTP...' : 'Send OTP'}
-                </button>
-              </>
-            ) : dopVerified ? (
-              <div className="py-8 flex flex-col items-center gap-2">
-                <CheckCircle className="w-10 h-10 text-[#059669]" />
-                <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#475569]">Approving estimate and forwarding to ED...</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {dopOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(dopOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                <label htmlFor="dopModalRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="dopModalRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for approval" />
-                <label className="ec-label">Enter OTP</label>
-                <div className="mb-3"><OtpInput value={dopOtpDigits} onChange={setDopOtpDigits} /></div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
-                  <button type="button" onClick={sendDopOtp} disabled={sendingDopOtp || dopResendIn > 0}
-                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
-                    {sendingDopOtp ? 'Sending...' : dopResendIn > 0 ? `Resend OTP (${dopResendIn}s)` : 'Resend OTP'}
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowDopApprove(false)} className="ec-btn-secondary flex-1">Cancel</button>
-                  <button onClick={verifyDopApprove} disabled={approvingDop || dopOtpDigits.join('').length !== 6}
-                    className="ec-btn-primary flex-1 bg-purple-600 hover:bg-purple-700">
-                    {approvingDop ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {approvingDop ? 'Approving...' : 'Verify & Approve'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ED Approve OTP Modal */}
-      {showEdApprove && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowEdApprove(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-fuchsia-600" />
-              <h3 className="font-semibold text-[#0F172A]">Approve & Forward to MD</h3>
-            </div>
-            {!edOtpSent && !edVerified ? (
-              <>
-                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Estimate</span>
-                    <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Work</span>
-                    <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Grand Total</span>
-                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-[#475569] mb-4">You are approving this estimate and forwarding it to the MD for final approval. An OTP will be sent to your registered email.</p>
-                <label htmlFor="edRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="edRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for approval" />
-                <button type="button" onClick={sendEdOtp} disabled={sendingEdOtp}
-                  className="ec-btn-primary w-full justify-center bg-fuchsia-600 hover:bg-fuchsia-700">
-                  {sendingEdOtp ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  {sendingEdOtp ? 'Sending OTP...' : 'Send OTP'}
-                </button>
-              </>
-            ) : edVerified ? (
-              <div className="py-8 flex flex-col items-center gap-2">
-                <CheckCircle className="w-10 h-10 text-[#059669]" />
-                <p className="text-sm font-semibold text-[#0F172A]">OTP Verified Successfully</p>
-                <p className="text-xs text-[#475569]">Approving estimate and forwarding to MD...</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {edOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(edOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                <label htmlFor="edModalRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="edModalRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for approval" />
-                <label className="ec-label">Enter OTP</label>
-                <div className="mb-3"><OtpInput value={edOtpDigits} onChange={setEdOtpDigits} /></div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
-                  <button type="button" onClick={sendEdOtp} disabled={sendingEdOtp || edResendIn > 0}
-                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
-                    {sendingEdOtp ? 'Sending...' : edResendIn > 0 ? `Resend OTP (${edResendIn}s)` : 'Resend OTP'}
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowEdApprove(false)} className="ec-btn-secondary flex-1">Cancel</button>
-                  <button onClick={verifyEdApprove} disabled={approvingEd || edOtpDigits.join('').length !== 6}
-                    className="ec-btn-primary flex-1 bg-fuchsia-600 hover:bg-fuchsia-700">
-                    {approvingEd ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {approvingEd ? 'Approving...' : 'Verify & Approve'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* MD Final Approve OTP Modal */}
-      {showMdFinal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowMdFinal(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-5 h-5 text-pink-600" />
-              <h3 className="font-semibold text-[#0F172A]">MD Final Approval</h3>
-            </div>
-            {!mdOtpSent && !mdVerified ? (
-              <>
-                <div className="rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-3 mb-4 space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Estimate</span>
-                    <span className="font-medium text-[#0F172A]">{estimate.EstimateNo}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Work</span>
-                    <span className="font-medium text-[#0F172A] text-right max-w-[200px] truncate">{estimate.NameOfWork}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[#475569]">Grand Total</span>
-                    <span className="font-semibold text-[#2563EB]">{fmt(a.GrandTotal)}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-[#475569] mb-4">This is the final authorization step. The MD will approve the estimate, apply a digital signature, and a tender will be automatically created. An OTP will be sent to your registered email.</p>
-                <label htmlFor="mdRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="mdRemarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-4" rows={2} placeholder="Remarks for final approval" />
-                <button type="button" onClick={sendMdOtp} disabled={sendingMdOtp}
-                  className="ec-btn-primary w-full justify-center bg-pink-600 hover:bg-pink-700">
-                  {sendingMdOtp ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <PenSquare className="w-3.5 h-3.5" />}
-                  {sendingMdOtp ? 'Sending OTP...' : 'Send OTP for Final Approval'}
-                </button>
-              </>
-            ) : mdVerified ? (
-              <div className="py-8 flex flex-col items-center gap-2">
-                <CheckCircle className="w-10 h-10 text-[#059669]" />
-                <p className="text-sm font-semibold text-[#0F172A]">Final Approval Complete</p>
-                <p className="text-xs text-[#475569]">Tender has been automatically created and the Tender Officer has been notified.</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#059669] mb-1">OTP Sent</p>
-                <p className="text-xs text-[#475569] mb-1">Enter the 6-digit OTP sent to {mdOtpSentTo ? <span className="font-medium text-[#0F172A]">{maskEmail(mdOtpSentTo)}</span> : 'your email'}.</p>
-                <p className="text-xs text-[#475569] mb-3">This OTP is valid for 5 minutes.</p>
-                <label htmlFor="mdModalRemarks" className="ec-label">Remarks (optional)</label>
-                <textarea id="mdModalRemarks" name="remarks" value={remarks}
-                  onChange={e => setRemarks(e.target.value)}
-                  className="ec-input w-full text-sm mb-3" rows={2} placeholder="Remarks for final approval" />
-                <label className="ec-label">Enter OTP</label>
-                <div className="mb-3"><OtpInput value={mdOtpDigits} onChange={setMdOtpDigits} /></div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] text-[#94A3B8]">Valid for 5 minutes · 5 attempts</span>
-                  <button type="button" onClick={sendMdOtp} disabled={sendingMdOtp || mdResendIn > 0}
-                    className="text-xs text-[#2563EB] hover:underline disabled:text-[#94A3B8] disabled:cursor-not-allowed">
-                    {sendingMdOtp ? 'Sending...' : mdResendIn > 0 ? `Resend OTP (${mdResendIn}s)` : 'Resend OTP'}
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowMdFinal(false)} className="ec-btn-secondary flex-1">Cancel</button>
-                  <button onClick={verifyMdFinal} disabled={finalizingMd || mdOtpDigits.join('').length !== 6}
-                    className="ec-btn-primary flex-1 bg-pink-600 hover:bg-pink-700">
-                    {finalizingMd ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    {finalizingMd ? 'Finalizing...' : 'Verify & Final Approve'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <OTPVerifyModal
+        open={showMdFinal}
+        icon={ShieldCheck}
+        iconClass="text-pink-600"
+        title="MD Final Approval"
+        submitted={mdOtpSent}
+        verified={mdVerified}
+        sentTo={mdOtpSentTo ? maskEmail(mdOtpSentTo) : ''}
+        digits={mdOtpDigits}
+        setDigits={setMdOtpDigits}
+        resendIn={mdResendIn}
+        nonce={otpNonce}
+        sending={sendingMdOtp}
+        verifying={finalizingMd}
+        verifyLabel="Verify & Final Approve"
+        verifyingLabel="Finalizing..."
+        onResend={sendMdOtp}
+        onClose={() => setShowMdFinal(false)}
+        onVerify={verifyMdFinal}
+        buttonClass="bg-pink-600 hover:bg-pink-700"
+        remarkValue={remarks}
+        successTitle="Final Approval Complete"
+        successText="Tender has been automatically created and the Tender Officer has been notified."
+      />
     </div>
   )
 }

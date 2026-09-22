@@ -9,6 +9,7 @@ const DELETE_BY_ESTIMATE = [
   `DELETE FROM "FinanceWorkflow" WHERE "EstimateID" = ANY($1)`,
   `DELETE FROM "BillingPayments" WHERE "BillID" IN (SELECT "BillID" FROM "Billing" WHERE "EstimateID" = ANY($1))`,
   `DELETE FROM "Billing" WHERE "EstimateID" = ANY($1)`,
+  `DELETE FROM "WorkProgressImages" WHERE "EstimateID" = ANY($1)`,
   `DELETE FROM "WorkProgressPhotos" WHERE "ProgressID" IN (SELECT "ProgressID" FROM "WorkProgress" WHERE "EstimateID" = ANY($1))`,
   `DELETE FROM "WorkProgress" WHERE "EstimateID" = ANY($1)`,
   `DELETE FROM "SignatureOTP" WHERE "EstimateID" = ANY($1)`,

@@ -23,6 +23,7 @@ const auditRoutes = require('./routes/audit');
 const deletedEstimateRoutes = require('./routes/deletedEstimates');
 const estimateDocumentRoutes = require('./routes/estimateDocuments');
 const roleRoutes = require('./routes/roles');
+const progressPhotoRoutes = require('./routes/progressPhotos');
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use('/api/audit-logs', auditRoutes);
 app.use('/api/deleted-estimates', deletedEstimateRoutes);
 app.use('/api/estimate-documents', estimateDocumentRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/progress-photos', progressPhotoRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -81,8 +83,12 @@ app.get('/api/health', (req, res) => {
 // SLA checker started from server.js, not here (app.js is imported by tests)
 
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error', details: err.message });
+  // Full stack in the server log for debugging; keep the client payload simple
+  // and free of internal details outside development.
+  console.error('Unhandled error:', err && err.stack ? err.stack : err);
+  const payload = { error: 'Internal server error' };
+  if (process.env.NODE_ENV !== 'production') payload.details = err && err.message;
+  res.status(500).json(payload);
 });
 
 module.exports = app;
