@@ -49,7 +49,7 @@ exports.listTenders = async (req, res, next) => {
        ORDER BY t."TenderDate" DESC, t."TenderID" DESC`,
       params
     );
-    res.json(result.rows.map(r => ({ ...r, effectiveStatus: tenderState.effectiveStatus(r) })));
+    res.json(result.rows.map(r => ({ ...r, effectiveStatus: tenderState.effectiveStatusForDisplay(r) })));
   } catch (err) { next(err); }
 };
 
@@ -57,11 +57,12 @@ exports.getTender = async (req, res, next) => {
   try {
     const result = await db.query(
       `SELECT t.*, eh."WorkID", eh."NameOfWork", eh."EstimateNo", eh."Status" as "EstimateStatus",
-              ab."GrandTotal", ea."Name" as "EvaluationAuthorityName"
+              ab."GrandTotal", ea."Name" as "EvaluationAuthorityName", co."Name" as "CurrentOwnerName"
        FROM "Tender" t
        JOIN "EstimateHeader" eh ON eh."EstimateID" = t."EstimateID"
        LEFT JOIN "Abstract" ab ON ab."EstimateID" = t."EstimateID"
        LEFT JOIN "Users" ea ON ea."UserID" = t."EvaluationAuthorityID"
+       LEFT JOIN "Users" co ON co."UserID" = t."CurrentOwner"
        WHERE t."TenderID" = $1`,
       [req.params.id]
     );

@@ -108,6 +108,9 @@ exports.requestSubmitOtp = async (req, res, next) => {
     if (itemCount.rows[0].cnt === 0)
       return res.status(400).json({ error: 'Cannot submit estimate with no items' });
 
+    if (est.Status === 'Reverted' && (!est.ActionTakenReport || !String(est.ActionTakenReport).trim()))
+      return res.status(400).json({ error: 'Action Taken Report is mandatory before resubmission' });
+
     const cooldownSec = Math.max(parseInt(process.env.OTP_RESEND_COOLDOWN || '30', 10), 10);
     const lastOtp = await db.query(
       `SELECT "CreatedDate" FROM "SignatureOTP"
@@ -207,7 +210,11 @@ exports.submitEstimate = async (req, res, next) => {
     if (itemCount.rows[0].cnt === 0)
       return res.status(400).json({ error: 'Cannot submit estimate with no items' });
 
-    if (est.Status === 'Reverted' && (!remarks || !remarks.trim()))
+    // The Action Taken Report is validated from the ESTIMATE HEADER — the single
+    // persisted source of truth — not from a transient remarks field in the
+    // request body. A creator who saved their ATR via the edit form never has
+    // to re-enter it here; a resubmission without a saved ATR is rejected.
+    if (est.Status === 'Reverted' && (!est.ActionTakenReport || !String(est.ActionTakenReport).trim()))
       return res.status(400).json({ error: 'Action Taken Report is mandatory before resubmission' });
 
     // Verify OTP — same pattern as GM digital signature verification
@@ -1449,6 +1456,23 @@ exports.selectAgency = async (req, res, next) => {
     if (req.user.Designation !== 'DirectorOfAdministration')
       return res.status(403).json({ error: 'Only DirectorOfAdministration can select agency' });
 
+    // Root-cause guard: an estimate may only advance to AgencySelected when
+    // the finalized agency record actually exists. The old flow pushed the
+    // estimate to AgencySelected (and the tender to 'Awarded') with NO record,
+    // producing the stranded "Agency selection record is incomplete" state that
+    // blocked StartWork. The finalized record lives in the Agency module; this
+    // step only confirms it.
+    const finalAgency = await db.query(
+      `SELECT "AgencyID", "AgencyName", "ContractorName"
+       FROM "Agency" WHERE "EstimateID" = $1
+       ORDER BY ("TenderID" IS NOT NULL) DESC, "AgencyID" DESC LIMIT 1`,
+      [estimateId]
+    );
+    if (!finalAgency.rows.length || !(finalAgency.rows[0].AgencyName || finalAgency.rows[0].ContractorName))
+      return res.status(400).json({
+        error: 'No finalized agency record exists for this estimate. The Director must create the finalized agency record (Agency module) before Agency Finalization can be confirmed.',
+      });
+
     const se = await findUserByDesignation('SiteEngineer');
     if (!se) return res.status(400).json({ error: 'No SiteEngineer found' });
 
@@ -1513,17 +1537,43 @@ exports.startWork = async (req, res, next) => {
     if (est.Status !== 'AgencySelected')
       return res.status(400).json({ error: `Work can only be started after an agency has been selected (current status: ${est.Status})` });
 
-    // The Agency row linked to the estimate is the single authoritative
-    // "finalized agency" record (created by the Procurement Officer via
-    // createAgency). An estimate that claims AgencySelected but has no such
-    // record is internally inconsistent — surface that clearly instead of the
-    // generic "never had an agency" message.
-    const agency = await db.query('SELECT "AgencyID" FROM "Agency" WHERE "EstimateID" = $1 LIMIT 1', [estimateId]);
-    if (agency.rows.length === 0)
+    // The finalized-agency record must prove the full award/contract chain
+    // (Agency Finalization → Agreement → Work Order → Work Start). Collect
+    // every prerequisite and report exactly which are missing. The Tender row
+    // is authoritative for the tender-module path (award/agreement/work order),
+    // the Agency record for the legacy estimate path.
+    const agencies = (await db.query(
+      `SELECT * FROM "Agency" WHERE "EstimateID" = $1
+       ORDER BY ("TenderID" IS NOT NULL) DESC, "AgencyID" DESC`,
+      [estimateId]
+    )).rows;
+    const agency = agencies[0] || null;
+    const linked = agency && agency.TenderID
+      ? (await db.query('SELECT * FROM "Tender" WHERE "TenderID" = $1', [agency.TenderID])).rows[0]
+      : (await db.query('SELECT * FROM "Tender" WHERE "EstimateID" = $1 ORDER BY "TenderID" LIMIT 1', [estimateId])).rows[0];
+
+    const tenderReady = !!linked;
+    const agreementDone =
+      (tenderReady && !!linked.AgreementNo && !!linked.AgreementExecutedAt) ||
+      (!!(agency && agency.AgreementNo && agency.AgreementDate));
+    const workOrderDone =
+      (tenderReady && !!linked.WorkOrderNo && !!linked.WorkOrderIssuedAt) ||
+      (!!(agency && agency.WorkOrderNo && agency.WorkOrderDate));
+
+    const missing = [];
+    if (!agency || !(agency.AgencyName || agency.ContractorName))
+      missing.push('finalized agency record');
+    if (!(agency && Number(agency.TenderValue) > 0) && !(tenderReady && Number(linked.EstimatedCost) > 0))
+      missing.push('tender value');
+    if (!(agency && agency.PerformanceGuarantee != null) && !(tenderReady && linked.PerformanceSecurity))
+      missing.push('performance security');
+    if (!agreementDone) missing.push('agreement (AgreementNo + date)');
+    if (!workOrderDone) missing.push('work order (WorkOrderNo + date)');
+
+    if (missing.length)
       return res.status(400).json({
-        error: est.Status === 'AgencySelected'
-          ? 'Agency selection record is incomplete. Please verify the finalized agency before starting work.'
-          : 'No agency/contractor has been finalized for this estimate. The Procurement Officer must create the agency record before work can start.',
+        error: `Work start prerequisites are incomplete — missing: ${missing.join(', ')}. Complete these before starting work.`,
+        missing,
       });
 
     const currentVersion = await getOrCreateVersion(estimateId);
@@ -1558,6 +1608,14 @@ exports.startWork = async (req, res, next) => {
           `Work started by ${req.user.Name} (${req.user.Designation}). Previous status: ${est.Status}. New status: WorkStarted.`]
       );
 
+      // Stamp the real start date on the agency record (mirrors the completion
+      // stamp on completeWork so the agency row carries both lifecycle dates).
+      await client.query(
+        `UPDATE "Agency" SET "StartDate" = COALESCE("StartDate", now())
+         WHERE "EstimateID" = $1`,
+        [estimateId]
+      );
+
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -1565,6 +1623,9 @@ exports.startWork = async (req, res, next) => {
     } finally {
       client.release();
     }
+
+    // Execution-stage SLA clock starts when work begins.
+    await startSla('Estimate', 'WorkStarted', estimateId, 'EstimateHeader', true);
 
     await sendNotification(estimateId, est.CreatedBy, 'StartWork',
       `Work for ${est.EstimateNo} has started.`);
@@ -1594,19 +1655,59 @@ exports.completeWork = async (req, res, next) => {
     if (!bo) return res.status(400).json({ error: 'No BillingOfficer found' });
 
     const currentVersion = await getOrCreateVersion(estimateId);
-    await db.query(
-      `UPDATE "EstimateHeader" SET "Status" = 'WorkCompleted', "CurrentOwner" = $1 WHERE "EstimateID" = $2`,
-      [bo.UserID, estimateId]
-    );
 
-    await db.query(
-      `INSERT INTO "Workflow" ("EstimateID","FromUserID","ToUserID","Action","Version","OTPVerified","Remarks")
-       VALUES ($1,$2,$3,'CompleteWork',$4,TRUE,$5)`,
-      [estimateId, userId, bo.UserID, currentVersion, remarks || 'Work completed']
-    );
+    // Idempotent + concurrency-safe: only a WorkStarted estimate crosses into
+    // WorkCompleted, so a repeated submission conflicts cleanly and never
+    // writes a second completion date, workflow row or audit entry.
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
 
-    await auditLog(estimateId, userId, 'CompleteWork',
-      `SiteEngineer completed work for ${est.EstimateNo} (v${currentVersion}). Previous status: ${est.Status}. New status: WorkCompleted.`);
+      const updated = (await client.query(
+        `UPDATE "EstimateHeader"
+         SET "Status" = 'WorkCompleted', "CurrentOwner" = $1,
+             "CompletedDate" = COALESCE("CompletedDate", now()),
+             "CompletedBy" = COALESCE("CompletedBy", $2),
+             "LastModifiedBy" = $2, "LastModifiedDate" = now()
+         WHERE "EstimateID" = $3 AND "Status" = 'WorkStarted'
+         RETURNING *`,
+        [bo.UserID, userId, estimateId]
+      )).rows[0];
+      if (!updated) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Work has already been completed for this estimate' });
+      }
+
+      await client.query(
+        `INSERT INTO "Workflow" ("EstimateID","FromUserID","ToUserID","Action","Version","OTPVerified","Remarks")
+         VALUES ($1,$2,$3,'CompleteWork',$4,TRUE,$5)`,
+        [estimateId, userId, bo.UserID, currentVersion, remarks || 'Work completed']
+      );
+
+      await client.query(
+        `INSERT INTO "AuditLog" ("EstimateID","UserID","Action","Remarks")
+         VALUES ($1,$2,'CompleteWork',$3)`,
+        [estimateId, userId,
+          `SiteEngineer completed work for ${est.EstimateNo} (v${currentVersion}). Previous status: ${est.Status}. New status: WorkCompleted.`]
+      );
+
+      // Stamp the real completion date on the agency record.
+      await client.query(
+        `UPDATE "Agency" SET "CompletionDate" = COALESCE("CompletionDate", now())
+         WHERE "EstimateID" = $1`,
+        [estimateId]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    // Execution-stage SLA clock stops at completion.
+    await stopSla(estimateId, 'EstimateHeader', 'actioned');
 
     await sendNotification(estimateId, bo.UserID, 'CompleteWork',
       `Work for ${est.EstimateNo} is completed. Bills can now be prepared.`, {

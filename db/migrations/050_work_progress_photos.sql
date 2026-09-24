@@ -1,4 +1,4 @@
--- Migration 046: Work progress photos.
+-- Migration 050: Work progress photos.
 -- Per-work photo attachments (JPG/JPEG/PNG/WEBP/GIF, <= 10 MB each). The images are
 -- appended (never replace an existing photo) and stored against the Work ID +
 -- Estimate/Work Order ID + uploading user + timestamp, so they persist when a

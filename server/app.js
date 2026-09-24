@@ -24,6 +24,7 @@ const deletedEstimateRoutes = require('./routes/deletedEstimates');
 const estimateDocumentRoutes = require('./routes/estimateDocuments');
 const roleRoutes = require('./routes/roles');
 const progressPhotoRoutes = require('./routes/progressPhotos');
+const loaRoutes = require('./routes/loa');
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use('/api/deleted-estimates', deletedEstimateRoutes);
 app.use('/api/estimate-documents', estimateDocumentRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/progress-photos', progressPhotoRoutes);
+app.use('/api/loa', loaRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

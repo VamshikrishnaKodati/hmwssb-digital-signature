@@ -142,6 +142,7 @@ async function driveToStarted(estimateID) {
     TenderValue: 1000000, CompletionPeriod: '6 months',
     SecurityDeposit: 50000, PerformanceGuarantee: 100000,
     ContractorName: 'MB Contractor', ContactDetails: 'mb@test',
+    WorkOrderNo: 'WO-MB-001', WorkOrderDate: new Date().toISOString().slice(0, 10),
   }, tokens.director_admin);
 
   await request('POST', '/api/workflow/' + estimateID + '/select-agency', {}, tokens.director_admin);

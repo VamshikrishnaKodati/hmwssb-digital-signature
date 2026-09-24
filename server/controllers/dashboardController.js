@@ -576,7 +576,7 @@ exports.getStats = async (req, res, next) => {
         LEFT JOIN "Users" u ON u."UserID" = b."SubmittedBy"
         LEFT JOIN "Users" cu ON cu."UserID" = b."CurrentOwner"
         LEFT JOIN "Agency" ag ON ag."EstimateID" = eh."EstimateID"
-        WHERE (b."CurrentOwner" = $1 OR b."SubmittedBy" = $1)
+        WHERE b."SubmittedBy" = $1 AND b."Status" NOT IN ('Paid','Cancelled')
         ORDER BY CASE b."Status" WHEN 'Draft' THEN 1 WHEN 'ReturnedToBiller' THEN 2 ELSE 3 END, b."BillID" DESC
         LIMIT 25
       `, [userId]);
@@ -584,9 +584,11 @@ exports.getStats = async (req, res, next) => {
       const boMetrics = await db.query(`
         SELECT
           (SELECT COUNT(*)::int FROM "EstimateHeader" WHERE "CurrentOwner" = $1 AND "Status" = 'WorkCompleted') as "billsToPrepare",
-          (SELECT COUNT(*)::int FROM "Billing" WHERE ("CurrentOwner" = $1 OR "SubmittedBy" = $1) AND "Status" = 'Draft') as "draftBills",
+          (SELECT COUNT(*)::int FROM "Billing" WHERE "SubmittedBy" = $1 AND "Status" = 'Draft') as "draftBills",
           (SELECT COUNT(*)::int FROM "Billing" WHERE "SubmittedBy" = $1 AND "Status" IN ('SubmittedToManager','ManagerChecked','DGMChecked','SubmittedToFinance')) as "submittedBills",
           (SELECT COUNT(*)::int FROM "Billing" WHERE "CurrentOwner" = $1 AND "Status" = 'ReturnedToBiller') as "returnedBills",
+          (SELECT COUNT(*)::int FROM "Billing" WHERE "SubmittedBy" = $1 AND "Status" NOT IN ('Paid','Cancelled')) as "preparedBills",
+          (SELECT COUNT(*)::int FROM "Billing" WHERE "CurrentOwner" = $1 AND "Status" NOT IN ('Paid','Cancelled')) as "pendingAction",
           (SELECT COALESCE(SUM(b."NetAmount"), 0) FROM "Billing" b
             JOIN "EstimateHeader" eh ON eh."EstimateID" = b."EstimateID"
             WHERE b."Status" NOT IN ('Paid','Cancelled') AND (b."CurrentOwner" = $1 OR b."SubmittedBy" = $1 OR eh."CreatedBy" = $1)) as "amountPending"

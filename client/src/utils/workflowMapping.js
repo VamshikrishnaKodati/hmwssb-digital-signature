@@ -1,4 +1,4 @@
-// Canonical workflow mapping: 6 phases × 32 stages
+// Canonical workflow mapping: 6 phases × 33 stages
 // Backend status → UI phase/stage/label/owner
 // This is the SINGLE SOURCE OF TRUTH for all workflow display logic.
 
@@ -9,7 +9,7 @@ export const PHASES = [
     description: 'Estimate preparation, verification and final approval',
     index: 0,
     stages: [
-      { key: 'Draft', label: 'Draft', owner: 'Manager', backendStatuses: ['Draft'] },
+      { key: 'Draft', label: 'Draft', owner: 'Manager', backendStatuses: ['Draft', 'Reverted'] },
       { key: 'DGM_Verification', label: 'DGM Verification', owner: 'DGM', backendStatuses: ['Submitted'] },
       { key: 'GM_Recommendation', label: 'GM Recommendation', owner: 'GM', backendStatuses: ['DGM_Approved'] },
       { key: 'CGM_Submission', label: 'CGM Submission', owner: 'CGM', backendStatuses: ['GM_Recommended'] },
@@ -37,6 +37,7 @@ export const PHASES = [
     stages: [
       { key: 'Tender_Preparation', label: 'Tender Preparation', owner: 'Tender Officer', backendStatuses: ['TSApproved'] },
       { key: 'Tender_Publication', label: 'Tender Publication', owner: 'Tender Officer', backendStatuses: ['TenderPublished'] },
+      { key: 'Bid_Submission', label: 'Bid Submission Open', owner: 'Tender Officer', backendStatuses: [] },
       { key: 'Bid_Opening', label: 'Bid Opening', owner: 'Tender Officer', backendStatuses: ['TenderClosed'] },
       { key: 'Tech_Evaluation', label: 'Technical Evaluation', owner: 'Evaluation Authority', backendStatuses: ['TechnicalEvaluation'] },
       { key: 'Financial_Evaluation', label: 'Financial Evaluation', owner: 'Evaluation Authority', backendStatuses: ['FinancialEvaluation'] },
@@ -103,16 +104,17 @@ ALL_STAGES.forEach(stage => {
 
 // Tender sub-status mapping (several tender statuses share one backend estimate status)
 const TENDER_SUBSTATUS = {
+  Draft: { key: 'Tender_Preparation', label: 'Tender Preparation', phaseIndex: 2, stageIndex: 0 },
   TenderDraft: { key: 'Tender_Preparation', label: 'Tender Preparation', phaseIndex: 2, stageIndex: 0 },
   Published: { key: 'Tender_Publication', label: 'Tender Publication', phaseIndex: 2, stageIndex: 1 },
-  BidSubmissionOpen: { key: 'Tender_Publication', label: 'Bid Submission Open', phaseIndex: 2, stageIndex: 1 },
-  BidsClosed: { key: 'Bid_Opening', label: 'Bid Opening', phaseIndex: 2, stageIndex: 2 },
-  BidOpeningInProgress: { key: 'Bid_Opening', label: 'Bid Opening In Progress', phaseIndex: 2, stageIndex: 2 },
-  TechnicalEvaluationPending: { key: 'Tech_Evaluation', label: 'Technical Evaluation Pending', phaseIndex: 2, stageIndex: 3 },
-  UnderTechnicalEvaluation: { key: 'Tech_Evaluation', label: 'Under Technical Evaluation', phaseIndex: 2, stageIndex: 3 },
-  TechnicalEvaluation: { key: 'Tech_Evaluation', label: 'Technical Evaluation', phaseIndex: 2, stageIndex: 3 },
-  FinancialEvaluationPending: { key: 'Financial_Evaluation', label: 'Financial Evaluation Pending', phaseIndex: 2, stageIndex: 4 },
-  FinancialEvaluation: { key: 'Financial_Evaluation', label: 'Financial Evaluation', phaseIndex: 2, stageIndex: 4 },
+  BidSubmissionOpen: { key: 'Bid_Submission', label: 'Bid Submission Open', phaseIndex: 2, stageIndex: 2 },
+  BidsClosed: { key: 'Bid_Opening', label: 'Bid Opening', phaseIndex: 2, stageIndex: 3 },
+  BidOpeningInProgress: { key: 'Bid_Opening', label: 'Bid Opening In Progress', phaseIndex: 2, stageIndex: 3 },
+  TechnicalEvaluationPending: { key: 'Tech_Evaluation', label: 'Technical Evaluation Pending', phaseIndex: 2, stageIndex: 4 },
+  UnderTechnicalEvaluation: { key: 'Tech_Evaluation', label: 'Under Technical Evaluation', phaseIndex: 2, stageIndex: 4 },
+  TechnicalEvaluation: { key: 'Tech_Evaluation', label: 'Technical Evaluation', phaseIndex: 2, stageIndex: 4 },
+  FinancialEvaluationPending: { key: 'Financial_Evaluation', label: 'Financial Evaluation Pending', phaseIndex: 2, stageIndex: 5 },
+  FinancialEvaluation: { key: 'Financial_Evaluation', label: 'Financial Evaluation', phaseIndex: 2, stageIndex: 5 },
   L1Identified: { key: 'L1_Identification', label: 'L1 Identified', phaseIndex: 3, stageIndex: 0 },
   Awarded: { key: 'Work_Award', label: 'Work Awarded', phaseIndex: 3, stageIndex: 1 },
   WorkAwarded: { key: 'Work_Award', label: 'Work Awarded', phaseIndex: 3, stageIndex: 1 },

@@ -34,7 +34,7 @@ exports.createAgency = async (req, res, next) => {
 
     const { EstimateID, TenderID, AgencyName, AgencyCode, AgreementNo, AgreementDate,
             TenderValue, CompletionPeriod, SecurityDeposit, PerformanceGuarantee, ContactDetails,
-            ContractorName, WorkOrderDate, StartDate, CompletionDate } = req.body;
+            ContractorName, WorkOrderNo, WorkOrderDate, StartDate, CompletionDate } = req.body;
 
     const est = await db.query('SELECT "Status" FROM "EstimateHeader" WHERE "EstimateID" = $1', [EstimateID]);
     if (!est.rows.length) return res.status(404).json({ error: 'Estimate not found' });
@@ -65,11 +65,11 @@ exports.createAgency = async (req, res, next) => {
     const result = await db.query(
       `INSERT INTO "Agency" ("EstimateID","TenderID","AgencyName","AgencyCode","AgreementNo",
         "AgreementDate","TenderValue","CompletionPeriod","SecurityDeposit","PerformanceGuarantee","ContactDetails",
-        "ContractorName","WorkOrderDate","StartDate","CompletionDate")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+        "ContractorName","WorkOrderNo","WorkOrderDate","StartDate","CompletionDate")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [EstimateID, TenderID, AgencyName, AgencyCode, AgreementNo, AgreementDate,
        TenderValue, CompletionPeriod, SecurityDeposit, PerformanceGuarantee, ContactDetails,
-       ContractorName, WorkOrderDate || null, StartDate || null, CompletionDate || null]
+       ContractorName, WorkOrderNo || null, WorkOrderDate || null, StartDate || null, CompletionDate || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) { next(err); }
@@ -82,15 +82,15 @@ exports.updateAgency = async (req, res, next) => {
 
     const { AgencyName, AgencyCode, AgreementNo, AgreementDate, TenderValue,
             CompletionPeriod, SecurityDeposit, PerformanceGuarantee, ContactDetails,
-            ContractorName, WorkOrderDate, StartDate, CompletionDate } = req.body;
+            ContractorName, WorkOrderNo, WorkOrderDate, StartDate, CompletionDate } = req.body;
     const result = await db.query(
       `UPDATE "Agency" SET "AgencyName"=$1,"AgencyCode"=$2,"AgreementNo"=$3,"AgreementDate"=$4,
        "TenderValue"=$5,"CompletionPeriod"=$6,"SecurityDeposit"=$7,"PerformanceGuarantee"=$8,"ContactDetails"=$9,
-       "ContractorName"=$10,"WorkOrderDate"=$11,"StartDate"=$12,"CompletionDate"=$13
-       WHERE "AgencyID"=$14 RETURNING *`,
+       "ContractorName"=$10,"WorkOrderNo"=$11,"WorkOrderDate"=$12,"StartDate"=$13,"CompletionDate"=$14
+       WHERE "AgencyID"=$15 RETURNING *`,
       [AgencyName, AgencyCode, AgreementNo, AgreementDate, TenderValue,
        CompletionPeriod, SecurityDeposit, PerformanceGuarantee, ContactDetails,
-       ContractorName, WorkOrderDate || null, StartDate || null, CompletionDate || null, req.params.id]
+       ContractorName, WorkOrderNo || null, WorkOrderDate || null, StartDate || null, CompletionDate || null, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) { next(err); }

@@ -429,7 +429,8 @@ exports.awardTender = async (req, res, next) => {
       [l1.BidID, tender.TenderID]
     );
     const updated = (await db.query(
-      `UPDATE "Tender" SET "Status" = 'WorkAwarded', "AwardedAt" = now(), "AwardedBy" = $1 WHERE "TenderID" = $2 RETURNING *`,
+      `UPDATE "Tender" SET "Status" = 'WorkAwarded', "AwardedAt" = now(), "AwardedBy" = $1
+       WHERE "TenderID" = $2 RETURNING *`,
       [req.user.UserID, tender.TenderID]
     )).rows[0];
 
@@ -465,20 +466,30 @@ exports.issueWorkOrder = async (req, res, next) => {
     if (req.user.Designation !== 'DirectorOfAdministration' || !(await hasPerm(req, 'tender.workOrder')))
       return res.status(403).json({ error: 'Missing permission: tender.workOrder (Director only)' });
 
-    const { tender, error } = await loadEvalTender(req, ['WorkAwarded']);
+    // FINAL-flow order: work order records AFTER the agreement, so
+    // Award → Agreement → Work Order → Work Start. AgreementExecuted is the
+    // authoritative entry point; WorkAwarded is accepted only to reconcile a
+    // legacy tender issued under the old direct-from-award order.
+    const { tender, error } = await loadEvalTender(req, ['AgreementExecuted', 'WorkAwarded']);
     if (error) return res.status(error.status).json({ error: error.message });
 
     const { WorkOrderNo } = req.body || {};
     if (!WorkOrderNo) return res.status(400).json({ error: 'WorkOrderNo is required' });
 
+    // Idempotent + concurrency-safe: only an AgreementExecuted (or legacy
+    // WorkAwarded) tender crosses into WorkOrderIssued, so a repeated submission
+    // conflicts cleanly and never writes a second work-order number, audit
+    // entry or workflow row.
     const updated = (await db.query(
       `UPDATE "Tender" SET "Status" = 'WorkOrderIssued', "WorkOrderNo" = $1, "WorkOrderIssuedAt" = now(), "WorkOrderIssuedBy" = $2
-       WHERE "TenderID" = $3 RETURNING *`,
+       WHERE "TenderID" = $3 AND "Status" IN ('AgreementExecuted','WorkAwarded') RETURNING *`,
       [WorkOrderNo, req.user.UserID, tender.TenderID]
     )).rows[0];
+    if (!updated)
+      return res.status(409).json({ error: 'Work order already issued for this tender' });
     await db.query(
-      `UPDATE "Agency" SET "WorkOrderDate" = now() WHERE "EstimateID" = $1 AND "TenderID" = $2`,
-      [tender.EstimateID, tender.TenderID]
+      `UPDATE "Agency" SET "WorkOrderNo" = $1, "WorkOrderDate" = now() WHERE "EstimateID" = $2 AND "TenderID" = $3`,
+      [WorkOrderNo, tender.EstimateID, tender.TenderID]
     );
     await audit(tender.EstimateID, req.user.UserID, 'WORK_ORDER_ISSUED',
       `Work order ${WorkOrderNo} issued for tender ${tender.TenderNo} by ${req.user.Name} (${req.user.Designation}).`);
@@ -494,7 +505,11 @@ exports.recordAgreement = async (req, res, next) => {
     if (req.user.Designation !== 'DirectorOfAdministration' || !(await hasPerm(req, 'tender.agreement')))
       return res.status(403).json({ error: 'Missing permission: tender.agreement (Director only)' });
 
-    const { tender, error } = await loadEvalTender(req, ['WorkOrderIssued']);
+    // FINAL-flow gate: the agreement records right after the award, BEFORE the
+    // work order (Award → Agreement → Work Order → Work Start). WorkAwarded is
+    // the contracted entry point; WorkOrderIssued is accepted only to reconcile
+    // a legacy tender that recorded the work order first under the old order.
+    const { tender, error } = await loadEvalTender(req, ['WorkAwarded', 'WorkOrderIssued']);
     if (error) return res.status(error.status).json({ error: error.message });
 
     const { AgreementNo } = req.body || {};
@@ -512,12 +527,14 @@ exports.recordAgreement = async (req, res, next) => {
     try {
       await client.query('BEGIN');
 
-      // Idempotent + concurrency-safe: only a WorkOrderIssued tender crosses
-      // into executed, so a repeated submission conflicts cleanly and never
-      // writes duplicate agency rows, audit entries or workflow rows.
+      // Idempotent + concurrency-safe: only a WorkAwarded tender crosses into
+      // AgreementExecuted (FINAL order), so a repeated submission conflicts
+      // cleanly and never writes a second agreement number, audit entry or
+      // workflow row. WorkOrderIssued is accepted only for a legacy tender that
+      // recorded its work order first under the old order.
       updated = (await client.query(
         `UPDATE "Tender" SET "Status" = 'AgreementExecuted', "AgreementNo" = $1, "AgreementExecutedAt" = now(), "AgreementExecutedBy" = $2
-         WHERE "TenderID" = $3 AND "Status" = 'WorkOrderIssued' RETURNING *`,
+         WHERE "TenderID" = $3 AND "Status" IN ('WorkAwarded','WorkOrderIssued') RETURNING *`,
         [AgreementNo, req.user.UserID, tender.TenderID]
       )).rows[0];
       if (!updated) {
@@ -693,8 +710,12 @@ exports.completeBidOpening = async (req, res, next) => {
       return res.status(422).json({ error: 'Open at least one bid before completing bid opening' });
 
     const { remarks } = req.body;
+    // Handoff: once bid opening completes the tender is owned by the configured
+    // Evaluation Authority (per-tender, migration 043), never auto-assigned to
+    // the Tender Officer who opened. Legacy NULL authority keeps the current owner.
     const updated = (await db.query(
-      `UPDATE "Tender" SET "Status" = 'TechnicalEvaluationPending', "BidOpeningCompletedAt" = now(), "BidOpeningCompletedBy" = $1
+      `UPDATE "Tender" SET "Status" = 'TechnicalEvaluationPending', "BidOpeningCompletedAt" = now(), "BidOpeningCompletedBy" = $1,
+       "CurrentOwner" = COALESCE("EvaluationAuthorityID", "CurrentOwner")
        WHERE "TenderID" = $2 AND "Status" = 'BidOpeningInProgress' RETURNING *`,
       [req.user.UserID, tender.TenderID]
     )).rows[0];

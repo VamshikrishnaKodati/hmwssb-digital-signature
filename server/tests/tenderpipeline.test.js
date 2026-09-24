@@ -292,6 +292,8 @@ describe('Tender pipeline (Option 1): eval → L1 → award → work order → a
     const woAgency = (await db.query(`SELECT "WorkOrderDate" FROM "Agency" WHERE "TenderID" = $1`, [tid])).rows[0];
     assert.ok(woAgency.WorkOrderDate, 'agency stamped with work-order date');
     assert.ok(await hasAudit(eid, 'WORK_ORDER_ISSUED'), 'work order audited');
+    const dupWo = await request('POST', `/api/bids/tender/${tid}/work-order`, { WorkOrderNo: 'WO-PL-999' }, directorToken);
+    assert.equal(dupWo.status, 409, 'duplicate work order must conflict');
 
     // ── Negative: agreement before work order done is blocked (covered above);
     //    agreement by officer blocked; agreement without number blocked ──────────

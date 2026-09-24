@@ -26,7 +26,7 @@ async function seed() {
     await seedLocations(pool);
 
     // Seed users
-    const hash = await bcrypt.hash('password123', 10);
+    const hash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD || 'password123', 10);
     await pool.query(
       `INSERT INTO "Users" ("UserID","Username","PasswordHash","Name","Designation","RegionID","ZoneID","DivisionID","CircleID","WardID","MobileNumber","Email")
        VALUES

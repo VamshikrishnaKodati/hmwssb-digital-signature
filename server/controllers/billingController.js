@@ -253,7 +253,7 @@ async function verifyOtpFor(bill, user, purpose, otpCode) {
 
 exports.listBillings = async (req, res, next) => {
   try {
-    const { estimateId, status, createdBy, owner } = req.query;
+    const { estimateId, status, createdBy, owner, preparedBy } = req.query;
     const statuses = status ? status.split(',').map(s => s.trim()).filter(Boolean) : null;
     const params = [];
     let where = '';
@@ -265,6 +265,7 @@ exports.listBillings = async (req, res, next) => {
     if (statuses && statuses.length) add(statuses, `b."Status" = ANY($N)`);
     if (createdBy === 'me') add(req.user.UserID, `eh."CreatedBy" = $N`);
     if (owner === 'me') add(req.user.UserID, `b."CurrentOwner" = $N`);
+    if (preparedBy === 'me') add(req.user.UserID, `b."SubmittedBy" = $N`);
 
     const result = await db.query(
       `SELECT b.*, eh."WorkID", eh."NameOfWork", eh."EstimateNo", eh."Status" as "EstimateStatus",
@@ -349,12 +350,42 @@ exports.previewItems = async (req, res, next) => {
 
 // ── Create / update / delete (Billing Officer / Site Engineer) ────────────────
 
+async function createDraftBill(estimateId, user, { BillType, BillNo, BillDate, GST, NetAmount, Measurements, Items }) {
+  const items = applyItemOverrides(await deriveItems(estimateId, null), Items);
+  const billAmount = round2(items.reduce((s, i) => s + Number(i.Amount), 0));
+  const gst = Number(GST) || 0;
+  const netAmount = NetAmount != null ? round2(Number(NetAmount)) : round2(billAmount + gst);
+
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    const row = (await client.query(
+      `INSERT INTO "Billing" ("EstimateID","BillType","BillNo","BillDate","BillAmount","GST","NetAmount","Measurements","Status","CurrentOwner","SubmittedBy")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Draft',$9,$10) RETURNING *`,
+      [estimateId, BillType, BillNo || null, BillDate || null, billAmount, gst, netAmount, Measurements || null, user.UserID, user.UserID]
+    )).rows[0];
+    await replaceBillItems(client, row.BillID, items);
+    await client.query(
+      `INSERT INTO "AuditLog" ("EstimateID","UserID","Action","Remarks") VALUES ($1,$2,$3,$4)`,
+      [estimateId, user.UserID, `BILL_CREATED (Bill ${row.BillID})`,
+        `Bill ${row.BillNo || row.BillID} created by ${user.Name} (${user.Designation}). Type: ${BillType}, NetAmount: ${netAmount}.`]
+    );
+    await client.query('COMMIT');
+    return { bill: row, items };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 exports.createBilling = async (req, res, next) => {
   try {
     if (!canEdit(req.user))
       return res.status(403).json({ error: 'Only SiteEngineer or BillingOfficer can create bills' });
 
-    const { EstimateID, BillType, BillNo, BillDate, GST, NetAmount, Measurements, Items } = req.body;
+    const { EstimateID, BillType } = req.body;
     if (!EstimateID) return res.status(400).json({ error: 'EstimateID is required' });
     if (!BillType || !['RA', 'Final'].includes(BillType))
       return res.status(400).json({ error: 'BillType must be RA or Final' });
@@ -364,33 +395,43 @@ exports.createBilling = async (req, res, next) => {
     if (est.Status !== 'WorkCompleted')
       return res.status(400).json({ error: 'Bills can only be created for WorkCompleted estimates' });
 
-    const items = applyItemOverrides(await deriveItems(EstimateID, null), Items);
-    const billAmount = round2(items.reduce((s, i) => s + Number(i.Amount), 0));
-    const gst = Number(GST) || 0;
-    const netAmount = NetAmount != null ? round2(Number(NetAmount)) : round2(billAmount + gst);
+    const result = await createDraftBill(EstimateID, req.user, req.body);
+    res.status(201).json(result);
+  } catch (err) { next(err); }
+};
 
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-      const row = (await client.query(
-        `INSERT INTO "Billing" ("EstimateID","BillType","BillNo","BillDate","BillAmount","GST","NetAmount","Measurements","Status","CurrentOwner")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Draft',$9) RETURNING *`,
-        [EstimateID, BillType, BillNo || null, BillDate || null, billAmount, gst, netAmount, Measurements || null, req.user.UserID]
-      )).rows[0];
-      await replaceBillItems(client, row.BillID, items);
-      await client.query(
-        `INSERT INTO "AuditLog" ("EstimateID","UserID","Action","Remarks") VALUES ($1,$2,$3,$4)`,
-        [EstimateID, req.user.UserID, `BILL_CREATED (Bill ${row.BillID})`,
-          `Bill ${row.BillNo || row.BillID} created by ${req.user.Name} (${req.user.Designation}). Type: ${BillType}, NetAmount: ${netAmount}.`]
-      );
-      await client.query('COMMIT');
-      res.status(201).json({ bill: row, items });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
+// Idempotent "Prepare Bill": creates a real Draft bill owned by the current
+// Billing Officer (PreparedBy + CurrentOwner), or reuses an existing editable
+// (Draft/ReturnedToBiller) bill for the same estimate so repeated clicks never
+// duplicate. Estimate stays at WorkCompleted.
+exports.prepareBilling = async (req, res, next) => {
+  try {
+    if (!canEdit(req.user))
+      return res.status(403).json({ error: 'Only SiteEngineer or BillingOfficer can prepare bills' });
+
+    const estimateId = parseInt(req.body.EstimateID, 10);
+    if (!estimateId) return res.status(400).json({ error: 'EstimateID is required' });
+
+    const est = (await db.query('SELECT "Status" FROM "EstimateHeader" WHERE "EstimateID" = $1', [estimateId])).rows[0];
+    if (!est) return res.status(404).json({ error: 'Estimate not found' });
+    if (est.Status !== 'WorkCompleted')
+      return res.status(400).json({ error: 'Bill preparation requires a WorkCompleted estimate' });
+
+    const existing = (await db.query(
+      `SELECT "BillID" FROM "Billing"
+       WHERE "EstimateID" = $1 AND "Status" IN ('Draft','ReturnedToBiller') AND "SubmittedBy" = $2
+       ORDER BY "BillID" DESC LIMIT 1`,
+      [estimateId, req.user.UserID]
+    )).rows[0];
+
+    if (existing) {
+      const bill = await fetchBill(existing.BillID);
+      const items = (await db.query('SELECT * FROM "BillItems" WHERE "BillID" = $1 ORDER BY "BillItemID"', [bill.BillID])).rows;
+      return res.json({ bill, items, reused: true });
     }
+
+    const result = await createDraftBill(estimateId, req.user, { BillType: 'RA' });
+    res.status(201).json({ ...result, reused: false });
   } catch (err) { next(err); }
 };
 

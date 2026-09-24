@@ -3,6 +3,7 @@ import { fmt, qs } from '../../components/dashboard/utils'
 import MetricCard from '../../components/dashboard/MetricCard'
 import QuickActions from '../../components/dashboard/QuickActions'
 import EstimatePipeline from '../../components/dashboard/EstimatePipeline'
+import BillingQueueSection from '../../components/dashboard/BillingQueueSection'
 import AttentionRequired from '../../components/dashboard/AttentionRequired'
 import { buildPipelineStages } from './pipelineConfig'
 
@@ -11,6 +12,7 @@ export default function GMDashboard({ user, queues, gmDashboard }) {
   const metrics = gd.metrics || {}
   const pipeline = gd.pipeline || {}
   const escalated = gd.escalated || []
+  const billsToCheck = gd.billingMetrics?.pendingBillCheck || 0
 
   const pendingReview = metrics.pendingReview || queues.pendingApproval || 0
   const awaitingReview = metrics.awaitingReview || 0
@@ -43,8 +45,17 @@ export default function GMDashboard({ user, queues, gmDashboard }) {
           <MetricCard label="Returns Sent" value={totalReturns} icon={ArrowLeft} bg="bg-amber-500" to={qs({ actedBy: 'me', action: 'ReturnTS' })} tip={`${fmt(totalReturns)} returned to Director`} />
           <MetricCard label="Approved Today" value={approvedToday} icon={CheckCircle} bg="bg-green-600" to={qs({ actedBy: 'me', action: 'DigitallySign', today: true })} tip={`${fmt(approvedToday)} signed today`} />
           <MetricCard label="Reverts Sent" value={returnsSentToday} icon={RotateCcw} bg="bg-amber-600" to={qs({ actedBy: 'me', action: 'ReturnTS', today: true })} tip={`${fmt(returnsSentToday)} reverts today`} />
+          <MetricCard label="Bills to Check" value={billsToCheck} icon={CheckCircle} bg="bg-purple-600" to="/billing?owner=me" tip={`${fmt(billsToCheck)} bills awaiting your approval`} />
         </div>
       </div>
+
+      <BillingQueueSection
+        title="Bills to Check"
+        subtitle={`${billsToCheck} bill${billsToCheck !== 1 ? 's' : ''} awaiting your approval`}
+        rows={gd.billing || []}
+        viewLink="/billing?owner=me"
+        me={user}
+      />
 
       <AttentionRequired rows={escalated} />
     </div>

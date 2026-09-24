@@ -3,14 +3,16 @@ import { fmt, qs } from '../../components/dashboard/utils'
 import MetricCard from '../../components/dashboard/MetricCard'
 import QuickActions from '../../components/dashboard/QuickActions'
 import EstimatePipeline from '../../components/dashboard/EstimatePipeline'
+import BillingQueueSection from '../../components/dashboard/BillingQueueSection'
 import AttentionRequired from '../../components/dashboard/AttentionRequired'
 import { buildPipelineStages } from './pipelineConfig'
 
-export default function DGMDashboard({ queues, dgmDashboard }) {
+export default function DGMDashboard({ user, queues, dgmDashboard }) {
   const dd = dgmDashboard || {}
   const metrics = dd.metrics || {}
   const escalated = dd.escalated || []
   const pipeline = dd.pipeline || {}
+  const billsToCheck = dd.billingMetrics?.pendingBillCheck || 0
 
   const pendingReview = metrics.pendingReview || queues.pendingReview || 0
   const revertedToMe = metrics.revertedToMe || queues.reverted || 0
@@ -44,8 +46,17 @@ export default function DGMDashboard({ queues, dgmDashboard }) {
           <MetricCard label="Approved by Me" value={approvedByMe} icon={CheckCircle} bg="bg-green-600" to={qs({ actedBy: 'me', action: 'Approve' })} tip={`${fmt(approvedByMe)} estimates approved`} />
           <MetricCard label="Returns Sent" value={returnsSent} icon={ArrowLeft} bg="bg-amber-600" to={qs({ actedBy: 'me', action: 'ReturnToGM' })} tip={`${fmt(returnsSent)} returned to GM`} />
           <MetricCard label="In My Scope" value={totalInScope} icon={Eye} bg="bg-violet-600" to={qs({ assignedTo: 'me' })} tip={`${fmt(totalInScope)} total estimates in DGM scope`} />
+          <MetricCard label="Bills to Check" value={billsToCheck} icon={CheckCircle} bg="bg-purple-600" to="/billing?owner=me" tip={`${fmt(billsToCheck)} bills awaiting your approval`} />
         </div>
       </div>
+
+      <BillingQueueSection
+        title="Bills to Check"
+        subtitle={`${billsToCheck} bill${billsToCheck !== 1 ? 's' : ''} awaiting your approval`}
+        rows={dd.billing || []}
+        viewLink="/billing?owner=me"
+        me={user}
+      />
 
       <AttentionRequired rows={escalated} />
     </div>

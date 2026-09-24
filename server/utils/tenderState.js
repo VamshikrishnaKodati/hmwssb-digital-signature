@@ -109,7 +109,10 @@ exports.isEvalAuthority = function isEvalAuthority(tender, req) {
 
 // Capability flags for the tender detail screen.
 exports.capabilities = async function capabilities(tender, req) {
-  const eff = exports.effectiveStatus(tender);
+  // Never-published drafts (Status Draft/TenderDraft) must not display or gate
+  // as if the submission window were live — a Draft's window dates carry no
+  // meaning until publish (see effectiveStatusForDisplay).
+  const eff = exports.effectiveStatusForDisplay(tender);
   if (!req || !req.user) return { effectiveStatus: eff };
   const perms = (await getPermissions())[req.user.Designation] || new Set();
   const isTO = req.user.Designation === 'TenderOfficer';
@@ -132,8 +135,10 @@ exports.capabilities = async function capabilities(tender, req) {
     canEvaluateTechnical: perms.has('tender.evaluate') && isEvalAuth && (eff === exports.TECH_EVAL_PENDING || eff === exports.TECH_EVAL),
     canEvaluateFinancial: perms.has('tender.evaluate') && isEvalAuth && eff === exports.FIN_EVAL_PENDING,
     canIdentifyL1: perms.has('tender.evaluate') && isEvalAuth && eff === exports.FIN_EVAL,
-    // Director hands: award → work order → agreement
+    // Director hands: award → LOA → work order → agreement. The LOA does not
+    // move Tender.Status, so Work Order stays the next action after the LOA.
     canAward: isDirector && perms.has('tender.award') && eff === exports.L1_IDENTIFIED,
+    canIssueLOA: isDirector && perms.has('tender.workOrder') && eff === exports.WORK_AWARDED,
     canIssueWorkOrder: isDirector && perms.has('tender.workOrder') && eff === exports.WORK_AWARDED,
     canRecordAgreement: isDirector && perms.has('tender.agreement') && eff === exports.WORK_ORDER_ISSUED,
   };

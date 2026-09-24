@@ -4,7 +4,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 import OtpModal from '../components/billing/OtpModal'
-import { BillStatusBadge, SlaPill, canEditBill } from '../utils/billStatus'
+import { BillStatusBadge, SlaPill, canEditBill, isBillEditor } from '../utils/billStatus'
 import { fmtCurrency } from '../components/dashboard/utils'
 
 export default function BillingList() {
@@ -23,9 +23,10 @@ export default function BillingList() {
   const statusFilter = params.get('status')
   const createdByFilter = params.get('createdBy')
   const ownerFilter = params.get('owner')
+  const preparedByFilter = params.get('preparedBy')
   const editParam = params.get('edit')
 
-  useEffect(() => { loadBills() }, [estimateId, statusFilter, createdByFilter, ownerFilter])
+  useEffect(() => { loadBills() }, [estimateId, statusFilter, createdByFilter, ownerFilter, preparedByFilter])
   useEffect(() => { if (editParam) openEdit(editParam); else setShowForm(false) }, [editParam])
 
   const loadBills = async () => {
@@ -35,6 +36,7 @@ export default function BillingList() {
       if (statusFilter) sp.set('status', statusFilter)
       if (createdByFilter) sp.set('createdBy', createdByFilter)
       if (ownerFilter) sp.set('owner', ownerFilter)
+      if (preparedByFilter) sp.set('preparedBy', preparedByFilter)
       const qs = sp.toString()
       const res = await api.get(`/billing${qs ? `?${qs}` : ''}`)
       setBills(res.data || [])
@@ -122,8 +124,8 @@ export default function BillingList() {
     catch (err) { toast.error(err.response?.data?.error || 'Delete failed') }
   }
 
-  const isEditor = role === 'BillingOfficer' || role === 'SiteEngineer'
-  const editableCount = bills.filter(b => isEditor && ['Draft', 'ReturnedToBiller'].includes(b.Status)).length
+  const isEditor = isBillEditor(role)
+  const editableCount = bills.filter(b => isBillEditor(role) && ['Draft', 'ReturnedToBiller'].includes(b.Status)).length
   const hasFormOpen = showForm
 
   return (
@@ -231,7 +233,7 @@ export default function BillingList() {
             </thead>
             <tbody>
               {bills.map(b => {
-                const editable = isEditor && ['Draft', 'ReturnedToBiller'].includes(b.Status)
+                const editable = canEditBill(role, b.Status)
                 const iAmOwner = b.CurrentOwner === user.UserID
                 return (
                   <tr key={b.BillID}>

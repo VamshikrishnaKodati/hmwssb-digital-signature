@@ -20,6 +20,8 @@ const TenderList = lazy(() => import('./pages/TenderList'))
 const TenderDetail = lazy(() => import('./pages/TenderDetail'))
 const TenderForm = lazy(() => import('./pages/TenderForm'))
 const TenderPreview = lazy(() => import('./pages/TenderPreview'))
+const LoaDetail = lazy(() => import('./pages/LoaDetail'))
+const LoaPrint = lazy(() => import('./pages/LoaPrint'))
 const AgencyList = lazy(() => import('./pages/AgencyList'))
 const ProgressList = lazy(() => import('./pages/ProgressList'))
 const MeasurementList = lazy(() => import('./pages/MeasurementList'))
@@ -97,6 +99,8 @@ const router = createBrowserRouter(
       <Route path="/tenders/:id/edit" element={<ProtectedRoute roles={['TenderOfficer']}><LazyPage><TenderForm /></LazyPage></ProtectedRoute>} />
       <Route path="/tenders/:id/preview" element={<ProtectedRoute roles={['TenderOfficer']}><LazyPage><TenderPreview /></LazyPage></ProtectedRoute>} />
       <Route path="/tenders/:id" element={<ProtectedRoute><LazyPage><TenderDetail /></LazyPage></ProtectedRoute>} />
+      <Route path="/loa/:tenderId" element={<ProtectedRoute><LazyPage><LoaDetail /></LazyPage></ProtectedRoute>} />
+      <Route path="/print/loa/:tenderId" element={<ProtectedRoute><LazyPage><LoaPrint /></LazyPage></ProtectedRoute>} />
       <Route path="/agencies" element={<ProtectedRoute><LazyPage><AgencyList /></LazyPage></ProtectedRoute>} />
       <Route path="/progress" element={<ProtectedRoute><LazyPage><ProgressList /></LazyPage></ProtectedRoute>} />
       <Route path="/measurements" element={<ProtectedRoute><LazyPage><MeasurementList /></LazyPage></ProtectedRoute>} />

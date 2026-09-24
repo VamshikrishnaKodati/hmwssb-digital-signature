@@ -314,3 +314,60 @@ describe('4. RECEIVE side: full chain Manager->DGM->GM->CGM->DOP->ED->MD on one 
     assert.equal(await headerState(est.EstimateID), 'FinalApproved');
   });
 });
+
+describe('5. Reverted → ATR → resubmission (persisted ActionTakenReport is the single source of truth)', () => {
+  it('validates the persisted ATR and never opens an OTP for an invalid resubmission', async () => {
+    const { getStatusInfo, getStatusLabel, getNextStage } = await loadResolver();
+
+    // Client mapping fix: 'Reverted' resolves to a real stage (Draft), not
+    // "Workflow stage not found", and next stage is always DGM Verification.
+    const info = getStatusInfo('Reverted');
+    assert.equal(info.flatIndex >= 0, true, 'Reverted must map to a known workflow stage');
+    assert.equal(getStatusLabel('Reverted'), 'Draft');
+    assert.equal(info.owner, 'Manager');
+    const next = getNextStage('Reverted');
+    assert.equal(next.stageKey, 'DGM_Verification');
+    assert.equal(next.owner, 'DGM');
+
+    const manager = await login('manager');
+    const est = await createEstimate(manager.token, 'RevertResubmit');
+    await act(manager.token, est.EstimateID, 'submit',
+      /\[OTP\]\[DEV\] Submit OTP for estimate \S+ \(user [^)]+\): (\d{6})/);
+    assert.equal(await headerState(est.EstimateID), 'Submitted');
+
+    // DGM reverts to the creator and the estimate returns to Reverted / creator.
+    const dgm = await login('dgm');
+    const rev = await request('POST', `/api/workflow/${est.EstimateID}/revert`,
+      { remarks: 'Recompute the quantities' }, dgm.token);
+    assert.equal(rev.status, 200, JSON.stringify(rev.body));
+    assert.equal(await headerState(est.EstimateID), 'Reverted');
+    assert.equal(await ownerDesignation(est.EstimateID), 'Manager');
+
+    // No ATR persisted → request-otp must 400 and send NO OTP.
+    const attempt = await captureOtpFromLog(() =>
+      request('POST', `/api/workflow/${est.EstimateID}/submit/request-otp`, {}, manager.token));
+    assert.equal(attempt.result.status, 400, 'OTP must not be opened for an invalid ATR');
+    assert.equal(attempt.result.body.error, 'Action Taken Report is mandatory before resubmission');
+    assert.equal(attempt.captured.includes('[OTP][DEV]'), false, 'no OTP must be generated/sent');
+
+    // Creator saves the ATR via the edit endpoint (exactly what the Edit form does).
+    const save = await request('PUT', `/api/estimates/${est.EstimateID}`,
+      { ActionTakenReport: 'Corrected quantities and recomputed the abstract.' }, manager.token);
+    assert.equal(save.status, 200, JSON.stringify(save.body));
+    assert.equal(save.body.ActionTakenReport, 'Corrected quantities and recomputed the abstract.');
+
+    // Resubmission now proceeds WITHOUT any body remarks — the persisted ATR is
+    // the only thing validated. OTP opens, verify moves to DGM at Submitted.
+    const resub = await captureOtpFromLog(() =>
+      request('POST', `/api/workflow/${est.EstimateID}/submit/request-otp`, {}, manager.token));
+    assert.equal(resub.result.status, 200, JSON.stringify(resub.result.body));
+    const m = /\[OTP\]\[DEV\] Submit OTP for estimate \S+ \(user [^)]+\): (\d{6})/.exec(resub.captured);
+    assert.ok(m, 'resubmission OTP should be captured');
+    const final = await request('POST', `/api/workflow/${est.EstimateID}/submit`,
+      { otpCode: m[1] }, manager.token);
+    assert.equal(final.status, 200, JSON.stringify(final.body));
+    assert.equal(await headerState(est.EstimateID), 'Submitted');
+    assert.equal(await ownerDesignation(est.EstimateID), 'DGM',
+      'resubmission must hand the estimate to the DGM at DGM Verification');
+  });
+});

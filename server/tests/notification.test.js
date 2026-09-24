@@ -223,6 +223,11 @@ describe('Notification Workflow Integration', () => {
   });
 
   it('resubmit + DGM approve creates notification for GM', async () => {
+    // Persist the Action Taken Report first — resubmission validates the saved ATR.
+    const atrSave = await request('PUT', `/api/estimates/${est.EstimateID}`,
+      { ActionTakenReport: 'Corrected quantities as per reversion remarks' }, tokens.manager);
+    assert.equal(atrSave.status, 200, JSON.stringify(atrSave.body));
+
     // Resubmit
     const { captured: subCap } = await captureOtpFromLog(() =>
       request('POST', `/api/workflow/${est.EstimateID}/submit/request-otp`, {}, tokens.manager));

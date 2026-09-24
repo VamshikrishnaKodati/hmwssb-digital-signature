@@ -171,7 +171,8 @@ async function driveToStarted(estimateID) {
     SecurityDeposit: 50000,
     PerformanceGuarantee: 100000,
     ContractorName: 'Dash Contractor',
-    ContactDetails: 'contractor@dash.test',
+    ContactDetails: 'dash@test',
+    WorkOrderNo: 'WO-DASH-001', WorkOrderDate: new Date().toISOString().slice(0, 10),
   }, tokens.director_admin);
   assert.equal(agency.status, 201, `agency: ${JSON.stringify(agency.body)}`);
 

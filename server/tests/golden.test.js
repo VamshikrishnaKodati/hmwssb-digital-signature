@@ -640,6 +640,7 @@ describe('Golden Integration Test', () => {
       PerformanceGuarantee: 100000,
       ContractorName: 'Golden Contractor',
       ContactDetails: 'contractor@golden.test',
+      WorkOrderNo: 'WO-GT-001', WorkOrderDate: new Date().toISOString().slice(0, 10),
     }, procurementToken);
     assert.equal(res.status, 201, JSON.stringify(res.body));
   });

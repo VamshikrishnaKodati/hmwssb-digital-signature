@@ -1,4 +1,4 @@
--- HMWSSB v47: DOP corporation assignments.
+-- HMWSSB v51: DOP corporation assignments.
 -- DOP is corporation-scoped. Its corporation assignment is DATA (stored in a
 -- dedicated assignment record), not hardcoded role logic. The table mirrors
 -- the Manager/DGM/GM/CGM assignment tables from migration 044 so the same

@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 router.get('/', authenticate, billingController.listBillings);
 router.get('/preview-items', authenticate, billingController.previewItems);
 router.post('/', authenticate, billingController.createBilling);
+router.post('/prepare', authenticate, billingController.prepareBilling);
 router.get('/:id', authenticate, billingController.getBilling);
 router.put('/:id', authenticate, billingController.updateBilling);
 router.delete('/:id', authenticate, billingController.deleteBilling);

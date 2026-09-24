@@ -231,6 +231,7 @@ export default function EstimateDetail() {
   const [otpNonce, setOtpNonce] = useState(0)
   const submitLockRef = useRef(false)
   const signLockRef = useRef(false)
+  const billLockRef = useRef(false)
   const dgmLockRef = useRef(false)
   const cgmLockRef = useRef(false)
   const dopLockRef = useRef(false)
@@ -393,6 +394,7 @@ export default function EstimateDetail() {
         payload.AuthorityRole = tsAuthority
         delete payload.remarks
       }
+      if (actionType === 'revert' && !payload.remarks) payload.remarks = 'Reverted to creator'
       const res = await api.post(`/workflow/${id}/${actionType}`, payload)
       const sanctionNo = res.data?.sanctionNo
       const tsNo = res.data?.tsNo
@@ -415,7 +417,28 @@ export default function EstimateDetail() {
   const confirmAction = (actionType) => {
     setAction(actionType)
     setTsAuthority('')
+    setRemarks('')
     setShowConfirm(true)
+  }
+
+  const prepareBill = async () => {
+    if (billLockRef.current) return
+    billLockRef.current = true
+    setProcessing(true)
+    try {
+      const res = await api.post('/billing/prepare', { EstimateID: Number(id) })
+      const bill = res.data.bill
+      if (res.data.reused) toast.success('Bill already prepared — opening it')
+      else toast.success('Bill prepared as Draft')
+      setShowConfirm(false)
+      setAction('')
+      navigate(`/billing/${bill.BillID}`)
+    } catch (err) {
+      console.error(`[billing] prepare failed for estimate ${id}:`, err)
+      toast.error(err.response?.data?.error || 'Could not prepare bill')
+    }
+    setProcessing(false)
+    billLockRef.current = false
   }
 
   const sendOtp = async () => {
@@ -512,7 +535,7 @@ export default function EstimateDetail() {
     try {
       const payload = {
         otpCode: submitOtpDigits.join(''),
-        remarks: remarks || undefined,
+        remarks: estimate.Status === 'Reverted' ? (estimate.ActionTakenReport || undefined) : (remarks || undefined),
       }
       const res = await api.post(`/workflow/${id}/submit`, payload)
       setSubmitVerified(true)
@@ -900,6 +923,7 @@ const canEdit = canPerform(user, 'estimate', 'edit', estimate)
 const frontPipeline = estimate.Status === 'Draft' || estimate.Status === 'Reverted'
 const wfPos = resolveWorkflowPosition(estimate.Status, estimate.CurrentOwnerDesignation || estimate.CreatedByDesignation)
 const canSubmit = isOwner && frontPipeline && !!wfPos?.nextStage && hasPermission(user, 'estimate.submit')
+  && (estimate.Status !== 'Reverted' || !!estimate.ActionTakenReport?.trim())
 const canRevert = isOwner && ['Submitted', 'DGM_Approved', 'Approved', 'GM_Recommended', 'CGM_Submitted',
   'DOP_Approved', 'ED_Approved',
   'Signed', 'TenderPublished', 'AgencySelected', 'WorkStarted', 'WorkCompleted', 'Billing'].includes(estimate.Status)
@@ -937,7 +961,7 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
   // Single source of truth for every action — reused by header, More Actions and ActionPanel.
   const allActions = [
     { key: 'edit', label: 'Edit Estimate', icon: Edit3, tone: 'secondary', show: canEdit, onClick: () => navigate(`/estimates/${id}/edit`) },
-{ key: 'submit', label: wfPos?.nextStage?.owner === 'DGM' ? 'Submit to DGM' : `Forward to ${DESIGNATION_FULL[wfPos?.nextStage?.owner] || wfPos?.nextStage?.owner || 'DGM'}`, icon: Send, tone: 'primary', show: canSubmit, onClick: openSubmitOtp },
+{ key: 'submit', label: estimate.Status === 'Reverted' ? 'Resubmit to DGM' : (wfPos?.nextStage?.owner === 'DGM' ? 'Submit to DGM' : `Forward to ${DESIGNATION_FULL[wfPos?.nextStage?.owner] || wfPos?.nextStage?.owner || 'DGM'}`), icon: Send, tone: 'primary', show: canSubmit, onClick: openSubmitOtp },
     { key: 'approve', label: 'Forward to GM', icon: CheckCircle, tone: 'primary', show: canApprove, onClick: openDgmApproveOtp },
     { key: 'sign', label: 'Recommend to CGM', icon: PenSquare, tone: 'primary', show: canSign, onClick: openSignOtp },
     { key: 'cgm', label: 'Forward to DOP', icon: Send, tone: 'primary', show: canCgmSubmit, onClick: openCgmSubmitOtp },
@@ -953,7 +977,7 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
     { key: 'agency', label: 'Finalize Agency', icon: Building2, tone: 'primary', show: canSelectAgency, onClick: () => confirmAction('select-agency') },
     { key: 'start-work', label: 'Start Work', icon: Hammer, tone: 'primary', show: canStartWork, onClick: () => confirmAction('start-work') },
     { key: 'complete-work', label: 'Complete Work', icon: CheckCircle, tone: 'primary', show: canCompleteWork, onClick: () => confirmAction('complete-work') },
-    { key: 'submit-bill', label: 'Prepare Bill', icon: Wallet, tone: 'primary', show: canSubmitBill, onClick: () => confirmAction('submit-bill') },
+    { key: 'submit-bill', label: 'Prepare Bill', icon: Wallet, tone: 'primary', show: canSubmitBill, onClick: prepareBill },
     { key: 'archive', label: 'Archive & Complete', icon: Archive, tone: 'primary', show: canArchive, onClick: () => confirmAction('archive') },
     { key: 'revert', label: 'Revert to Creator', icon: RotateCcw, tone: 'danger', show: canRevert, onClick: () => confirmAction('revert') },
   ].filter(x => x.show)
@@ -1118,6 +1142,11 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
               <p className="text-xs text-red-600 mt-1"><span className="font-medium">Reason:</span> {lastRevert.Remarks}</p>
             )}
             {estimate.ActionTakenReport && <p className="text-xs text-red-600 mt-1">ATR: {estimate.ActionTakenReport}</p>}
+            {!estimate.ActionTakenReport?.trim() && (
+              <p className="text-xs font-medium text-red-700 mt-2">
+                Add an Action Taken Report and save the estimate before you can resubmit it to the DGM.
+              </p>
+            )}
           </div>
         )
       })()}
@@ -1838,9 +1867,10 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
       {showConfirm && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => { setShowConfirm(false); setAction('') }}>
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="font-semibold text-[#0F172A] mb-2">Confirm {action.replace('-', ' ')}</h3>
+            <h3 className="font-semibold text-[#0F172A] mb-2">{action === 'revert' ? 'Confirm Revert to Creator' : `Confirm ${action.replace('-', ' ')}`}</h3>
             <p className="text-xs text-[#475569] mb-4">
-              {action === 'generate-fcn' ? 'The FCN number will be generated automatically from the system sequence. The estimate stays with the Director of Administration for Administrative Sanction.'
+              {action === 'revert' ? 'This returns the estimate to its creator. The creator must add an Action Taken Report before it can be resubmitted to the DGM.'
+                : action === 'generate-fcn' ? 'The FCN number will be generated automatically from the system sequence. The estimate stays with the Director of Administration for Administrative Sanction.'
                 : action === 'generate-admin-sanction' ? 'The Administrative Sanction number will be generated automatically from the system sequence and shown here after approval. The estimate is then ready for Technical Sanction assignment.'
                 : action === 'assign-ts-authority' ? 'Choose ONE competent technical authority for this estimate. They alone will approve the Technical Sanction.'
                 : action === 'return-ts' ? 'Returning will send the estimate back to the Director for re-assignment. Add remarks.'
@@ -1861,7 +1891,7 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
             )}
             <label htmlFor="remarks" className="sr-only">Remarks</label>
             <textarea id="remarks" name="remarks" value={remarks} onChange={e => setRemarks(e.target.value)}
-              className="ec-input w-full text-sm mb-3" rows={2}
+              className="ec-input w-full text-sm mb-3" rows={2} autoFocus={action !== 'assign-ts-authority'}
               placeholder={`Remarks for ${action} (optional)`} />
             <div className="flex items-center gap-2">
               <button onClick={() => { setShowConfirm(false); setAction(''); setTsAuthority('') }}
@@ -1922,7 +1952,7 @@ const canSubmitBill = isOwner && estimate.Status === 'WorkCompleted' && hasPermi
         onResend={sendSubmitOtp}
         onClose={() => setShowSubmitOtp(false)}
         onVerify={verifySubmitOtp}
-        remarkValue={remarks}
+        remarkValue={remarks || (estimate.Status === 'Reverted' ? estimate.ActionTakenReport : '')}
         successTitle="OTP Verified Successfully"
         successText={`Submitting estimate to ${DESIGNATION_FULL[wfPos?.nextStage?.owner] || 'next authority'}...`}
       />

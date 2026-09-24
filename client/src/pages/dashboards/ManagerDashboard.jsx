@@ -3,13 +3,15 @@ import { fmt, qs } from '../../components/dashboard/utils'
 import MetricCard from '../../components/dashboard/MetricCard'
 import QuickActions from '../../components/dashboard/QuickActions'
 import EstimatePipeline from '../../components/dashboard/EstimatePipeline'
+import BillingQueueSection from '../../components/dashboard/BillingQueueSection'
 import { buildPipelineStages } from './pipelineConfig'
 
-export default function ManagerDashboard({ queues, managerDashboard }) {
+export default function ManagerDashboard({ user, queues, managerDashboard }) {
   const md = managerDashboard || {}
   const breakdown = md.statusBreakdown || []
   const ops = md.operationalMetrics || {}
   const pipeline = md.pipeline || {}
+  const billsToCheck = md.billingMetrics?.pendingBillCheck || 0
 
   const breakdownMap = {}
   breakdown.forEach(r => { breakdownMap[r.Status] = r.count })
@@ -43,9 +45,17 @@ export default function ManagerDashboard({ queues, managerDashboard }) {
           <MetricCard label="Work Awarded" value={ops.awardedTenders || 0} icon={Trophy} bg="bg-teal-600" to="/tenders?status=Awarded&createdBy=me" tip={`View ${fmt(ops.awardedTenders)} awarded works`} format={fmt} />
           <MetricCard label="Work in Progress" value={ops.runningWorks || 0} icon={Hammer} bg="bg-orange-500" to={qs({ status: 'WorkStarted', createdBy: 'me' })} tip={`View ${fmt(ops.runningWorks)} running works`} format={fmt} />
           <MetricCard label="Work Completed" value={ops.completedWorks || 0} icon={CircleCheckBig} bg="bg-emerald-600" to={qs({ status: 'Completed', createdBy: 'me' })} tip={`View ${fmt(ops.completedWorks)} completed works`} format={fmt} />
-          <MetricCard label="Bill Submitted" value={ops.pendingBills || 0} icon={IndianRupee} bg="bg-purple-600" to="/billing?status=Submitted,ManagerApproved,DGMApproved,GMApproved&createdBy=me" tip={`View ${fmt(ops.pendingBills)} bills in workflow`} format={fmt} />
+          <MetricCard label="Bills to Check" value={billsToCheck} icon={IndianRupee} bg="bg-purple-600" to="/billing?owner=me" tip={`View ${fmt(billsToCheck)} bills awaiting your check`} format={fmt} />
         </div>
       </div>
+
+      <BillingQueueSection
+        title="Bills to Check"
+        subtitle={`${billsToCheck} bill${billsToCheck !== 1 ? 's' : ''} awaiting your approval`}
+        rows={md.billing || []}
+        viewLink="/billing?owner=me"
+        me={user}
+      />
     </div>
   )
 }

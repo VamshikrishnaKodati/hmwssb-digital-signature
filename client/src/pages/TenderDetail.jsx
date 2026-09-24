@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Plus, XCircle, Loader2,
-  ClipboardList, Users, Send, Lock, Eye, Unlock
+  ClipboardList, Users, Send, Lock, Eye, Unlock, ShieldCheck
 } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
@@ -57,6 +57,8 @@ export default function TenderDetail() {
   const [woForm, setWoForm] = useState('')
   const [agForm, setAgForm] = useState('')
   const [criteria, setCriteria] = useState({})
+  const [loa, setLoa] = useState(null)
+  const [loaLoading, setLoaLoading] = useState(false)
 
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [id])
 
@@ -84,6 +86,9 @@ export default function TenderDetail() {
       } else {
         setOpening(null)
       }
+      try {
+        setLoa((await api.get(`/loa/tender/${id}`)).data)
+      } catch (_) { setLoa(null) }
     } catch (err) {
       setError(err)
       toast.error(err.response?.data?.error || 'Failed to load tender details')
@@ -217,6 +222,15 @@ export default function TenderDetail() {
     } catch (err) { toast.error(err.response?.data?.error || 'Award failed') } finally { setBusy(false) }
   }
 
+  const generateLoa = async () => {
+    setLoaLoading(true)
+    try {
+      const res = await api.post(`/loa/tender/${id}/generate`)
+      toast.success(res.data.message || 'Letter of Award generated')
+      setLoa(res.data)
+    } catch (err) { toast.error(err.response?.data?.error || 'LOA generation failed') } finally { setLoaLoading(false) }
+  }
+
   const issueWorkOrder = async (e) => {
     e.preventDefault()
     setBusy(true)
@@ -329,7 +343,7 @@ export default function TenderDetail() {
         status={tender.EstimateStatus || 'TSApproved'}
         context={{ tenderStatus: eff }}
         showOwner
-        ownerName={tender.EvaluationAuthorityName || getStatusOwner(eff, { tenderStatus: eff }) || '—'}
+        ownerName={tender.CurrentOwnerName || getStatusOwner(eff, { tenderStatus: eff }) || '—'}
         sla={undefined}
       />
 
@@ -593,6 +607,35 @@ export default function TenderDetail() {
         </div>
       )}
 
+      {cap.canIssueLOA && (
+        <div className="ec-card">
+          <div className="ec-card-header"><span className="ec-card-title">Director Action — Letter of Award</span></div>
+          <div className="ec-card-body flex items-center justify-between gap-3 flex-wrap">
+            {loa ? (
+              <>
+                <p className="text-xs text-slate-600">
+                  <b>{loa.LOANumber}</b> generated for {loa.ContractorName || 'the awarded bidder'}
+                  {loa.AwardAmount ? ` — ${fmt(loa.AwardAmount)}` : ''}. The tender stays <b>Work Awarded</b> until the Work Order is issued.
+                </p>
+                <Link to={`/loa/${id}`} className="ec-btn-sm ec-btn-primary">View Letter of Award</Link>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-slate-600">
+                  Generate the official Letter of Award for the awarded bidder{' '}
+                  <b>{l1Bid?.ContractorName || '—'}</b>. This records the award and does not advance the tender — the
+                  Work Order remains the next action.
+                </p>
+                <button onClick={generateLoa} disabled={loaLoading} className="ec-btn-sm ec-btn-primary">
+                  {loaLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                  Generate Letter of Award
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {cap.canIssueWorkOrder && (
         <div className="ec-card">
           <div className="ec-card-header"><span className="ec-card-title">Director Action — Work Order</span></div>
@@ -622,8 +665,9 @@ export default function TenderDetail() {
       {['WorkAwarded', 'WorkOrderIssued', 'AgreementExecuted'].includes(eff) && (
         <div className="ec-card overflow-hidden">
           <div className="ec-card-header"><span className="ec-card-title">Post-Award</span></div>
-          <div className="ec-card-body grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="ec-card-body grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
             <div><p className="text-[10px] uppercase tracking-wide text-slate-400">Awarded Bidder</p><p className="font-medium">{l1Bid?.ContractorName || '—'}{l1Bid?.FinancialBidAmount ? ` — ${fmt(l1Bid.FinancialBidAmount)}` : ''}</p></div>
+            <div><p className="text-[10px] uppercase tracking-wide text-slate-400">Letter of Award</p><p className="font-medium">{loa ? <Link to={`/loa/${id}`} className="text-[#2563EB]">{loa.LOANumber}</Link> : '—'}</p></div>
             <div><p className="text-[10px] uppercase tracking-wide text-slate-400">Work Order</p><p className="font-medium">{tender.WorkOrderNo || '—'}{tender.WorkOrderIssuedAt ? ` (${fmtDateTime(tender.WorkOrderIssuedAt)})` : ''}</p></div>
             <div><p className="text-[10px] uppercase tracking-wide text-slate-400">Agreement</p><p className="font-medium">{tender.AgreementNo || '—'}{tender.AgreementExecutedAt ? ` (${fmtDateTime(tender.AgreementExecutedAt)})` : ''}</p></div>
           </div>

@@ -215,6 +215,7 @@ async function createAgency(estimateID) {
     PerformanceGuarantee: 100000,
     ContractorName: 'Alpha Contractor',
     ContactDetails: 'alpha@contractor.test',
+    WorkOrderNo: 'WO-RG-001', WorkOrderDate: new Date().toISOString().slice(0, 10),
   }, directorAdminToken);
   assert.equal(res.status, 201, `agency: ${JSON.stringify(res.body)}`);
   return res.body;
@@ -423,6 +424,7 @@ describe('Regression: tender status advances with the workflow (6.2)', () => {
   it('marks the tender Awarded when an agency is selected (no bid-award step)', async () => {
     const est = await createEstimate(managerToken, '6.2 Tender Status');
     await driveToFinalApproved(est.EstimateID);
+    await createAgency(est.EstimateID);
     const published = await request('POST', `/api/workflow/${est.EstimateID}/publish-tender`, {}, tenderOfficerToken);
     assert.equal(published.status, 200, `publish: ${JSON.stringify(published.body)}`);
     const afterPublish = await db.query('SELECT "Status" FROM "Tender" WHERE "EstimateID" = $1', [est.EstimateID]);

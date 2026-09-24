@@ -42,6 +42,8 @@ const WORKFLOW_SLA_MAP = {
   L1Identified:               { module: 'Tender', stage: 'Award' },
   WorkAwarded:                { module: 'Tender', stage: 'Award' },
   WorkOrderIssued:            { module: 'Tender', stage: 'Award' },
+  // Execution phase (estimate column SLA, started by startWork)
+  WorkStarted:                { module: 'Estimate', stage: 'WorkStarted' },
 };
 
 const FINANCE_SLA_MAP = {

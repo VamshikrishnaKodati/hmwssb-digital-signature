@@ -51,6 +51,10 @@ export function SlaPill({ sla, compact }) {
 
 const EDITOR_ROLES = ['BillingOfficer', 'SiteEngineer']
 
+export function isBillEditor(role) {
+  return EDITOR_ROLES.includes(role)
+}
+
 export const CHECK_STATUSES = {
   Manager: ['SubmittedToManager', 'ReturnedToManager'],
   DGM: ['ManagerChecked', 'ReturnedToDGM'],

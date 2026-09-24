@@ -1,4 +1,4 @@
--- Migration 045: Automatic, transaction-safe AS & TS sanction numbering.
+-- Migration 049: Automatic, transaction-safe AS & TS sanction numbering.
 -- AS and TS numbers are generated server-side from an atomic per-(Type, FinancialYear)
 -- counter (never decremented), so numbers are automatic, unique, sequential, permanent,
 -- and never reused after deletion/rejection. The format is configurable
